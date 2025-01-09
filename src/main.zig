@@ -31,7 +31,11 @@ pub fn main() !u8 {
     var app: app_t = undefined;
 
     app.instance = try renderer.init_instance();
+    defer vk.vkDestroyInstance(app.instance, null);
+
     app.surface = try renderer.create_surface(window, app.instance);
+    defer vk.vkDestroySurfaceKHR(app.instance, app.surface, null);
+
     app.physical_device = try renderer.select_physical_device(app);
 
     // print device info
@@ -39,6 +43,8 @@ pub fn main() !u8 {
 
     app.queues.queue_family_indices = try renderer.find_queue_family(app.surface, app.physical_device);
     app.device = try renderer.create_device_interface(app);
+    defer vk.vkDestroyDevice(app.device, null);
+    
     app.queues = try renderer.get_device_queue(app);
 
     // main loop
