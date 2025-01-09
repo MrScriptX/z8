@@ -35,16 +35,13 @@ pub fn main() !u8 {
     app.physical_device = try renderer.select_physical_device(app);
 
     // print device info
-    var device_properties: vk.VkPhysicalDeviceProperties = undefined;
-    vk.vkGetPhysicalDeviceProperties(app.physical_device, &device_properties);
+    renderer.print_device_info(app.physical_device);
 
-    const device_name = device_properties.deviceName;
-    const device_type = device_properties.deviceType;
-    const device_api_version = device_properties.apiVersion;
+    app.queues.queue_family_indices = try renderer.find_queue_family(app.surface, app.physical_device);
+    app.device = try renderer.create_device_interface(app);
+    app.queues = try renderer.get_device_queue(app);
 
-    const device_info = "Device: {s}\nType: {}\nAPI Version: {}\n";
-    std.debug.print(device_info, .{ device_name, device_type, device_api_version });
-
+    // main loop
     var quit = false;
     while (!quit) {
         var event: sdl.SDL_Event = undefined;

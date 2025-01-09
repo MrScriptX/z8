@@ -8,6 +8,13 @@ pub const app_t = struct {
     surface: vk.VkSurfaceKHR = undefined,
     physical_device: vk.VkPhysicalDevice = undefined,
     device: vk.VkDevice = undefined,
+    queues: queues_t = undefined,
+};
+
+pub const queues_t = struct {
+    graphics_queue: vk.VkQueue = undefined,
+    present_queue: vk.VkQueue = undefined,
+    queue_family_indices: queue_family_indices_t = undefined,
 };
 
 pub const queue_family_indices_t = struct {

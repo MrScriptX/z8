@@ -5,6 +5,8 @@ const vk = @cImport({
 const app_t = @import("../interface.zig").app_t;
 const queue_family_indices_t = @import("../interface.zig").queue_family_indices_t;
 const swapchain_details_t = @import("../interface.zig").swapchain_details_t;
+const queues_t = @import("../interface.zig").queues_t;
+const opt = @import("../options.zig");
 
 pub fn select_physical_device(app: app_t) !vk.VkPhysicalDevice {
     var device_count: u32 = 0;
@@ -37,6 +39,73 @@ pub fn select_physical_device(app: app_t) !vk.VkPhysicalDevice {
     }
 
     return physical_device.?;
+}
+
+pub fn print_device_info(device: vk.VkPhysicalDevice) void {
+    var device_properties: vk.VkPhysicalDeviceProperties = undefined;
+    vk.vkGetPhysicalDeviceProperties(device, &device_properties);
+
+    const device_name = device_properties.deviceName;
+    const device_type = device_properties.deviceType;
+    const device_api_version = device_properties.apiVersion;
+
+    const device_info = "Device: {s}\nType: {}\nAPI Version: {}\n";
+    std.debug.print(device_info, .{ device_name, device_type, device_api_version });
+}
+
+pub fn create_device_interface(app: app_t) !vk.VkDevice {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var queue_priority: f32 = 1.0;
+
+    const queue_create_infos = try allocator.alloc(vk.VkDeviceQueueCreateInfo, 2);
+    queue_create_infos[0] = vk.VkDeviceQueueCreateInfo{
+        .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = app.queues.queue_family_indices.graphics_family,
+        .queueCount = 1,
+        .pQueuePriorities = &queue_priority,
+    };
+
+    queue_create_infos[1] = vk.VkDeviceQueueCreateInfo{
+        .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = app.queues.queue_family_indices.present_family,
+        .queueCount = 1,
+        .pQueuePriorities = &queue_priority,
+    };
+
+    // create device info
+    const device_features = vk.VkPhysicalDeviceFeatures{
+        .samplerAnisotropy = vk.VK_TRUE,
+        .fillModeNonSolid = vk.VK_TRUE,
+    };
+
+    const device_create_info = vk.VkDeviceCreateInfo{
+        .sType = vk.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .queueCreateInfoCount = 2,
+        .pQueueCreateInfos = queue_create_infos.ptr,
+        .enabledExtensionCount = 1,
+        .ppEnabledExtensionNames = @ptrCast(&opt.extensions),
+        .pEnabledFeatures = &device_features,
+    };
+
+    var device: vk.VkDevice = undefined;
+    const result = vk.vkCreateDevice(app.physical_device, &device_create_info, null, &device);
+    if (result != vk.VK_SUCCESS) {
+        return std.debug.panic("Unable to create Vulkan device: {}", .{result});
+    }
+
+    return device;
+}
+
+pub fn get_device_queue(app: app_t) !queues_t {
+    var queues = queues_t{ .queue_family_indices = app.queues.queue_family_indices };
+
+    vk.vkGetDeviceQueue(app.device, queues.queue_family_indices.graphics_family, 0, &queues.graphics_queue);
+    vk.vkGetDeviceQueue(app.device, queues.queue_family_indices.present_family, 0, &queues.present_queue);
+
+    return queues;
 }
 
 fn check_device(app: app_t, device: vk.VkPhysicalDevice) !bool {
@@ -91,7 +160,7 @@ fn check_device(app: app_t, device: vk.VkPhysicalDevice) !bool {
     return true;
 }
 
-fn find_queue_family(surface: vk.VkSurfaceKHR, physical_device: vk.VkPhysicalDevice) !queue_family_indices_t {
+pub fn find_queue_family(surface: vk.VkSurfaceKHR, physical_device: vk.VkPhysicalDevice) !queue_family_indices_t {
     var queue_family_count: u32 = 0;
     vk.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
 
