@@ -2,10 +2,10 @@ const std = @import("std");
 const vk = @cImport({
     @cInclude("vulkan/vulkan.h");
 });
-const app_t = @import("../interface.zig").app_t;
-const queue_family_indices_t = @import("../interface.zig").queue_family_indices_t;
-const swapchain_details_t = @import("../interface.zig").swapchain_details_t;
-const queues_t = @import("../interface.zig").queues_t;
+const app_t = @import("types.zig").app_t;
+const queue_family_indices_t = @import("types.zig").queue_family_indices_t;
+const swapchain_details_t = @import("types.zig").swapchain_details_t;
+const queues_t = @import("types.zig").queues_t;
 const opt = @import("../options.zig");
 
 pub fn select_physical_device(app: app_t) !vk.VkPhysicalDevice {

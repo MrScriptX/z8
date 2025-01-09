@@ -5,7 +5,7 @@ const sdl = @cImport({
 const c = @cImport({
     @cInclude("vulkan/vulkan.h");
 });
-const app_t = @import("../interface.zig").app_t;
+const app_t = @import("types.zig").app_t;
 const renderer = struct {
     usingnamespace @import("app.zig");
     usingnamespace @import("window.zig");
