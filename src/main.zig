@@ -1,17 +1,9 @@
 const std = @import("std");
-const app_t = @import("interface.zig").app_t;
 const sdl = @cImport({
     @cInclude("SDL3/SDL.h");
     @cInclude("SDL3/SDL_vulkan.h");
 });
-const vk = @cImport({
-    @cInclude("vulkan/vulkan.h");
-});
-const renderer = struct {
-    usingnamespace @import("renderer/app.zig");
-    usingnamespace @import("renderer/window.zig");
-    usingnamespace @import("renderer/device.zig");
-};
+const renderer = @import("renderer/renderer.zig");
 
 pub fn main() !u8 {
     const init = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
@@ -28,24 +20,8 @@ pub fn main() !u8 {
     }
     defer sdl.SDL_DestroyWindow(window);
 
-    var app: app_t = undefined;
-
-    app.instance = try renderer.init_instance();
-    defer vk.vkDestroyInstance(app.instance, null);
-
-    app.surface = try renderer.create_surface(window, app.instance);
-    defer vk.vkDestroySurfaceKHR(app.instance, app.surface, null);
-
-    app.physical_device = try renderer.select_physical_device(app);
-
-    // print device info
-    renderer.print_device_info(app.physical_device);
-
-    app.queues.queue_family_indices = try renderer.find_queue_family(app.surface, app.physical_device);
-    app.device = try renderer.create_device_interface(app);
-    defer vk.vkDestroyDevice(app.device, null);
-    
-    app.queues = try renderer.get_device_queue(app);
+    const app = try renderer.init(window);
+    defer renderer.deinit(app);
 
     // main loop
     var quit = false;
