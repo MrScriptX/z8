@@ -9,6 +9,7 @@ const sdl = @cImport({
 const types = @import("types.zig");
 const app_t = types.app_t;
 const swapchain_t = types.swapchain_t;
+const swapchain_image_t = types.swapchain_image_t;
 
 
 const swapchain_details_t = struct {
@@ -88,8 +89,6 @@ pub fn create_swapchain(app: app_t, window_extent: c.VkExtent2D) !swapchain_t {
     };
 
     var swapchain: swapchain_t = undefined;
-    swapchain.init();
-
     const result = c.vkCreateSwapchainKHR(app.device, &swapchain_info, null, &swapchain.handle);
     if (result != c.VK_SUCCESS) {
         return std.debug.panic("Failed to create swapchain: {}", .{result});
@@ -101,7 +100,7 @@ pub fn create_swapchain(app: app_t, window_extent: c.VkExtent2D) !swapchain_t {
     return swapchain;
 }
 
-pub fn create_swapchain_images(app: app_t, swapchain: swapchain_t) ![]c.VkImage {
+pub fn create_swapchain_images(app: app_t, swapchain: swapchain_t) !swapchain_image_t {
     var image_count: u32 = 0;
     _ = c.vkGetSwapchainImagesKHR(app.device, swapchain.handle, &image_count, null);
 
@@ -115,7 +114,41 @@ pub fn create_swapchain_images(app: app_t, swapchain: swapchain_t) ![]c.VkImage 
         return std.debug.panic("Failed to create swapchain images: {}", .{result});
     }
 
-    return images;
+    // create views
+    var image_views = std.ArrayList(c.VkImageView).init(std.heap.page_allocator);
+    defer image_views.deinit();
+
+    for (images) |image| {
+        const image_view_info = c.VkImageViewCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = image,
+            .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
+            .format = swapchain.format,
+            .subresourceRange = c.VkImageSubresourceRange {
+                .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+		        .levelCount = 1,
+		        .baseArrayLayer = 0,
+		        .layerCount = 1,
+            },
+        };
+
+        var image_view: c.VkImageView = undefined;
+        const success = c.vkCreateImageView(app.device, &image_view_info, null, &image_view);
+        if (success != c.VK_SUCCESS) {
+            return std.debug.panic("Failed to create swapchain image view: {}", .{success});
+        }
+
+        try image_views.append(image_view);
+    }
+
+    // build result
+    var images_obj: swapchain_image_t = undefined;
+    try images_obj.init(image_count);
+    images_obj.images = images;
+    images_obj.image_views = image_views.items;
+
+    return images_obj;
 }
 
 fn query_swapchain_support(app: app_t) !swapchain_details_t {

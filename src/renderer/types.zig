@@ -55,26 +55,23 @@ pub const swapchain_t = struct {
     handle: vk.VkSwapchainKHR = undefined,
     format: vk.VkFormat = undefined,
     extent: vk.VkExtent2D = undefined,
-    images: []vk.VkImage = undefined,
-    images_view: []vk.VkImageView = undefined,
+    images: swapchain_image_t = undefined,
+};
 
+pub const swapchain_image_t = struct {
+    images: []vk.VkImage = undefined,
+    image_views: []vk.VkImageView = undefined,
     arena: std.heap.ArenaAllocator = undefined,
 
-    pub fn init(self: *swapchain_t) void {
+    pub fn init(self: *swapchain_image_t, size: usize) !void {
         self.arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    }
-
-    pub fn resize_images(self: *swapchain_t, size: usize) !void {
+        
         const allocator = self.arena.allocator();
         self.images = try allocator.alloc(vk.VkImage, size);
+        self.image_views = try allocator.alloc(vk.VkImageView, size);
     }
 
-    pub fn resize_images_view(self: *swapchain_t, size: usize) !void {
-        const allocator = self.arena.allocator();
-        self.images_view = try allocator.alloc(vk.VkImageView, size);
-    }
-
-    pub fn deinit(self: *const swapchain_t) void {
+    pub fn deinit(self: *const swapchain_image_t) void {
         self.arena.deinit();
     }
 };

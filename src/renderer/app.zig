@@ -20,7 +20,7 @@ pub fn init_instance() !vk.VkInstance {
 
     // get required extensions
     var extension_count: u32 = 0;
-    const required_extensions = sdl.SDL_Vulkan_GetInstanceExtensions(&extension_count);
+    const required_extensions = sdl.SDL_Vulkan_GetInstanceExtensions(&extension_count);// VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 
     const instance_info = vk.VkInstanceCreateInfo{
         .sType = vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,

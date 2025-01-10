@@ -1,3 +1,4 @@
+const std = @import("std");
 const sdl = @cImport({
     @cInclude("SDL3/SDL.h");
     @cInclude("SDL3/SDL_vulkan.h");
@@ -33,14 +34,22 @@ pub fn init(window: ?*sdl.SDL_Window) !app_t {
         .width = 800,
         .height = 600,
     };
-    var swapchain = try renderer.create_swapchain(app, window_extent);
+    var swapchain = try renderer.create_swapchain(app, window_extent);    
     swapchain.images = try renderer.create_swapchain_images(app, swapchain);
 
     return app;
 }
 
 pub fn deinit(app: app_t) void {
+    // clean_swapchain(app);
+
     c.vkDestroyDevice(app.device, null);
     c.vkDestroySurfaceKHR(app.instance, app.surface, null);
     c.vkDestroyInstance(app.instance, null);
 }
+
+// pub fn clean_swapchain(app: *app_t, swapchain: *swapchain_t) void {
+//     c.vkDeviceWaitIdle(app.device);
+//     c.vkQueueWaitIdle(app.queues.graphics_queue);
+// 	c.vkQueueWaitIdle(app.queues.present_queue);
+// }
