@@ -10,6 +10,7 @@ const renderer = struct {
     usingnamespace @import("app.zig");
     usingnamespace @import("window.zig");
     usingnamespace @import("device.zig");
+    usingnamespace @import("swapchain.zig");
 };
 
 pub fn init(window: ?*sdl.SDL_Window) !app_t {
@@ -27,6 +28,13 @@ pub fn init(window: ?*sdl.SDL_Window) !app_t {
     app.device = try renderer.create_device_interface(app);
     
     app.queues = try renderer.get_device_queue(app);
+
+    const window_extent = c.VkExtent2D{
+        .width = 800,
+        .height = 600,
+    };
+    var swapchain = try renderer.create_swapchain(app, window_extent);
+    swapchain.images = try renderer.create_swapchain_images(app, swapchain);
 
     return app;
 }
