@@ -13,6 +13,7 @@ const renderer = struct {
     usingnamespace @import("window.zig");
     usingnamespace @import("device.zig");
     usingnamespace @import("swapchain.zig");
+    usingnamespace @import("depth.zig");
 };
 
 pub const renderer_t = struct {
