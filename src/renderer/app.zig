@@ -22,15 +22,28 @@ pub fn init_instance() !vk.VkInstance {
     var extension_count: u32 = 0;
     const required_extensions = sdl.SDL_Vulkan_GetInstanceExtensions(&extension_count);// VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 
+    var extensions = std.ArrayList([*c]const u8).init(std.heap.page_allocator);
+    for (0..extension_count) |i| {
+        try extensions.append(required_extensions[i]);
+    }
+
+    try extensions.append("VK_EXT_debug_utils");
+    extension_count += 1;
+
+    // validation layer
+    const layers = [_][]const u8{
+        "VK_LAYER_KHRONOS_validation"
+    };
+
     const instance_info = vk.VkInstanceCreateInfo{
         .sType = vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = null,
         .flags = 0,
         .pApplicationInfo = &app_info,
-        .enabledLayerCount = 0,
-        .ppEnabledLayerNames = null,
+        .enabledLayerCount = 1,
+        .ppEnabledLayerNames = @ptrCast(&layers),
         .enabledExtensionCount = extension_count,
-        .ppEnabledExtensionNames = required_extensions,
+        .ppEnabledExtensionNames = extensions.items.ptr,
     };
 
     var instance: vk.VkInstance = undefined;
