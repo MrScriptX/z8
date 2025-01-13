@@ -54,26 +54,29 @@ pub fn print_device_info(device: vk.VkPhysicalDevice) void {
 }
 
 pub fn create_device_interface(app: app_t) !vk.VkDevice {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
     var queue_priority: f32 = 1.0;
+    
+    var queue_create_infos = std.ArrayList(vk.VkDeviceQueueCreateInfo).init(std.heap.page_allocator);
 
-    const queue_create_infos = try allocator.alloc(vk.VkDeviceQueueCreateInfo, 2);
-    queue_create_infos[0] = vk.VkDeviceQueueCreateInfo{
+    const graphic_queue_create_info = vk.VkDeviceQueueCreateInfo{
         .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = app.queues.queue_family_indices.graphics_family,
         .queueCount = 1,
         .pQueuePriorities = &queue_priority,
     };
 
-    queue_create_infos[1] = vk.VkDeviceQueueCreateInfo{
-        .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = app.queues.queue_family_indices.present_family,
-        .queueCount = 1,
-        .pQueuePriorities = &queue_priority,
-    };
+    try queue_create_infos.append(graphic_queue_create_info);
+
+    if (app.queues.queue_family_indices.graphics_family != app.queues.queue_family_indices.present_family) {
+        const present_qeueu_create_info = vk.VkDeviceQueueCreateInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = app.queues.queue_family_indices.present_family,
+            .queueCount = 1,
+            .pQueuePriorities = &queue_priority,
+        };
+
+        try queue_create_infos.append(present_qeueu_create_info);
+    }
 
     // create device info
     const device_features = vk.VkPhysicalDeviceFeatures{
@@ -83,8 +86,8 @@ pub fn create_device_interface(app: app_t) !vk.VkDevice {
 
     const device_create_info = vk.VkDeviceCreateInfo{
         .sType = vk.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .queueCreateInfoCount = 2,
-        .pQueueCreateInfos = queue_create_infos.ptr,
+        .queueCreateInfoCount = @intCast(queue_create_infos.items.len),
+        .pQueueCreateInfos = queue_create_infos.items.ptr,
         .enabledExtensionCount = 1,
         .ppEnabledExtensionNames = @ptrCast(&opt.extensions),
         .pEnabledFeatures = &device_features,
