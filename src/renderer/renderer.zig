@@ -40,6 +40,7 @@ pub const renderer_t = struct {
         };
         self.swapchain = try renderer.create_swapchain(self.app, window_extent);    
         self.swapchain.images = try renderer.create_swapchain_images(self.app, self.swapchain);
+        self.swapchain.depth = try renderer.create_depth_ressources(self.app, self.swapchain);
     }
 
     pub fn deinit(self: *renderer_t) void {
@@ -54,6 +55,10 @@ pub const renderer_t = struct {
         _ = c.vkDeviceWaitIdle(self.app.device);
         _ = c.vkQueueWaitIdle(self.app.queues.graphics_queue);
 	    _ = c.vkQueueWaitIdle(self.app.queues.present_queue);
+
+        c.vkDestroyImageView(self.app.device, self.swapchain.depth.view, null);
+	    c.vkDestroyImage(self.app.device, self.swapchain.depth.image, null);
+	    c.vkFreeMemory(self.app.device, self.swapchain.depth.mem, null);
 
         for (self.swapchain.images.image_views) |image_view| {
             c.vkDestroyImageView(self.app.device, image_view, null);

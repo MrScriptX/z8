@@ -10,6 +10,7 @@ const types = @import("types.zig");
 const app_t = types.app_t;
 const swapchain_t = types.swapchain_t;
 const swapchain_image_t = types.swapchain_image_t;
+const depth_resources_t = types.depth_resources_t;
 
 
 const swapchain_details_t = struct {
@@ -143,6 +144,110 @@ pub fn create_swapchain_images(app: app_t, swapchain: swapchain_t) !swapchain_im
     return images_obj;
 }
 
+pub fn create_depth_ressources(app: app_t, swapchain: swapchain_t) !depth_resources_t {
+    const extent = c.VkExtent3D{
+        .depth = 1,
+        .height = swapchain.extent.height,
+        .width = swapchain.extent.width
+    };
+
+    const candidates = [_]c.VkFormat {
+        c.VK_FORMAT_D32_SFLOAT,
+        c.VK_FORMAT_D32_SFLOAT_S8_UINT,
+        c.VK_FORMAT_D24_UNORM_S8_UINT
+    };
+    const format = try find_supported_format(app.physical_device, &candidates, c.VK_IMAGE_TILING_OPTIMAL, c.VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+    const image = try create_image(app.device, extent, format, c.VK_IMAGE_TILING_OPTIMAL, c.VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    const image_mem = try create_image_memory(app.device, app.physical_device, image, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    const image_view = try create_image_view(app.device, image, format, c.VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    const depth_resources = depth_resources_t{
+        .image = image,
+        .mem = image_mem,
+        .view = image_view,
+    };
+    return depth_resources;
+}
+
+fn create_image(device: c.VkDevice, extent: c.VkExtent3D, format: c.VkFormat, tiling: c.VkImageTiling, usage: c.VkImageUsageFlags) !c.VkImage {
+    const image_info = c.VkImageCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+	    .imageType = c.VK_IMAGE_TYPE_2D,
+	    .extent = extent,
+	    .mipLevels = 1,
+	    .arrayLayers = 1,
+	    .format = format,
+	    .tiling = tiling,
+	    .initialLayout = c.VK_IMAGE_LAYOUT_UNDEFINED,
+	    .usage = usage,
+	    .sharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
+	    .samples = c.VK_SAMPLE_COUNT_1_BIT,
+	    .flags = 0,
+    };
+	
+	var image: c.VkImage = undefined;
+	if (c.vkCreateImage(device, &image_info, null, &image) != c.VK_SUCCESS)
+		return std.debug.panic("failed to create image !", .{});
+
+	return image;
+}
+
+fn create_image_view(device: c.VkDevice, image: c.VkImage, format: c.VkFormat, flags: c.VkImageAspectFlags) !c.VkImageView {
+    const view_info = c.VkImageViewCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+	    .image = image,
+	    .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
+	    .format = format,
+	    .subresourceRange = c.VkImageSubresourceRange{
+            .aspectMask = flags,
+	        .baseMipLevel = 0,
+	        .levelCount = 1,
+	        .baseArrayLayer = 0,
+	        .layerCount = 1,
+        },
+    };
+
+	var image_view: c.VkImageView = undefined;
+	if (c.vkCreateImageView(device, &view_info, null, &image_view) != c.VK_SUCCESS)
+		return std.debug.panic("failed to create texture image view!", .{});
+
+	return image_view;
+}
+
+fn create_image_memory(device: c.VkDevice, physical_device: c.VkPhysicalDevice, image: c.VkImage, properties: c.VkMemoryPropertyFlags) !c.VkDeviceMemory {
+    var requirements: c.VkMemoryRequirements = undefined;
+	c.vkGetImageMemoryRequirements(device, image, &requirements);
+
+	const alloc_info = c.VkMemoryAllocateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+	    .allocationSize = requirements.size,
+	    .memoryTypeIndex = try find_memory_type(physical_device, requirements.memoryTypeBits, properties),
+    };
+
+	var memory: c.VkDeviceMemory = undefined;
+	if (c.vkAllocateMemory(device, &alloc_info, null, &memory) != c.VK_SUCCESS)
+		return std.debug.panic("failed to allocate image memory !", .{});
+
+	_ = c.vkBindImageMemory(device, image, memory, 0);
+
+	return memory;
+}
+
+fn find_memory_type(physical_device: c.VkPhysicalDevice, type_filter: u32, properties: c.VkMemoryPropertyFlags) !u32 {
+    var mem_properties: c.VkPhysicalDeviceMemoryProperties = undefined;
+	c.vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
+
+	for (0..mem_properties.memoryTypeCount) |i| {
+        const v: u32 = 1;
+		if (type_filter & (v << @intCast(i)) > 0 and (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+			return @intCast(i);
+		}
+	}
+
+	return std.debug.panic("failed to find suitable memory type!", .{});
+}
+
 fn query_swapchain_support(app: app_t) !swapchain_details_t {
     var details: swapchain_details_t = undefined;
     details.init();
@@ -211,4 +316,19 @@ fn select_extent(capabilities: c.VkSurfaceCapabilitiesKHR, current_extent: c.VkE
     };
 
     return actual_extent;
+}
+
+fn find_supported_format(device: c.VkPhysicalDevice, candidates: []const c.VkFormat, tiling: c.VkImageTiling, flags: c.VkFormatFeatureFlags) !c.VkFormat {
+    for (candidates) |format| {
+        var properties: c.VkFormatProperties = undefined;
+        c.vkGetPhysicalDeviceFormatProperties(device, format, &properties);
+        if (tiling == c.VK_IMAGE_TILING_LINEAR and (properties.linearTilingFeatures & flags) == flags) {
+            return format;
+        }
+        else if (tiling == c.VK_IMAGE_TILING_OPTIMAL and (properties.optimalTilingFeatures & flags) == flags) {
+			return format;
+		}
+    }
+
+    std.debug.panic("No supported format !", .{});
 }

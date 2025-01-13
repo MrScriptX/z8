@@ -56,6 +56,7 @@ pub const swapchain_t = struct {
     format: vk.VkFormat = undefined,
     extent: vk.VkExtent2D = undefined,
     images: swapchain_image_t = undefined,
+    depth: depth_resources_t = undefined
 };
 
 pub const swapchain_image_t = struct {
@@ -74,4 +75,10 @@ pub const swapchain_image_t = struct {
     pub fn deinit(self: *const swapchain_image_t) void {
         self.arena.deinit();
     }
+};
+
+pub const depth_resources_t = struct {
+    image: vk.VkImage = undefined,
+    mem: vk.VkDeviceMemory = undefined,
+    view: vk.VkImageView = undefined
 };
