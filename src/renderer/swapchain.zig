@@ -110,8 +110,6 @@ pub fn create_swapchain_images(app: app_t, swapchain: swapchain_t) !swapchain_im
 
     // create views
     var image_views = std.ArrayList(c.VkImageView).init(std.heap.page_allocator);
-    defer image_views.deinit();
-
     for (images) |image| {
         const image_view_info = c.VkImageViewCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,

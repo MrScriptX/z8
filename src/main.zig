@@ -3,7 +3,7 @@ const sdl = @cImport({
     @cInclude("SDL3/SDL.h");
     @cInclude("SDL3/SDL_vulkan.h");
 });
-const renderer = @import("renderer/renderer.zig");
+const renderer_t = @import("renderer/renderer.zig").renderer_t;
 
 pub fn main() !u8 {
     const init = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
@@ -20,9 +20,10 @@ pub fn main() !u8 {
     }
     defer sdl.SDL_DestroyWindow(window);
 
-    const app = try renderer.init(window);
-    defer renderer.deinit(app);
-
+    var renderer = renderer_t{};
+    try renderer.init(window);
+    defer renderer.deinit();
+    
     // main loop
     var quit = false;
     while (!quit) {
