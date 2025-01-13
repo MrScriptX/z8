@@ -52,24 +52,7 @@ pub fn create_swapchain(app: app_t, window_extent: c.VkExtent2D) !swapchain_t {
         image_count = details.capabilities.maxImageCount;
     }
 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var image_sharing_mode = c.VK_SHARING_MODE_EXCLUSIVE;
-    var queue_family_index_count: u32 = 0;
-    var pqueue_family_indices: ?[]u32 = null;
-    if (app.queues.queue_family_indices.graphics_family != app.queues.queue_family_indices.present_family)
-    {
-        image_sharing_mode = c.VK_SHARING_MODE_CONCURRENT;
-        queue_family_index_count = 2;
-        pqueue_family_indices = try allocator.alloc(u32, 2);
-        const unwrapped_indices = pqueue_family_indices orelse unreachable;
-        unwrapped_indices[0] = app.queues.queue_family_indices.graphics_family;
-        unwrapped_indices[1] = app.queues.queue_family_indices.present_family;
-    }
-
-    const swapchain_info = c.VkSwapchainCreateInfoKHR {
+    var swapchain_info = c.VkSwapchainCreateInfoKHR {
         .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = app.surface,
         .minImageCount = image_count,
@@ -79,14 +62,25 @@ pub fn create_swapchain(app: app_t, window_extent: c.VkExtent2D) !swapchain_t {
         .imageArrayLayers = 1,
         .imageUsage = c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         .imageSharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = queue_family_index_count,
-        .pQueueFamilyIndices = pqueue_family_indices.?.ptr,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = null,
         .preTransform = details.capabilities.currentTransform,
         .compositeAlpha = c.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode = present_mode,
         .clipped = c.VK_TRUE,
         .oldSwapchain = @ptrCast(c.VK_NULL_HANDLE),
     };
+
+    if (app.queues.queue_family_indices.graphics_family != app.queues.queue_family_indices.present_family) {
+        const pqueue_family_indices: []const u32 = &.{ 
+            app.queues.queue_family_indices.graphics_family,
+            app.queues.queue_family_indices.present_family
+        };
+
+        swapchain_info.imageSharingMode = c.VK_SHARING_MODE_CONCURRENT;
+        swapchain_info.queueFamilyIndexCount = 2;
+        swapchain_info.pQueueFamilyIndices = pqueue_family_indices.ptr;
+    }
 
     var swapchain: swapchain_t = undefined;
     const result = c.vkCreateSwapchainKHR(app.device, &swapchain_info, null, &swapchain.handle);
