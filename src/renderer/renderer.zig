@@ -14,11 +14,19 @@ const renderer = struct {
     usingnamespace @import("device.zig");
     usingnamespace @import("swapchain.zig");
     usingnamespace @import("depth.zig");
+    usingnamespace @import("command_buffer.zig");
+    usingnamespace @import("syncs.zig");
 };
 
 pub const renderer_t = struct {
     app: app_t = undefined,
     swapchain: swapchain_t = undefined,
+    command_pool: c.VkCommandPool = undefined,
+    command_buffers: []c.VkCommandBuffer = undefined,
+    render_fence: c.VkFence = undefined,
+    render_finished_sem: c.VkSemaphore = undefined,
+    image_available_sem: c.VkSemaphore = undefined,
+
 
     pub fn init(self: *renderer_t, window: ?*sdl.SDL_Window) !void {
         self.app.instance = try renderer.init_instance();
@@ -42,10 +50,21 @@ pub const renderer_t = struct {
         self.swapchain = try renderer.create_swapchain(self.app, window_extent);    
         self.swapchain.images = try renderer.create_swapchain_images(self.app, self.swapchain);
         self.swapchain.depth = try renderer.create_depth_ressources(self.app, self.swapchain);
+
+        self.command_pool = try renderer.create_command_pool(self.app.device, self.app.queues.queue_family_indices.graphics_family);
+        self.command_buffers = try renderer.create_command_buffer(3, self.app.device, self.command_pool);
+
+        self.render_fence = try renderer.create_fence(self.app.device);
+        self.render_finished_sem = try renderer.create_semaphore(self.app.device);
+        self.image_available_sem = try renderer.create_semaphore(self.app.device);
     }
 
     pub fn deinit(self: *renderer_t) void {
         self.clean_swapchain();
+
+        c.vkDestroySemaphore(self.app.device, self.image_available_sem, null);
+        c.vkDestroySemaphore(self.app.device, self.render_finished_sem, null);
+        c.vkDestroyFence(self.app.device, self.render_fence, null);
 
         c.vkDestroyDevice(self.app.device, null);
         c.vkDestroySurfaceKHR(self.app.instance, self.app.surface, null);
@@ -65,6 +84,12 @@ pub const renderer_t = struct {
             c.vkDestroyImageView(self.app.device, image_view, null);
         }
 
+        c.vkDestroyCommandPool(self.app.device, self.command_pool, null);
+
         c.vkDestroySwapchainKHR(self.app.device, self.swapchain.handle, null);
+    }
+
+    pub fn draw() void {
+
     }
 };
