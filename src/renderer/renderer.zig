@@ -51,6 +51,7 @@ pub const renderer_t = struct {
     command_buffers: [3]c.VkCommandBuffer = undefined,
     frames: [3]frame_t = undefined,
     current_frame: u32 = 0,
+    last_frame: u32 = 0,
 
     pub fn init(self: *renderer_t, window: ?*sdl.SDL_Window) !void {
         self.app.instance = try renderer.init_instance();
@@ -128,8 +129,9 @@ pub const renderer_t = struct {
         _ = c.vkWaitForFences(self.app.device, 1, &self.frames[self.current_frame].render_fence, c.VK_TRUE, 1000);
         _ = c.vkResetFences(self.app.device, 1, &self.frames[self.current_frame].render_fence);
 
-        var image_index: u32 = 0;
-        _ = c.vkAcquireNextImageKHR(self.app.device, self.swapchain.handle, 1000, self.frames[self.current_frame].image_available_sem, null, &image_index);
+        // acquire next image
+        self.last_frame = self.current_frame;
+        _ = c.vkAcquireNextImageKHR(self.app.device, self.swapchain.handle, 1000, self.frames[self.current_frame].image_available_sem, null, &self.current_frame);
 
         // begin command buffer
         const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
