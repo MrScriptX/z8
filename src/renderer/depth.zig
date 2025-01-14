@@ -30,6 +30,7 @@ pub fn create_depth_ressources(app: app_t, swapchain: swapchain_t) !depth_resour
         .image = image,
         .mem = image_mem,
         .view = image_view,
+        .format = format,
     };
     return depth_resources;
 }

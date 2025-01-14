@@ -80,5 +80,6 @@ pub const swapchain_image_t = struct {
 pub const depth_resources_t = struct {
     image: vk.VkImage = undefined,
     mem: vk.VkDeviceMemory = undefined,
-    view: vk.VkImageView = undefined
+    view: vk.VkImageView = undefined,
+    format: vk.VkFormat = undefined,
 };

@@ -16,12 +16,14 @@ const renderer = struct {
     usingnamespace @import("depth.zig");
     usingnamespace @import("command_buffer.zig");
     usingnamespace @import("syncs.zig");
+    usingnamespace @import("init.zig");
 };
 
 const frame_t = struct {
     render_fence: c.VkFence = undefined,
     render_finished_sem: c.VkSemaphore = undefined,
     image_available_sem: c.VkSemaphore = undefined,
+    buffer: c.VkFramebuffer = undefined,
 
     pub fn init(self: *frame_t, device: c.VkDevice) !void {
         self.render_fence = try renderer.create_fence(device);
@@ -44,6 +46,7 @@ const frame_t = struct {
 pub const renderer_t = struct {
     app: app_t = undefined,
     swapchain: swapchain_t = undefined,
+    renderpass: c.VkRenderPass = undefined,
     command_pool: c.VkCommandPool = undefined,
     command_buffers: [3]c.VkCommandBuffer = undefined,
     frames: [3]frame_t = undefined,
@@ -72,11 +75,16 @@ pub const renderer_t = struct {
         self.swapchain.images = try renderer.create_swapchain_images(self.app, self.swapchain);
         self.swapchain.depth = try renderer.create_depth_ressources(self.app, self.swapchain);
 
+        self.renderpass = try renderer.create_render_pass(self.swapchain.format, self.swapchain.depth.format, self.app.device);
+
         self.command_pool = try renderer.create_command_pool(self.app.device, self.app.queues.queue_family_indices.graphics_family);
         self.command_buffers = try renderer.create_command_buffer(3, self.app.device, self.command_pool);
 
-        for (&self.frames) |*frame| {
+        for (&self.frames, 0..self.frames.len) |*frame, i| {
             try frame.init(self.app.device);
+
+            var attachements = [2]c.VkImageView{ self.swapchain.images.image_views[i], self.swapchain.depth.view };
+            frame.buffer = try renderer.create_framebuffer(self.app.device, self.renderpass, &attachements, self.swapchain.extent);
         }
     }
 
@@ -144,9 +152,11 @@ pub const renderer_t = struct {
 
         const render_pass_begin_info = c.VkRenderPassBeginInfo {
             .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = self.renderpass,
+            .framebuffer = self.frames[self.current_frame].buffer,
             .renderArea = render_area,
             .clearValueCount = clear_values.len,
-            .pClearValues = @ptrCast(&clear_values)
+            .pClearValues = @ptrCast(&clear_values),
         };
 
         _ = c.vkCmdBeginRenderPass(current_cmd_buffer.*, &render_pass_begin_info, c.VK_SUBPASS_CONTENTS_INLINE);
