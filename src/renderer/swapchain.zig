@@ -7,7 +7,7 @@ const sdl = @cImport({
     @cInclude("SDL3/SDL_vulkan.h");
 });
 const types = @import("types.zig");
-const app_t = types.app_t;
+const app_t = @import("app.zig").app_t;
 const swapchain_t = types.swapchain_t;
 const swapchain_image_t = types.swapchain_image_t;
 const depth_resources_t = types.depth_resources_t;

@@ -3,14 +3,6 @@ const vk = @cImport({
     @cInclude("vulkan/vulkan.h");
 });
 
-pub const app_t = struct {
-    instance: vk.VkInstance = undefined,
-    surface: vk.VkSurfaceKHR = undefined,
-    physical_device: vk.VkPhysicalDevice = undefined,
-    device: vk.VkDevice = undefined,
-    queues: queues_t = undefined,
-};
-
 pub const queues_t = struct {
     graphics_queue: vk.VkQueue = undefined,
     present_queue: vk.VkQueue = undefined,

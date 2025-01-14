@@ -6,41 +6,19 @@ const sdl = @cImport({
 const c = @cImport({
     @cInclude("vulkan/vulkan.h");
 });
-const app_t = @import("types.zig").app_t;
+const queue = @import("queue_family.zig");
+const utils = @import("utils.zig");
+const app_t = @import("app.zig").app_t;
 const swapchain_t = @import("types.zig").swapchain_t;
+const frame_t = @import("frames.zig").frame_t;
 const renderer = struct {
     usingnamespace @import("app.zig");
-    usingnamespace @import("window.zig");
-    usingnamespace @import("device.zig");
     usingnamespace @import("swapchain.zig");
     usingnamespace @import("depth.zig");
     usingnamespace @import("command_buffer.zig");
-    usingnamespace @import("syncs.zig");
-    usingnamespace @import("init.zig");
 };
-
-const frame_t = struct {
-    render_fence: c.VkFence = undefined,
-    render_finished_sem: c.VkSemaphore = undefined,
-    image_available_sem: c.VkSemaphore = undefined,
-    buffer: c.VkFramebuffer = undefined,
-
-    pub fn init(self: *frame_t, device: c.VkDevice) !void {
-        self.render_fence = try renderer.create_fence(device);
-        self.render_finished_sem = try renderer.create_semaphore(device);
-        self.image_available_sem = try renderer.create_semaphore(device);
-    }
-
-    pub fn deinit(self: *frame_t, device: c.VkDevice) void {
-        c.vkDestroySemaphore(device, self.image_available_sem, null);
-        self.image_available_sem = undefined;
-
-        c.vkDestroySemaphore(device, self.render_finished_sem, null);
-        self.render_finished_sem = undefined;
-
-        c.vkDestroyFence(device, self.render_fence, null);
-        self.image_available_sem = undefined;
-    }
+const inits = struct {
+    usingnamespace @import("inits.zig");
 };
 
 pub const renderer_t = struct {
@@ -54,18 +32,12 @@ pub const renderer_t = struct {
     last_frame: u32 = 0,
 
     pub fn init(self: *renderer_t, window: ?*sdl.SDL_Window) !void {
-        self.app.instance = try renderer.init_instance();
-        self.app.surface = try renderer.create_surface(window, self.app.instance);
-
-        self.app.physical_device = try renderer.select_physical_device(self.app);
+        try self.app.init(window);
 
         // print device info
-        renderer.print_device_info(self.app.physical_device);
-
-        self.app.queues.queue_family_indices = try renderer.find_queue_family(self.app.surface, self.app.physical_device);
-        self.app.device = try renderer.create_device_interface(self.app);
+        utils.print_device_info(self.app.physical_device);
     
-        self.app.queues = try renderer.get_device_queue(self.app);
+        self.app.queues = try queue.get_device_queue(self.app);
 
         // create swapchain
         const window_extent = c.VkExtent2D{
@@ -76,7 +48,7 @@ pub const renderer_t = struct {
         self.swapchain.images = try renderer.create_swapchain_images(self.app, self.swapchain);
         self.swapchain.depth = try renderer.create_depth_ressources(self.app, self.swapchain);
 
-        self.renderpass = try renderer.create_render_pass(self.swapchain.format, self.swapchain.depth.format, self.app.device);
+        self.renderpass = try inits.create_render_pass(self.swapchain.format, self.swapchain.depth.format, self.app.device);
 
         self.command_pool = try renderer.create_command_pool(self.app.device, self.app.queues.queue_family_indices.graphics_family);
         self.command_buffers = try renderer.create_command_buffer(3, self.app.device, self.command_pool);
@@ -85,7 +57,7 @@ pub const renderer_t = struct {
             try frame.init(self.app.device);
 
             var attachements = [2]c.VkImageView{ self.swapchain.images.image_views[i], self.swapchain.depth.view };
-            frame.buffer = try renderer.create_framebuffer(self.app.device, self.renderpass, &attachements, self.swapchain.extent);
+            frame.buffer = try inits.create_framebuffer(self.app.device, self.renderpass, &attachements, self.swapchain.extent);
         }
     }
 
