@@ -6,8 +6,7 @@ const sdl = @cImport({
     @cInclude("SDL3/SDL.h");
     @cInclude("SDL3/SDL_vulkan.h");
 });
-const queue_family_indices_t = @import("types.zig").queue_family_indices_t;
-const swapchain_details_t = @import("types.zig").swapchain_details_t;
+const swapchain_details_t = @import("swapchain.zig").swapchain_details_t;
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
 const opt = @import("../options.zig");

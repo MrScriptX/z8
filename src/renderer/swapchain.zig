@@ -6,29 +6,24 @@ const sdl = @cImport({
     @cInclude("SDL3/SDL.h");
     @cInclude("SDL3/SDL_vulkan.h");
 });
-const types = @import("types.zig");
 const app_t = @import("app.zig").app_t;
-const swapchain_t = types.swapchain_t;
-const swapchain_image_t = types.swapchain_image_t;
-const depth_resources_t = types.depth_resources_t;
 
-
-const swapchain_details_t = struct {
-    capabilities: c.VkSurfaceCapabilitiesKHR,
-    formats: []c.VkSurfaceFormatKHR,
-    present_modes: []c.VkPresentModeKHR,
-    arena: std.heap.ArenaAllocator,
+pub const swapchain_details_t = struct {
+    capabilities: c.VkSurfaceCapabilitiesKHR = undefined,
+    formats: []c.VkSurfaceFormatKHR = undefined,
+    present_modes: []c.VkPresentModeKHR = undefined,
+    arena: std.heap.ArenaAllocator = undefined,
 
     pub fn init(self: *swapchain_details_t) void {
         self.arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     }
 
-    pub fn init_formats(self: *swapchain_details_t, size: u32) !void {
+    pub fn resize_formats(self: *swapchain_details_t, size: usize) !void {
         const allocator = self.arena.allocator();
         self.formats = try allocator.alloc(c.VkSurfaceFormatKHR, size);
     }
 
-    pub fn init_present_modes(self: *swapchain_details_t, size: u32) !void {
+    pub fn resize_present_modes(self: *swapchain_details_t, size: usize) !void {
         const allocator = self.arena.allocator();
         self.present_modes = try allocator.alloc(c.VkPresentModeKHR, size);
     }
@@ -36,6 +31,39 @@ const swapchain_details_t = struct {
     pub fn deinit(self: *const swapchain_details_t) void {
         self.arena.deinit();
     }
+};
+
+pub const swapchain_t = struct {
+    handle: c.VkSwapchainKHR = undefined,
+    format: c.VkFormat = undefined,
+    extent: c.VkExtent2D = undefined,
+    images: swapchain_image_t = undefined,
+    depth: depth_resources_t = undefined
+};
+
+pub const swapchain_image_t = struct {
+    images: []c.VkImage = undefined,
+    image_views: []c.VkImageView = undefined,
+    arena: std.heap.ArenaAllocator = undefined,
+
+    pub fn init(self: *swapchain_image_t, size: usize) !void {
+        self.arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        
+        const allocator = self.arena.allocator();
+        self.images = try allocator.alloc(c.VkImage, size);
+        self.image_views = try allocator.alloc(c.VkImageView, size);
+    }
+
+    pub fn deinit(self: *const swapchain_image_t) void {
+        self.arena.deinit();
+    }
+};
+
+pub const depth_resources_t = struct {
+    image: c.VkImage = undefined,
+    mem: c.VkDeviceMemory = undefined,
+    view: c.VkImageView = undefined,
+    format: c.VkFormat = undefined,
 };
 
 pub fn create_swapchain(app: app_t, window_extent: c.VkExtent2D) !swapchain_t {
@@ -154,7 +182,7 @@ fn query_swapchain_support(app: app_t) !swapchain_details_t {
     _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(app.physical_device, app.surface, &format_count, null);
 
     if (format_count != 0) {
-        try details.init_formats(format_count);
+        try details.resize_formats(format_count);
         _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(app.physical_device, app.surface, &format_count, details.formats.ptr);
     }
 
@@ -162,7 +190,7 @@ fn query_swapchain_support(app: app_t) !swapchain_details_t {
     _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(app.physical_device, app.surface, &present_mode_count, null);
 
     if (present_mode_count != 0) {
-        try details.init_present_modes(present_mode_count);
+        try details.resize_present_modes(present_mode_count);
         _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(app.physical_device, app.surface, &present_mode_count, details.present_modes.ptr);
     }
 

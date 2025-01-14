@@ -3,10 +3,9 @@ const c = @cImport({
     @cInclude("vulkan/vulkan.h");
 });
 const vkimage = @import("vkimage.zig");
-const types = @import("types.zig");
 const app_t = @import("app.zig").app_t;
-const swapchain_t = types.swapchain_t;
-const depth_resources_t = types.depth_resources_t;
+const swapchain_t = @import("swapchain.zig").swapchain_t;
+const depth_resources_t = @import("swapchain.zig").depth_resources_t;
 
 pub fn create_depth_ressources(app: app_t, swapchain: swapchain_t) !depth_resources_t {
     const extent = c.VkExtent3D{

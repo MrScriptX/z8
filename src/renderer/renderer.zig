@@ -9,7 +9,7 @@ const c = @cImport({
 const queue = @import("queue_family.zig");
 const utils = @import("utils.zig");
 const app_t = @import("app.zig").app_t;
-const swapchain_t = @import("types.zig").swapchain_t;
+const swapchain_t = @import("swapchain.zig").swapchain_t;
 const frame_t = @import("frames.zig").frame_t;
 const renderer = struct {
     usingnamespace @import("swapchain.zig");
