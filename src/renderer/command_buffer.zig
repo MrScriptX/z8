@@ -19,7 +19,7 @@ pub fn create_command_pool(device: c.VkDevice, queue_family_index: u32) !c.VkCom
     return command_pool;
 }
 
-pub fn create_command_buffer(count: u32, device: c.VkDevice, command_pool: c.VkCommandPool) ![]c.VkCommandBuffer {
+pub fn create_command_buffer(count: u32, device: c.VkDevice, command_pool: c.VkCommandPool) ![3]c.VkCommandBuffer {
     const command_buffer_info = c.VkCommandBufferAllocateInfo {
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = command_pool,
@@ -27,12 +27,8 @@ pub fn create_command_buffer(count: u32, device: c.VkDevice, command_pool: c.VkC
         .commandBufferCount = count,
     };
 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    const command_buffers = try allocator.alloc(c.VkCommandBuffer, count);
-    const result = c.vkAllocateCommandBuffers(device, &command_buffer_info, command_buffers.ptr);
+    var command_buffers: [3]c.VkCommandBuffer = undefined;
+    const result = c.vkAllocateCommandBuffers(device, &command_buffer_info, @ptrCast(&command_buffers));
     if (result != c.VK_SUCCESS) {
         return std.debug.panic("Failed to allocate command buffers", .{});
     }

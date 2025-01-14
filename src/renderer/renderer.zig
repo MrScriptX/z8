@@ -45,7 +45,7 @@ pub const renderer_t = struct {
     app: app_t = undefined,
     swapchain: swapchain_t = undefined,
     command_pool: c.VkCommandPool = undefined,
-    command_buffers: []c.VkCommandBuffer = undefined,
+    command_buffers: [3]c.VkCommandBuffer = undefined,
     frames: [3]frame_t = undefined,
     current_frame: u8 = 0,
 
@@ -110,22 +110,76 @@ pub const renderer_t = struct {
         c.vkDestroySwapchainKHR(self.app.device, self.swapchain.handle, null);
     }
 
-    pub fn draw(self: *const renderer_t) void {
-        c.vkWaitForFences(self.app.device, 1, &self.frames[self.current_frame].render_fence, true, 1000);
-        c.vkResetFences(self.app.device, 1, &self.frames[self.current_frame].render_fence);
+    pub fn draw(self: *renderer_t) void {
+        _ = c.vkWaitForFences(self.app.device, 1, &self.frames[self.current_frame].render_fence, c.VK_TRUE, 1000);
+        _ = c.vkResetFences(self.app.device, 1, &self.frames[self.current_frame].render_fence);
 
         var image_index: u32 = 0;
-        _ = c.vkAcquireNextImageKHR(self.app.device, self.swapchain.handle, 1000, &self.frames[self.current_frame].image_available_sem, null, &image_index);
+        _ = c.vkAcquireNextImageKHR(self.app.device, self.swapchain.handle, 1000, self.frames[self.current_frame].image_available_sem, null, &image_index);
+
+        // begin command buffer
+        const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
+        _ = c.vkResetCommandBuffer(current_cmd_buffer.*, 0);
+
+        const command_buffer_begin_info = c.VkCommandBufferBeginInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = c.VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+        };
+
+        _ = c.vkBeginCommandBuffer(current_cmd_buffer.*, &command_buffer_begin_info);
 
 
+        // begin render pass
+        const render_area = c.VkRect2D {
+            .offset = c.VkOffset2D {.x = 0, .y = 0},
+            .extent = self.swapchain.extent,
+        };
+        
+        const clear_values = [2]c.VkClearValue{
+            c.VkClearValue{.color = c.VkClearColorValue { 
+                .float32 = [4]f32{1.0,0.0,0.0,1.0}               
+            }},
+            c.VkClearValue{.depthStencil = c.VkClearDepthStencilValue{.depth = 1.0, .stencil = 0.0}}
+        };
+
+        const render_pass_begin_info = c.VkRenderPassBeginInfo {
+            .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderArea = render_area,
+            .clearValueCount = clear_values.len,
+            .pClearValues = @ptrCast(&clear_values)
+        };
+
+        _ = c.vkCmdBeginRenderPass(current_cmd_buffer.*, &render_pass_begin_info, c.VK_SUBPASS_CONTENTS_INLINE);
+
+        _ = c.vkCmdEndRenderPass(current_cmd_buffer.*);
+        _ = c.vkEndCommandBuffer(current_cmd_buffer.*);
+
+
+        // submit queue
+        const cmd_buffers_to_submit = [1]c.VkCommandBuffer{ current_cmd_buffer.* };
         const wait_sem = [1]c.VkSemaphore{ self.frames[self.current_frame].image_available_sem };
+        const wait_dst_stage = [1]u32{ c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         const submit_info = c.VkSubmitInfo {
             .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pWaitDstStageMask = @ptrCast(&wait_dst_stage),
+            .commandBufferCount = cmd_buffers_to_submit.len,
+            .pCommandBuffers = @ptrCast(&cmd_buffers_to_submit),
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = wait_sem,
-            .pWaitDstStageMask = [1]c_int{ c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+            .pWaitSemaphores = @ptrCast(&wait_sem),
         };
 
         _ = c.vkQueueSubmit(self.app.queues.graphics_queue, 1, &submit_info, self.frames[self.current_frame].render_fence);
+
+        const pswapchain = [1]c.VkSwapchainKHR { self.swapchain.handle };
+        const present_info = c.VkPresentInfoKHR {
+            .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = @ptrCast(&wait_sem),
+            .swapchainCount = 1,
+            .pSwapchains = @ptrCast(&pswapchain),
+            .pImageIndices = self.current_frame,
+        };
+
+        _ = c.vkQueuePresentKHR(self.app.queues.present_queue, &present_info);
     }
 };

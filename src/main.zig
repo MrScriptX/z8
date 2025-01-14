@@ -24,6 +24,8 @@ pub fn main() !u8 {
     try renderer.init(window);
     defer renderer.deinit();
     
+    renderer.draw();
+
     // main loop
     var quit = false;
     while (!quit) {
