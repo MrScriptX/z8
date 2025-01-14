@@ -9,7 +9,7 @@ const sdl = @cImport({
 const queue_family_indices_t = @import("types.zig").queue_family_indices_t;
 const swapchain_details_t = @import("types.zig").swapchain_details_t;
 const queue = @import("queue_family.zig");
-const queues_t = @import("types.zig").queues_t;
+const queues_t = queue.queues_t;
 const opt = @import("../options.zig");
 
 pub const app_t = struct {
@@ -17,14 +17,17 @@ pub const app_t = struct {
     surface: vk.VkSurfaceKHR = undefined,
     physical_device: vk.VkPhysicalDevice = undefined,
     device: vk.VkDevice = undefined,
-    queues: queues_t = undefined,
+    queue_indices: queue.queue_indices_t = undefined,
 
     pub fn init(self: *app_t, window: ?*sdl.SDL_Window) !void {
         self.instance = try init_instance();
         self.surface = try create_surface(window, self.instance);
         self.physical_device = try select_physical_device(self.instance, self.surface);
-        self.queues.queue_family_indices = try queue.find_queue_family(self.surface, self.physical_device);
-        self.device = try create_device_interface(self.physical_device, self.queues);
+        self.queue_indices = try queue.find_queue_family(self.surface, self.physical_device);
+        self.device = try create_device_interface(self.physical_device, self.queue_indices);
+    }
+
+    pub fn deinit(_: *app_t) void {
     }
 };
 
@@ -119,24 +122,24 @@ fn select_physical_device(instance: vk.VkInstance, surface: vk.VkSurfaceKHR) !vk
     return physical_device.?;
 }
 
-fn create_device_interface(physical_device: vk.VkPhysicalDevice, queues: queues_t) !vk.VkDevice {
+fn create_device_interface(physical_device: vk.VkPhysicalDevice, queues: queue.queue_indices_t) !vk.VkDevice {
     var queue_priority: f32 = 1.0;
     
     var queue_create_infos = std.ArrayList(vk.VkDeviceQueueCreateInfo).init(std.heap.page_allocator);
 
     const graphic_queue_create_info = vk.VkDeviceQueueCreateInfo{
         .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = queues.queue_family_indices.graphics_family,
+        .queueFamilyIndex = queues.graphics_family,
         .queueCount = 1,
         .pQueuePriorities = &queue_priority,
     };
 
     try queue_create_infos.append(graphic_queue_create_info);
 
-    if (queues.queue_family_indices.graphics_family != queues.queue_family_indices.present_family) {
+    if (queues.graphics_family != queues.present_family) {
         const present_qeueu_create_info = vk.VkDeviceQueueCreateInfo{
             .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueFamilyIndex = queues.queue_family_indices.present_family,
+            .queueFamilyIndex = queues.present_family,
             .queueCount = 1,
             .pQueuePriorities = &queue_priority,
         };

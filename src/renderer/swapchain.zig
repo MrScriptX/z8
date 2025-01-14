@@ -72,10 +72,10 @@ pub fn create_swapchain(app: app_t, window_extent: c.VkExtent2D) !swapchain_t {
         .oldSwapchain = @ptrCast(c.VK_NULL_HANDLE),
     };
 
-    if (app.queues.queue_family_indices.graphics_family != app.queues.queue_family_indices.present_family) {
+    if (app.queue_indices.graphics_family != app.queue_indices.present_family) {
         const pqueue_family_indices: []const u32 = &.{ 
-            app.queues.queue_family_indices.graphics_family,
-            app.queues.queue_family_indices.present_family
+            app.queue_indices.graphics_family,
+            app.queue_indices.present_family
         };
 
         swapchain_info.imageSharingMode = c.VK_SHARING_MODE_CONCURRENT;

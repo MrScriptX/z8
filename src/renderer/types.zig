@@ -3,21 +3,6 @@ const vk = @cImport({
     @cInclude("vulkan/vulkan.h");
 });
 
-pub const queues_t = struct {
-    graphics_queue: vk.VkQueue = undefined,
-    present_queue: vk.VkQueue = undefined,
-    queue_family_indices: queue_family_indices_t = undefined,
-};
-
-pub const queue_family_indices_t = struct {
-    graphics_family: u32 = undefined,
-    present_family: u32 = undefined,
-
-    pub fn is_complete(self: *const queue_family_indices_t) bool {
-        return self.graphics_family != undefined and self.present_family != undefined;
-    }
-};
-
 pub const swapchain_details_t = struct {
     capabilities: vk.VkSurfaceCapabilitiesKHR = undefined,
     formats: []vk.VkSurfaceFormatKHR = undefined,

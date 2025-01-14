@@ -2,11 +2,23 @@ const std = @import("std");
 const vk = @cImport({
     @cInclude("vulkan/vulkan.h");
 });
-const queue_family_indices_t = @import("types.zig").queue_family_indices_t;
-const queues_t = @import("types.zig").queues_t;
-const app_t = @import("app.zig").app_t;
 
-pub fn find_queue_family(surface: vk.VkSurfaceKHR, physical_device: vk.VkPhysicalDevice) !queue_family_indices_t {
+pub const queues_t = struct {
+    graphics_queue: vk.VkQueue = undefined,
+    present_queue: vk.VkQueue = undefined,
+    // queue_family_indices: queue_indices_t = undefined,
+};
+
+pub const queue_indices_t = struct {
+    graphics_family: u32 = undefined,
+    present_family: u32 = undefined,
+
+    pub fn is_complete(self: *const queue_indices_t) bool {
+        return self.graphics_family != undefined and self.present_family != undefined;
+    }
+};
+
+pub fn find_queue_family(surface: vk.VkSurfaceKHR, physical_device: vk.VkPhysicalDevice) !queue_indices_t {
     var queue_family_count: u32 = 0;
     vk.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
 
@@ -36,7 +48,7 @@ pub fn find_queue_family(surface: vk.VkSurfaceKHR, physical_device: vk.VkPhysica
         }
     }
 
-    const family_indices = queue_family_indices_t{
+    const family_indices = queue_indices_t{
         .graphics_family = @intCast(graphics_family),
         .present_family = @intCast(present_family),
     };
@@ -44,11 +56,11 @@ pub fn find_queue_family(surface: vk.VkSurfaceKHR, physical_device: vk.VkPhysica
     return family_indices;
 }
 
-pub fn get_device_queue(app: app_t) !queues_t {
-    var queues = queues_t{ .queue_family_indices = app.queues.queue_family_indices };
+pub fn get_device_queue(device: vk.VkDevice, indices: queue_indices_t) !queues_t {
+    var queues: queues_t = undefined;
 
-    vk.vkGetDeviceQueue(app.device, queues.queue_family_indices.graphics_family, 0, &queues.graphics_queue);
-    vk.vkGetDeviceQueue(app.device, queues.queue_family_indices.present_family, 0, &queues.present_queue);
+    vk.vkGetDeviceQueue(device, indices.graphics_family, 0, &queues.graphics_queue);
+    vk.vkGetDeviceQueue(device, indices.present_family, 0, &queues.present_queue);
 
     return queues;
 }

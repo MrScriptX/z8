@@ -12,7 +12,6 @@ const app_t = @import("app.zig").app_t;
 const swapchain_t = @import("types.zig").swapchain_t;
 const frame_t = @import("frames.zig").frame_t;
 const renderer = struct {
-    usingnamespace @import("app.zig");
     usingnamespace @import("swapchain.zig");
     usingnamespace @import("depth.zig");
     usingnamespace @import("command_buffer.zig");
@@ -23,6 +22,7 @@ const inits = struct {
 
 pub const renderer_t = struct {
     app: app_t = undefined,
+    queues: queue.queues_t = undefined,
     swapchain: swapchain_t = undefined,
     renderpass: c.VkRenderPass = undefined,
     command_pool: c.VkCommandPool = undefined,
@@ -37,7 +37,7 @@ pub const renderer_t = struct {
         // print device info
         utils.print_device_info(self.app.physical_device);
     
-        self.app.queues = try queue.get_device_queue(self.app);
+        self.queues = try queue.get_device_queue(self.app.device, self.app.queue_indices);
 
         // create swapchain
         const window_extent = c.VkExtent2D{
@@ -50,7 +50,7 @@ pub const renderer_t = struct {
 
         self.renderpass = try inits.create_render_pass(self.swapchain.format, self.swapchain.depth.format, self.app.device);
 
-        self.command_pool = try renderer.create_command_pool(self.app.device, self.app.queues.queue_family_indices.graphics_family);
+        self.command_pool = try renderer.create_command_pool(self.app.device, self.app.queue_indices.graphics_family);
         self.command_buffers = try renderer.create_command_buffer(3, self.app.device, self.command_pool);
 
         for (&self.frames, 0..self.frames.len) |*frame, i| {
@@ -75,8 +75,8 @@ pub const renderer_t = struct {
 
     pub fn clean_swapchain(self: *renderer_t) void {
         _ = c.vkDeviceWaitIdle(self.app.device);
-        _ = c.vkQueueWaitIdle(self.app.queues.graphics_queue);
-	    _ = c.vkQueueWaitIdle(self.app.queues.present_queue);
+        _ = c.vkQueueWaitIdle(self.queues.graphics_queue);
+	    _ = c.vkQueueWaitIdle(self.queues.present_queue);
 
         c.vkDestroyImageView(self.app.device, self.swapchain.depth.view, null);
 	    c.vkDestroyImage(self.app.device, self.swapchain.depth.image, null);
@@ -161,7 +161,7 @@ pub const renderer_t = struct {
             .pSignalSemaphores = @ptrCast(&signal_sem),
         };
 
-        _ = c.vkQueueSubmit(self.app.queues.graphics_queue, 1, &submit_info, self.frames[self.current_frame].render_fence);
+        _ = c.vkQueueSubmit(self.queues.graphics_queue, 1, &submit_info, self.frames[self.current_frame].render_fence);
 
         const pswapchain = [1]c.VkSwapchainKHR { self.swapchain.handle };
         const present_info = c.VkPresentInfoKHR {
@@ -173,6 +173,6 @@ pub const renderer_t = struct {
             .pImageIndices = &self.current_frame,
         };
 
-        _ = c.vkQueuePresentKHR(self.app.queues.present_queue, &present_info);
+        _ = c.vkQueuePresentKHR(self.queues.present_queue, &present_info);
     }
 };
