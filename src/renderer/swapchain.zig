@@ -38,7 +38,25 @@ pub const swapchain_t = struct {
     format: c.VkFormat = undefined,
     extent: c.VkExtent2D = undefined,
     images: swapchain_image_t = undefined,
-    depth: depth_resources_t = undefined
+    depth: depth_resources_t = undefined,
+
+    pub fn init(self: *swapchain_t, app: app_t, window_extent: c.VkExtent2D) !void {
+        const details = try query_swapchain_support(app.physical_device, app.surface);
+        defer details.deinit();
+
+        const surface_format = select_surface_format(details);
+        self.format = surface_format.format;
+
+        const extent = select_extent(details.capabilities, window_extent);
+        self.extent = extent;
+
+        self.handle = try create_swapchain_khr(app, details, surface_format, self.extent);
+        self.images = try create_swapchain_images(app, self.*);
+    }
+
+    pub fn deinit(_: *swapchain_t) void {
+
+    }
 };
 
 pub const swapchain_image_t = struct {
@@ -66,8 +84,55 @@ pub const depth_resources_t = struct {
     format: c.VkFormat = undefined,
 };
 
+pub fn create_swapchain_khr(app: app_t, details: swapchain_details_t, surface_format: c.VkSurfaceFormatKHR, extent: c.VkExtent2D) !c.VkSwapchainKHR {
+    const present_mode = select_present_mode(details);
+    
+    var image_count: u32 = details.capabilities.minImageCount + 1;
+    if (details.capabilities.maxImageCount > 0 and image_count > details.capabilities.maxImageCount) {
+        image_count = details.capabilities.maxImageCount;
+    }
+    
+    var swapchain_info = c.VkSwapchainCreateInfoKHR {
+        .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = app.surface,
+        .minImageCount = image_count,
+        .imageFormat = surface_format.format,
+        .imageColorSpace = surface_format.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .imageSharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = null,
+        .preTransform = details.capabilities.currentTransform,
+        .compositeAlpha = c.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = present_mode,
+        .clipped = c.VK_TRUE,
+        .oldSwapchain = @ptrCast(c.VK_NULL_HANDLE),
+    };
+
+    if (app.queue_indices.graphics_family != app.queue_indices.present_family) {
+        const pqueue_family_indices: []const u32 = &.{ 
+            app.queue_indices.graphics_family,
+            app.queue_indices.present_family
+        };
+
+        swapchain_info.imageSharingMode = c.VK_SHARING_MODE_CONCURRENT;
+        swapchain_info.queueFamilyIndexCount = 2;
+        swapchain_info.pQueueFamilyIndices = pqueue_family_indices.ptr;
+    }
+
+    var swapchain: swapchain_t = undefined;
+    const result = c.vkCreateSwapchainKHR(app.device, &swapchain_info, null, &swapchain.handle);
+    if (result != c.VK_SUCCESS) {
+        return std.debug.panic("Failed to create swapchain: {}", .{result});
+    }
+
+    return swapchain;
+}
+
 pub fn create_swapchain(app: app_t, window_extent: c.VkExtent2D) !swapchain_t {
-    const details = try query_swapchain_support(app);
+    const details = try query_swapchain_support(app.physical_device, app.surface);
     defer details.deinit();
 
     const present_mode = select_present_mode(details);
@@ -172,26 +237,26 @@ pub fn create_swapchain_images(app: app_t, swapchain: swapchain_t) !swapchain_im
     return images_obj;
 }
 
-fn query_swapchain_support(app: app_t) !swapchain_details_t {
+fn query_swapchain_support(physical_device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !swapchain_details_t {
     var details: swapchain_details_t = undefined;
     details.init();
 
-    _ = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(app.physical_device, app.surface, &details.capabilities);
+    _ = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &details.capabilities);
 
     var format_count: u32 = 0;
-    _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(app.physical_device, app.surface, &format_count, null);
+    _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, null);
 
     if (format_count != 0) {
         try details.resize_formats(format_count);
-        _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(app.physical_device, app.surface, &format_count, details.formats.ptr);
+        _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, details.formats.ptr);
     }
 
     var present_mode_count: u32 = 0;
-    _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(app.physical_device, app.surface, &present_mode_count, null);
+    _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, null);
 
     if (present_mode_count != 0) {
         try details.resize_present_modes(present_mode_count);
-        _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(app.physical_device, app.surface, &present_mode_count, details.present_modes.ptr);
+        _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, details.present_modes.ptr);
     }
 
     return details;
