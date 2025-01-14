@@ -50,7 +50,7 @@ pub const renderer_t = struct {
     command_pool: c.VkCommandPool = undefined,
     command_buffers: [3]c.VkCommandBuffer = undefined,
     frames: [3]frame_t = undefined,
-    current_frame: u8 = 0,
+    current_frame: u32 = 0,
 
     pub fn init(self: *renderer_t, window: ?*sdl.SDL_Window) !void {
         self.app.instance = try renderer.init_instance();
@@ -109,11 +109,17 @@ pub const renderer_t = struct {
 	    c.vkDestroyImage(self.app.device, self.swapchain.depth.image, null);
 	    c.vkFreeMemory(self.app.device, self.swapchain.depth.mem, null);
 
+        for (&self.frames) |*frame| {
+            c.vkDestroyFramebuffer(self.app.device, frame.buffer, null);
+        }
+
         for (self.swapchain.images.image_views) |image_view| {
             c.vkDestroyImageView(self.app.device, image_view, null);
         }
 
         c.vkDestroyCommandPool(self.app.device, self.command_pool, null);
+
+        c.vkDestroyRenderPass(self.app.device, self.renderpass, null);
 
         c.vkDestroySwapchainKHR(self.app.device, self.swapchain.handle, null);
     }
@@ -168,6 +174,7 @@ pub const renderer_t = struct {
         // submit queue
         const cmd_buffers_to_submit = [1]c.VkCommandBuffer{ current_cmd_buffer.* };
         const wait_sem = [1]c.VkSemaphore{ self.frames[self.current_frame].image_available_sem };
+        const signal_sem = [_]c.VkSemaphore{self.frames[self.current_frame].render_finished_sem};
         const wait_dst_stage = [1]u32{ c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         const submit_info = c.VkSubmitInfo {
             .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -176,6 +183,8 @@ pub const renderer_t = struct {
             .pCommandBuffers = @ptrCast(&cmd_buffers_to_submit),
             .waitSemaphoreCount = 1,
             .pWaitSemaphores = @ptrCast(&wait_sem),
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = @ptrCast(&signal_sem),
         };
 
         _ = c.vkQueueSubmit(self.app.queues.graphics_queue, 1, &submit_info, self.frames[self.current_frame].render_fence);
@@ -184,10 +193,10 @@ pub const renderer_t = struct {
         const present_info = c.VkPresentInfoKHR {
             .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = @ptrCast(&wait_sem),
+            .pWaitSemaphores = @ptrCast(&signal_sem),
             .swapchainCount = 1,
             .pSwapchains = @ptrCast(&pswapchain),
-            .pImageIndices = self.current_frame,
+            .pImageIndices = &self.current_frame,
         };
 
         _ = c.vkQueuePresentKHR(self.app.queues.present_queue, &present_info);
