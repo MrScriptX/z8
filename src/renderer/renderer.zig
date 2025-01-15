@@ -13,11 +13,8 @@ const swapchain_t = @import("swapchain.zig").swapchain_t;
 const frame_t = @import("frames.zig").frame_t;
 const renderer = struct {
     usingnamespace @import("swapchain.zig");
-    usingnamespace @import("command_buffer.zig");
 };
-const inits = struct {
-    usingnamespace @import("inits.zig");
-};
+const inits = @import("inits.zig");
 
 pub const renderer_t = struct {
     app: app_t = undefined,
@@ -42,8 +39,8 @@ pub const renderer_t = struct {
         try self.swapchain.init(self.app, width, height);
 
         self.renderpass = try inits.create_render_pass(self.swapchain.format, self.swapchain.depth.format, self.app.device);
-        self.command_pool = try renderer.create_command_pool(self.app.device, self.app.queue_indices.graphics_family);
-        self.command_buffers = try renderer.create_command_buffer(3, self.app.device, self.command_pool);
+        self.command_pool = try utils.create_command_pool(self.app.device, self.app.queue_indices.graphics_family);
+        self.command_buffers = try utils.create_command_buffer(3, self.app.device, self.command_pool);
 
         for (&self.frames, 0..self.frames.len) |*frame, i| {
             try frame.init(self.app.device);
