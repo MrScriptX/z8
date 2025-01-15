@@ -113,7 +113,7 @@ pub const renderer_t = struct {
         
         const clear_values = [2]c.VkClearValue{
             c.VkClearValue{.color = c.VkClearColorValue { 
-                .float32 = [4]f32{1.0,0.0,0.0,1.0}               
+                .float32 = [4]f32{ 1.0, 1.0, 0.0, 1.0 }               
             }},
             c.VkClearValue{.depthStencil = c.VkClearDepthStencilValue{.depth = 1.0, .stencil = 0.0}}
         };
