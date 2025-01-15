@@ -41,12 +41,17 @@ pub const swapchain_t = struct {
     images: swapchain_image_t = undefined,
     depth: depth_resources_t = undefined,
 
-    pub fn init(self: *swapchain_t, app: app_t, window_extent: c.VkExtent2D) !void {
+    pub fn init(self: *swapchain_t, app: app_t, width: u32, height: u32) !void {
         const details = try query_swapchain_support(app.physical_device, app.surface);
         defer details.deinit();
 
         const surface_format = select_surface_format(details);
         self.format = surface_format.format;
+
+        const window_extent = c.VkExtent2D{
+            .width = width,
+            .height = height,
+        };
 
         const extent = select_extent(details.capabilities, window_extent);
         self.extent = extent;

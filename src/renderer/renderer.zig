@@ -30,7 +30,7 @@ pub const renderer_t = struct {
     current_frame: u32 = 0,
     last_frame: u32 = 0,
 
-    pub fn init(self: *renderer_t, window: ?*sdl.SDL_Window) !void {
+    pub fn init(self: *renderer_t, window: ?*sdl.SDL_Window, width: u32, height: u32) !void {
         try self.app.init(window);
 
         // print device info
@@ -39,14 +39,9 @@ pub const renderer_t = struct {
         self.queues = try queue.get_device_queue(self.app.device, self.app.queue_indices);
 
         // create swapchain
-        const window_extent = c.VkExtent2D{
-            .width = 800,
-            .height = 600,
-        };
-        try self.swapchain.init(self.app, window_extent);
+        try self.swapchain.init(self.app, width, height);
 
         self.renderpass = try inits.create_render_pass(self.swapchain.format, self.swapchain.depth.format, self.app.device);
-
         self.command_pool = try renderer.create_command_pool(self.app.device, self.app.queue_indices.graphics_family);
         self.command_buffers = try renderer.create_command_buffer(3, self.app.device, self.command_pool);
 

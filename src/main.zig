@@ -21,7 +21,7 @@ pub fn main() !u8 {
     defer sdl.SDL_DestroyWindow(window);
 
     var renderer = renderer_t{};
-    try renderer.init(window);
+    try renderer.init(window, 800, 600);
     defer renderer.deinit();
     
     renderer.draw();
