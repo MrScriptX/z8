@@ -51,7 +51,7 @@ pub const renderer_t = struct {
     }
 
     pub fn deinit(self: *renderer_t) void {
-        self.clean_swapchain();
+        try self.clean_swapchain();
 
         for (&self.frames) |*frame| {
             frame.deinit(self.app.device);
@@ -62,10 +62,21 @@ pub const renderer_t = struct {
         c.vkDestroyInstance(self.app.instance, null);
     }
 
-    pub fn clean_swapchain(self: *renderer_t) void {
-        _ = c.vkDeviceWaitIdle(self.app.device);
-        _ = c.vkQueueWaitIdle(self.queues.graphics_queue);
-	    _ = c.vkQueueWaitIdle(self.queues.present_queue);
+    pub fn clean_swapchain(self: *renderer_t) !void {
+        var result = c.vkDeviceWaitIdle(self.app.device);
+        if (result != c.VK_SUCCESS) {
+            return std.debug.panic("wait for device idle failed : {}", .{result});
+        }
+
+        result = c.vkQueueWaitIdle(self.queues.graphics_queue);
+        if (result != c.VK_SUCCESS) {
+            return std.debug.panic("wait for graphic queue family failed : {}", .{result});
+        }
+
+	    result = c.vkQueueWaitIdle(self.queues.present_queue);
+        if (result != c.VK_SUCCESS) {
+            return std.debug.panic("wait for present queue family failed : {}", .{result});
+        }
 
         for (&self.frames) |*frame| {
             c.vkDestroyFramebuffer(self.app.device, frame.buffer, null);
@@ -78,12 +89,12 @@ pub const renderer_t = struct {
     }
 
     pub fn draw(self: *renderer_t) void {
-        _ = c.vkWaitForFences(self.app.device, 1, &self.frames[self.current_frame].render_fence, c.VK_TRUE, 1000);
+        _ = c.vkWaitForFences(self.app.device, 1, &self.frames[self.current_frame].render_fence, c.VK_TRUE, std.math.maxInt(u64));
         _ = c.vkResetFences(self.app.device, 1, &self.frames[self.current_frame].render_fence);
 
         // acquire next image
         self.last_frame = self.current_frame;
-        _ = c.vkAcquireNextImageKHR(self.app.device, self.swapchain.handle, 1000, self.frames[self.current_frame].image_available_sem, null, &self.current_frame);
+        _ = c.vkAcquireNextImageKHR(self.app.device, self.swapchain.handle, std.math.maxInt(u64), self.frames[self.current_frame].image_available_sem, null, &self.current_frame);
 
         // begin command buffer
         const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
