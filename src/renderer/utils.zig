@@ -125,3 +125,84 @@ pub fn create_command_buffer(count: u32, device: c.VkDevice, command_pool: c.VkC
 
     return command_buffers;
 }
+
+pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
+    const viewport = c.VkViewport {
+        .x = 0.0,
+	    .y = 0.0,
+	    .width = @floatFromInt(extent.width),
+	    .height = @floatFromInt(extent.height),
+	    .minDepth = 0.0,
+	    .maxDepth = 1.0,
+    };
+
+	const scissor = c.VkRect2D {
+        .offset = c.VkOffset2D{ .x = 0, .y = 0 },
+	    .extent = extent,
+    };
+	
+	const viewport_state = c.VkPipelineViewportStateCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+	    .viewportCount = 1,
+	    .pViewports = &viewport,
+	    .scissorCount = 1,
+	    .pScissors = &scissor,
+    };
+    
+    const rasterizer = c.VkPipelineRasterizationStateCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+	    .depthClampEnable = c.VK_FALSE,
+	    .rasterizerDiscardEnable = c.VK_FALSE,
+	    .polygonMode = c.VK_POLYGON_MODE_FILL,
+	    .lineWidth = 1.0,
+	    .cullMode = c.VK_CULL_MODE_BACK_BIT,
+	    .frontFace = c.VK_FRONT_FACE_COUNTER_CLOCKWISE,
+	    .depthBiasEnable = c.VK_FALSE,
+    };
+
+	const multisampling = c.VkPipelineMultisampleStateCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+	    .sampleShadingEnable = c.VK_FALSE,
+	    .rasterizationSamples = c.VK_SAMPLE_COUNT_1_BIT,
+    };
+
+    const depth_stencil = c.VkPipelineDepthStencilStateCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+	    .depthTestEnable = c.VK_TRUE,
+	    .depthWriteEnable = c.VK_TRUE,
+	    .depthCompareOp = c.VK_COMPARE_OP_LESS,
+	    .depthBoundsTestEnable = c.VK_FALSE,
+	    .stencilTestEnable = c.VK_FALSE,
+    };
+
+	const color_blend_attachment = c.VkPipelineColorBlendAttachmentState {
+        .colorWriteMask = c.VK_COLOR_COMPONENT_R_BIT | c.VK_COLOR_COMPONENT_G_BIT | c.VK_COLOR_COMPONENT_B_BIT | c.VK_COLOR_COMPONENT_A_BIT,
+	    .blendEnable = c.VK_FALSE,
+    };
+
+	const color_blending = c.VkPipelineColorBlendStateCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+	    .logicOpEnable = c.VK_FALSE,
+	    .logicOp = c.VK_LOGIC_OP_COPY,
+	    .attachmentCount = 1,
+	    .pAttachments = &color_blend_attachment,
+	    .blendConstants = [_]f32{ 0.0, 0.0, 0.0, 0.0 },
+    };
+    
+    const pipeline_create_info = c.VkGraphicsPipelineCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .pViewportState = &viewport_state,
+        .pRasterizationState = &rasterizer,
+        .pMultisampleState = &multisampling,
+        .pDepthStencilState = &depth_stencil,
+        .pColorBlendState = &color_blending,
+    };
+
+    var pipeline: c.VkPipeline = undefined;
+    const result = c.vkCreateGraphicsPipelines(device, null, 1, &pipeline_create_info, null, &pipeline);
+    if (result != c.VK_SUCCESS) {
+        return std.debug.panic("failed to create pipeline !", .{});
+    }
+
+    return pipeline;
+}

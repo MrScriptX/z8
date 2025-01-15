@@ -48,6 +48,8 @@ pub const renderer_t = struct {
             var attachements = [2]c.VkImageView{ self.swapchain.images.image_views[i], self.swapchain.depth.view };
             frame.buffer = try inits.create_framebuffer(self.app.device, self.renderpass, &attachements, self.swapchain.extent);
         }
+
+        _ = try utils.create_pipeline(self.app.device, self.swapchain.extent);
     }
 
     pub fn deinit(self: *renderer_t) void {
