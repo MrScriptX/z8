@@ -13,7 +13,6 @@ const swapchain_t = @import("swapchain.zig").swapchain_t;
 const frame_t = @import("frames.zig").frame_t;
 const renderer = struct {
     usingnamespace @import("swapchain.zig");
-    usingnamespace @import("depth.zig");
     usingnamespace @import("command_buffer.zig");
 };
 const inits = struct {
@@ -44,9 +43,7 @@ pub const renderer_t = struct {
             .width = 800,
             .height = 600,
         };
-        self.swapchain = try renderer.create_swapchain(self.app, window_extent);    
-        self.swapchain.images = try renderer.create_swapchain_images(self.app, self.swapchain);
-        self.swapchain.depth = try renderer.create_depth_ressources(self.app, self.swapchain);
+        try self.swapchain.init(self.app, window_extent);
 
         self.renderpass = try inits.create_render_pass(self.swapchain.format, self.swapchain.depth.format, self.app.device);
 
@@ -78,23 +75,14 @@ pub const renderer_t = struct {
         _ = c.vkQueueWaitIdle(self.queues.graphics_queue);
 	    _ = c.vkQueueWaitIdle(self.queues.present_queue);
 
-        c.vkDestroyImageView(self.app.device, self.swapchain.depth.view, null);
-	    c.vkDestroyImage(self.app.device, self.swapchain.depth.image, null);
-	    c.vkFreeMemory(self.app.device, self.swapchain.depth.mem, null);
-
         for (&self.frames) |*frame| {
             c.vkDestroyFramebuffer(self.app.device, frame.buffer, null);
         }
 
-        for (self.swapchain.images.image_views) |image_view| {
-            c.vkDestroyImageView(self.app.device, image_view, null);
-        }
-
         c.vkDestroyCommandPool(self.app.device, self.command_pool, null);
-
         c.vkDestroyRenderPass(self.app.device, self.renderpass, null);
 
-        c.vkDestroySwapchainKHR(self.app.device, self.swapchain.handle, null);
+        self.swapchain.deinit(self.app);
     }
 
     pub fn draw(self: *renderer_t) void {
