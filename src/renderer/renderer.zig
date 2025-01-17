@@ -43,7 +43,7 @@ pub const renderer_t = struct {
             frame.buffer = try inits.create_framebuffer(self.app.device, self.renderpass, &attachements, self.swapchain.extent);
         }
 
-        _ = try utils.create_pipeline(self.app.device, self.swapchain.extent);
+        // _ = try utils.create_pipeline(self.app.device, self.swapchain.extent);
     }
 
     pub fn deinit(self: *renderer_t) void {

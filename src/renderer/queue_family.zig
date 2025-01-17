@@ -8,11 +8,11 @@ pub const queues_t = struct {
 };
 
 pub const queue_indices_t = struct {
-    graphics_family: u32 = undefined,
-    present_family: u32 = undefined,
+    graphics_family: u32 = std.math.maxInt(u32),
+    present_family: u32 = std.math.maxInt(u32),
 
     pub fn is_complete(self: *const queue_indices_t) bool {
-        return self.graphics_family != undefined and self.present_family != undefined;
+        return self.graphics_family != std.math.maxInt(u32) and self.present_family != std.math.maxInt(u32);
     }
 };
 
@@ -27,8 +27,8 @@ pub fn find_queue_family(surface: c.VkSurfaceKHR, physical_device: c.VkPhysicalD
     const queue_families = try allocator.alloc(c.VkQueueFamilyProperties, queue_family_count);
     c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.ptr);
 
-    var graphics_family: usize = undefined;
-    var present_family: usize = undefined;
+    var graphics_family: ?usize = null;
+    var present_family: ?usize = null;
     for (queue_families, 0..) |family, index| {
         if (family.queueCount > 0 and family.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
             graphics_family = index;
@@ -41,14 +41,14 @@ pub fn find_queue_family(surface: c.VkSurfaceKHR, physical_device: c.VkPhysicalD
             present_family = index;
         }
 
-        if (graphics_family != undefined and present_family != undefined) {
+        if (graphics_family != null and present_family != null) {
             break;
         }
     }
 
     const family_indices = queue_indices_t{
-        .graphics_family = @intCast(graphics_family),
-        .present_family = @intCast(present_family),
+        .graphics_family = @intCast(graphics_family.?),
+        .present_family = @intCast(present_family.?),
     };
 
     return family_indices;
