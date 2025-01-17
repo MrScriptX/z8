@@ -1,11 +1,5 @@
 const std = @import("std");
-const c = @cImport({
-    @cInclude("vulkan/vulkan.h");
-});
-const sdl = @cImport({
-    @cInclude("SDL3/SDL.h");
-    @cInclude("SDL3/SDL_vulkan.h");
-});
+const c = @import("../clibs.zig");
 const app_t = @import("app.zig").app_t;
 const utils = @import("utils.zig");
 

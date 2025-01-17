@@ -1,11 +1,5 @@
 const std = @import("std");
-const sdl = @cImport({
-    @cInclude("SDL3/SDL.h");
-    @cInclude("SDL3/SDL_vulkan.h");
-});
-const c = @cImport({
-    @cInclude("vulkan/vulkan.h");
-});
+const c = @import("../clibs.zig");
 const queue = @import("queue_family.zig");
 const utils = @import("utils.zig");
 const app_t = @import("app.zig").app_t;
@@ -27,7 +21,7 @@ pub const renderer_t = struct {
     current_frame: u32 = 0,
     last_frame: u32 = 0,
 
-    pub fn init(self: *renderer_t, window: ?*sdl.SDL_Window, width: u32, height: u32) !void {
+    pub fn init(self: *renderer_t, window: ?*c.SDL_Window, width: u32, height: u32) !void {
         try self.app.init(window);
 
         // print device info

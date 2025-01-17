@@ -1,7 +1,5 @@
 const std = @import("std");
-const c = @cImport({
-    @cInclude("vulkan/vulkan.h");
-});
+const c = @import("../clibs.zig");
 
 pub const frame_t = struct {
     render_fence: c.VkFence = undefined,

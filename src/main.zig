@@ -1,24 +1,21 @@
 const std = @import("std");
-const sdl = @cImport({
-    @cInclude("SDL3/SDL.h");
-    @cInclude("SDL3/SDL_vulkan.h");
-});
+const c = @import("clibs.zig");
 const renderer_t = @import("renderer/renderer.zig").renderer_t;
 
 pub fn main() !u8 {
-    const init = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
+    const init = c.SDL_Init(c.SDL_INIT_VIDEO);
     if (!init) {
-        sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s", sdl.SDL_GetError());
+        c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s", c.SDL_GetError());
         return 1;
     }
-    defer sdl.SDL_Quit();
+    defer c.SDL_Quit();
 
-    const window = sdl.SDL_CreateWindow("Hello World", 800, 600, sdl.SDL_WINDOW_VULKAN);
+    const window = c.SDL_CreateWindow("Hello World", 800, 600, c.SDL_WINDOW_VULKAN);
     if (window == null) {
-        sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to create window: %s", sdl.SDL_GetError());
+        c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to create window: %s", c.SDL_GetError());
         return 1;
     }
-    defer sdl.SDL_DestroyWindow(window);
+    defer c.SDL_DestroyWindow(window);
 
     var renderer = renderer_t{};
     try renderer.init(window, 800, 600);
@@ -29,9 +26,9 @@ pub fn main() !u8 {
     // main loop
     var quit = false;
     while (!quit) {
-        var event: sdl.SDL_Event = undefined;
-        while (sdl.SDL_PollEvent(&event)) {
-            if (event.type == sdl.SDL_EVENT_QUIT) {
+        var event: c.SDL_Event = undefined;
+        while (c.SDL_PollEvent(&event)) {
+            if (event.type == c.SDL_EVENT_QUIT) {
                 quit = true;
             }
         }

@@ -1,7 +1,5 @@
 const std = @import("std");
-const c = @cImport({
-    @cInclude("vulkan/vulkan.h");
-});
+const c = @import("../clibs.zig");
 
 pub fn create_render_pass(color_format: c.VkFormat, depth_format: c.VkFormat, device: c.VkDevice) !c.VkRenderPass {
     const color_attachment = c.VkAttachmentDescription{

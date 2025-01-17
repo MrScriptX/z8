@@ -1,11 +1,9 @@
 const std = @import("std");
-const vk = @cImport({
-    @cInclude("vulkan/vulkan.h");
-});
+const c = @import("../clibs.zig");
 
 pub const queues_t = struct {
-    graphics_queue: vk.VkQueue = undefined,
-    present_queue: vk.VkQueue = undefined,
+    graphics_queue: c.VkQueue = undefined,
+    present_queue: c.VkQueue = undefined,
     // queue_family_indices: queue_indices_t = undefined,
 };
 
@@ -18,28 +16,28 @@ pub const queue_indices_t = struct {
     }
 };
 
-pub fn find_queue_family(surface: vk.VkSurfaceKHR, physical_device: vk.VkPhysicalDevice) !queue_indices_t {
+pub fn find_queue_family(surface: c.VkSurfaceKHR, physical_device: c.VkPhysicalDevice) !queue_indices_t {
     var queue_family_count: u32 = 0;
-    vk.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
+    c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const queue_families = try allocator.alloc(vk.VkQueueFamilyProperties, queue_family_count);
-    vk.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.ptr);
+    const queue_families = try allocator.alloc(c.VkQueueFamilyProperties, queue_family_count);
+    c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.ptr);
 
     var graphics_family: usize = undefined;
     var present_family: usize = undefined;
     for (queue_families, 0..) |family, index| {
-        if (family.queueCount > 0 and family.queueFlags & vk.VK_QUEUE_GRAPHICS_BIT != 0) {
+        if (family.queueCount > 0 and family.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
             graphics_family = index;
         }
 
-        var present_support: vk.VkBool32 = vk.VK_FALSE;
-        _ = vk.vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, @intCast(index), surface, &present_support);
+        var present_support: c.VkBool32 = c.VK_FALSE;
+        _ = c.vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, @intCast(index), surface, &present_support);
 
-        if (family.queueCount > 0 and present_support == vk.VK_TRUE) {
+        if (family.queueCount > 0 and present_support == c.VK_TRUE) {
             present_family = index;
         }
 
@@ -56,11 +54,11 @@ pub fn find_queue_family(surface: vk.VkSurfaceKHR, physical_device: vk.VkPhysica
     return family_indices;
 }
 
-pub fn get_device_queue(device: vk.VkDevice, indices: queue_indices_t) !queues_t {
+pub fn get_device_queue(device: c.VkDevice, indices: queue_indices_t) !queues_t {
     var queues: queues_t = undefined;
 
-    vk.vkGetDeviceQueue(device, indices.graphics_family, 0, &queues.graphics_queue);
-    vk.vkGetDeviceQueue(device, indices.present_family, 0, &queues.present_queue);
+    c.vkGetDeviceQueue(device, indices.graphics_family, 0, &queues.graphics_queue);
+    c.vkGetDeviceQueue(device, indices.present_family, 0, &queues.present_queue);
 
     return queues;
 }

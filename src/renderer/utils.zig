@@ -1,7 +1,5 @@
 const std = @import("std");
-const c = @cImport({
-    @cInclude("vulkan/vulkan.h");
-});
+const c = @import("../clibs.zig");
 
 pub fn print_device_info(device: c.VkPhysicalDevice) void {
     var device_properties: c.VkPhysicalDeviceProperties = undefined;

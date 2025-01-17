@@ -1,24 +1,19 @@
 const std = @import("std");
-const vk = @cImport({
-    @cInclude("vulkan/vulkan.h");
-});
-const sdl = @cImport({
-    @cInclude("SDL3/SDL.h");
-    @cInclude("SDL3/SDL_vulkan.h");
-});
+const c = @import("../clibs.zig");
+
 const swapchain_details_t = @import("swapchain.zig").swapchain_details_t;
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
 const opt = @import("../options.zig");
 
 pub const app_t = struct {
-    instance: vk.VkInstance = undefined,
-    surface: vk.VkSurfaceKHR = undefined,
-    physical_device: vk.VkPhysicalDevice = undefined,
-    device: vk.VkDevice = undefined,
+    instance: c.VkInstance = undefined,
+    surface: c.VkSurfaceKHR = undefined,
+    physical_device: c.VkPhysicalDevice = undefined,
+    device: c.VkDevice = undefined,
     queue_indices: queue.queue_indices_t = undefined,
 
-    pub fn init(self: *app_t, window: ?*sdl.SDL_Window) !void {
+    pub fn init(self: *app_t, window: ?*c.SDL_Window) !void {
         self.instance = try init_instance();
         self.surface = try create_surface(window, self.instance);
         self.physical_device = try select_physical_device(self.instance, self.surface);
@@ -30,20 +25,20 @@ pub const app_t = struct {
     }
 };
 
-fn init_instance() !vk.VkInstance {
-    const app_info = vk.VkApplicationInfo{
-        .sType = vk.VK_STRUCTURE_TYPE_APPLICATION_INFO,
+fn init_instance() !c.VkInstance {
+    const app_info = c.VkApplicationInfo{
+        .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = null,
         .pApplicationName = "vzig",
-        .applicationVersion = vk.VK_MAKE_VERSION(1, 0, 0),
-        .pEngineName = "vzig",
-        .engineVersion = vk.VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = vk.VK_API_VERSION_1_0,
+        .applicationVersion = c.VK_MAKE_VERSION(1, 0, 0),
+        .pEngineName = "z8",
+        .engineVersion = c.VK_MAKE_VERSION(1, 0, 0),
+        .apiVersion = c.VK_API_VERSION_1_0,
     };
 
     // get required extensions
     var extension_count: u32 = 0;
-    const required_extensions = sdl.SDL_Vulkan_GetInstanceExtensions(&extension_count);// VK_EXT_DEBUG_REPORT_EXTENSION_NAME
+    const required_extensions = c.SDL_Vulkan_GetInstanceExtensions(&extension_count);// VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 
     var extensions = std.ArrayList([*c]const u8).init(std.heap.page_allocator);
     for (0..extension_count) |i| {
@@ -58,8 +53,8 @@ fn init_instance() !vk.VkInstance {
         "VK_LAYER_KHRONOS_validation"
     };
 
-    const instance_info = vk.VkInstanceCreateInfo{
-        .sType = vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+    const instance_info = c.VkInstanceCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = null,
         .flags = 0,
         .pApplicationInfo = &app_info,
@@ -69,28 +64,28 @@ fn init_instance() !vk.VkInstance {
         .ppEnabledExtensionNames = extensions.items.ptr,
     };
 
-    var instance: vk.VkInstance = undefined;
-    const result = vk.vkCreateInstance(&instance_info, null, &instance);
-    if (result != vk.VK_SUCCESS) {
+    var instance: c.VkInstance = undefined;
+    const result = c.vkCreateInstance(&instance_info, null, &instance);
+    if (result != c.VK_SUCCESS) {
         return std.debug.panic("Unable to create Vulkan instance: {}", .{result});
     }
 
     return instance;
 }
 
-fn create_surface(window: ?*sdl.SDL_Window, instance: vk.VkInstance) !vk.VkSurfaceKHR {
-    var surface: vk.VkSurfaceKHR = undefined;
-    const result = sdl.SDL_Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
+fn create_surface(window: ?*c.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
+    var surface: c.VkSurfaceKHR = undefined;
+    const result = c.SDL_Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
     if (result == false) {
-        return std.debug.panic("Unable to create Vulkan surface: {s}", .{sdl.SDL_GetError()});
+        return std.debug.panic("Unable to create Vulkan surface: {s}", .{c.SDL_GetError()});
     }
 
     return surface;
 }
 
-fn select_physical_device(instance: vk.VkInstance, surface: vk.VkSurfaceKHR) !vk.VkPhysicalDevice {
+fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.VkPhysicalDevice {
     var device_count: u32 = 0;
-    _ = vk.vkEnumeratePhysicalDevices(instance, &device_count, null);
+    _ = c.vkEnumeratePhysicalDevices(instance, &device_count, null);
 
     if (device_count == 0) {
         return std.debug.panic("No Vulkan devices found", .{});
@@ -100,13 +95,13 @@ fn select_physical_device(instance: vk.VkInstance, surface: vk.VkSurfaceKHR) !vk
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const devices = try allocator.alloc(vk.VkPhysicalDevice, device_count);
-    const result = vk.vkEnumeratePhysicalDevices(instance, &device_count, devices.ptr);
-    if (result != vk.VK_SUCCESS) {
+    const devices = try allocator.alloc(c.VkPhysicalDevice, device_count);
+    const result = c.vkEnumeratePhysicalDevices(instance, &device_count, devices.ptr);
+    if (result != c.VK_SUCCESS) {
         return std.debug.panic("Unable to enumerate Vulkan devices: {}", .{result});
     }
 
-    var physical_device: ?vk.VkPhysicalDevice = null;
+    var physical_device: ?c.VkPhysicalDevice = null;
     for (devices) |device| {
         if (try check_device(surface, device)) {
             physical_device = device;
@@ -121,13 +116,13 @@ fn select_physical_device(instance: vk.VkInstance, surface: vk.VkSurfaceKHR) !vk
     return physical_device.?;
 }
 
-fn create_device_interface(physical_device: vk.VkPhysicalDevice, queues: queue.queue_indices_t) !vk.VkDevice {
+fn create_device_interface(physical_device: c.VkPhysicalDevice, queues: queue.queue_indices_t) !c.VkDevice {
     var queue_priority: f32 = 1.0;
     
-    var queue_create_infos = std.ArrayList(vk.VkDeviceQueueCreateInfo).init(std.heap.page_allocator);
+    var queue_create_infos = std.ArrayList(c.VkDeviceQueueCreateInfo).init(std.heap.page_allocator);
 
-    const graphic_queue_create_info = vk.VkDeviceQueueCreateInfo{
-        .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+    const graphic_queue_create_info = c.VkDeviceQueueCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = queues.graphics_family,
         .queueCount = 1,
         .pQueuePriorities = &queue_priority,
@@ -136,8 +131,8 @@ fn create_device_interface(physical_device: vk.VkPhysicalDevice, queues: queue.q
     try queue_create_infos.append(graphic_queue_create_info);
 
     if (queues.graphics_family != queues.present_family) {
-        const present_qeueu_create_info = vk.VkDeviceQueueCreateInfo{
-            .sType = vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        const present_qeueu_create_info = c.VkDeviceQueueCreateInfo{
+            .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .queueFamilyIndex = queues.present_family,
             .queueCount = 1,
             .pQueuePriorities = &queue_priority,
@@ -147,13 +142,13 @@ fn create_device_interface(physical_device: vk.VkPhysicalDevice, queues: queue.q
     }
 
     // create device info
-    const device_features = vk.VkPhysicalDeviceFeatures{
-        .samplerAnisotropy = vk.VK_TRUE,
-        .fillModeNonSolid = vk.VK_TRUE,
+    const device_features = c.VkPhysicalDeviceFeatures{
+        .samplerAnisotropy = c.VK_TRUE,
+        .fillModeNonSolid = c.VK_TRUE,
     };
 
-    const device_create_info = vk.VkDeviceCreateInfo{
-        .sType = vk.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+    const device_create_info = c.VkDeviceCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = @intCast(queue_create_infos.items.len),
         .pQueueCreateInfos = queue_create_infos.items.ptr,
         .enabledExtensionCount = 1,
@@ -161,28 +156,28 @@ fn create_device_interface(physical_device: vk.VkPhysicalDevice, queues: queue.q
         .pEnabledFeatures = &device_features,
     };
 
-    var device: vk.VkDevice = undefined;
-    const result = vk.vkCreateDevice(physical_device, &device_create_info, null, &device);
-    if (result != vk.VK_SUCCESS) {
+    var device: c.VkDevice = undefined;
+    const result = c.vkCreateDevice(physical_device, &device_create_info, null, &device);
+    if (result != c.VK_SUCCESS) {
         return std.debug.panic("Unable to create Vulkan device: {}", .{result});
     }
 
     return device;
 }
 
-fn check_device(surface: vk.VkSurfaceKHR, device: vk.VkPhysicalDevice) !bool {
-    var device_properties: vk.VkPhysicalDeviceProperties = undefined;
-    vk.vkGetPhysicalDeviceProperties(device, &device_properties);
+fn check_device(surface: c.VkSurfaceKHR, device: c.VkPhysicalDevice) !bool {
+    var device_properties: c.VkPhysicalDeviceProperties = undefined;
+    c.vkGetPhysicalDeviceProperties(device, &device_properties);
 
-    var device_features: vk.VkPhysicalDeviceFeatures = undefined;
-    vk.vkGetPhysicalDeviceFeatures(device, &device_features);
+    var device_features: c.VkPhysicalDeviceFeatures = undefined;
+    c.vkGetPhysicalDeviceFeatures(device, &device_features);
 
-    if (device_properties.deviceType != vk.VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU and device_properties.deviceType != vk.VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
+    if (device_properties.deviceType != c.VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU and device_properties.deviceType != c.VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
         std.debug.print("Wrong device type\n", .{});
         return false;
     }
 
-    if (device_features.geometryShader == vk.VK_FALSE) {
+    if (device_features.geometryShader == c.VK_FALSE) {
         std.debug.print("No geometry shader\n", .{});
         return false;
     }
@@ -206,10 +201,10 @@ fn check_device(surface: vk.VkSurfaceKHR, device: vk.VkPhysicalDevice) !bool {
         }
     }
 
-    var supportedFeatures: vk.VkPhysicalDeviceFeatures = undefined;
-    vk.vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+    var supportedFeatures: c.VkPhysicalDeviceFeatures = undefined;
+    c.vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-    if (supportedFeatures.samplerAnisotropy != vk.VK_TRUE) {
+    if (supportedFeatures.samplerAnisotropy != c.VK_TRUE) {
         std.debug.print("No sampler anisotropy\n", .{});
         return false;
     }
@@ -222,16 +217,16 @@ fn check_device(surface: vk.VkSurfaceKHR, device: vk.VkPhysicalDevice) !bool {
     return true;
 }
 
-fn check_device_extensions_support(device: vk.VkPhysicalDevice) !bool {
+fn check_device_extensions_support(device: c.VkPhysicalDevice) !bool {
     var extension_count: u32 = 0;
-    _ = vk.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, null);
+    _ = c.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, null);
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const available_extensions = try allocator.alloc(vk.VkExtensionProperties, extension_count);
-    _ = vk.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr);
+    const available_extensions = try allocator.alloc(c.VkExtensionProperties, extension_count);
+    _ = c.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr);
 
     const required_extensions = [_][]const u8{
         "VK_KHR_swapchain",
@@ -254,26 +249,26 @@ fn check_device_extensions_support(device: vk.VkPhysicalDevice) !bool {
     return match_extensions == required_extensions.len;
 }
 
-fn query_swapchain_support(device: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR) !swapchain_details_t {
+fn query_swapchain_support(device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !swapchain_details_t {
     var swapchain_details = swapchain_details_t{};
     swapchain_details.init();
 
-    _ = vk.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &swapchain_details.capabilities);
+    _ = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &swapchain_details.capabilities);
 
     var format_count: u32 = 0;
-    _ = vk.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
+    _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
 
     if (format_count != 0) {
         try swapchain_details.resize_formats(@intCast(format_count));
-        _ = vk.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, swapchain_details.formats.ptr);
+        _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, swapchain_details.formats.ptr);
     }
 
     var present_mode_count: u32 = 0;
-    _ = vk.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null);
+    _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null);
 
     if (present_mode_count != 0) {
         try swapchain_details.resize_present_modes(@intCast(present_mode_count));
-        _ = vk.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, swapchain_details.present_modes.ptr);
+        _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, swapchain_details.present_modes.ptr);
     }
 
     return swapchain_details;
