@@ -132,33 +132,36 @@ pub fn create_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderMod
 	var buf_reader = std.io.bufferedReader(file.reader());
 	var in_stream = buf_reader.reader();
 
-	const arena = std.heap.ArenaAllocator(std.heap.page_allocator);
+	var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 	defer arena.deinit();
 
-	var contents = std.ArrayList(u8).init(arena.allocator());
+	const allocator = arena.allocator();
+
+	var contents = std.ArrayList(u8).init(allocator);
 	var buf: [1024]u8 = undefined;
 	while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-    	contents.appendSlice(line);
+    	try contents.appendSlice(line);
 	}
 
 	const shader_module_info = c.VkShaderModuleCreateInfo{
 		.sType = c.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 		.codeSize = contents.items.len,
-		.pCode = contents.items.ptr,
+		.pCode = @ptrCast(@alignCast(contents.items.ptr))
 	};
 
 	var shader_module: c.VkShaderModule = undefined;
 	const create_shader_module_result = c.vkCreateShaderModule(device, &shader_module_info, null, &shader_module);
 	if (create_shader_module_result != c.VK_SUCCESS)
-		std.debug.panic("failed to create shader module!");
+		std.debug.panic("failed to create shader module!", .{});
 
 	return shader_module;
 }
 
 pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
-	
-	const vertex_shader_module = create_shader_module(device, "default.vert");
-	
+	// read vertex shader module
+	const vertex_shader_module = try create_shader_module(device, "shaders/vertex.spv");
+	defer c.vkDestroyShaderModule(device, vertex_shader_module, null);
+
 	const vertex_shader_stage_info = c.VkPipelineShaderStageCreateInfo {
 		.sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 		.stage = c.VK_SHADER_STAGE_VERTEX_BIT,
@@ -166,7 +169,9 @@ pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
 		.pName = "main",
 	};
 
-	const fragment_shader_module = create_shader_module(device, "default.frag");
+	// read fragment shader module
+	const fragment_shader_module = try create_shader_module(device, "shaders/fragment.spv");
+	defer c.vkDestroyShaderModule(device, fragment_shader_module, null);
 
 	const fragment_shader_stage_info = c.VkPipelineShaderStageCreateInfo {
 		.sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -175,7 +180,7 @@ pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
 		.pName = "main",
 	};
 
-	const shader_stages = []c.VkPipelineShaderStageCreateInfo{ vertex_shader_stage_info, fragment_shader_stage_info };
+	const shader_stages = [_]c.VkPipelineShaderStageCreateInfo{ vertex_shader_stage_info, fragment_shader_stage_info };
 
 	const binding_description = shader_inputs.get_binding_description();
 	const attribute_descriptions = shader_inputs.get_attributes_description();
@@ -259,7 +264,7 @@ pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
     const pipeline_create_info = c.VkGraphicsPipelineCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 		.stageCount = 2,
-		.pStages = shader_stages.ptr,
+		.pStages = &shader_stages,
 		.pVertexInputState = &vertex_input_info,
 		.pInputAssemblyState = &input_assembly,
         .pViewportState = &viewport_state,
@@ -313,4 +318,10 @@ pub fn allocate_buffer(device: c.VkDevice, physical_device: c.VkPhysicalDevice, 
 		return std.debug.panic("Failed to bind buffer !", .{});
 
 	return buffer_memory;
+}
+
+pub fn destroy_pipeline(device: c.VkDevice, pipeline: c.VkPipeline) void {
+	_ = c.vkDeviceWaitIdle(device);
+
+	c.vkDestroyPipeline(device, pipeline, null);
 }

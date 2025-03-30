@@ -26,6 +26,8 @@ pub const renderer_t = struct {
     index_buffer: c.VkBuffer = undefined,
     index_buffer_mem: c.VkDeviceMemory = undefined, 
 
+    pipeline: c.VkPipeline = undefined,
+
     pub fn init(self: *renderer_t, window: ?*c.SDL_Window, width: u32, height: u32) !void {
         try self.app.init(window);
 
@@ -48,7 +50,7 @@ pub const renderer_t = struct {
             frame.buffer = try inits.create_framebuffer(self.app.device, self.renderpass, &attachements, self.swapchain.extent);
         }
 
-        // _ = try utils.create_pipeline(self.app.device, self.swapchain.extent);
+        self.pipeline = try utils.create_pipeline(self.app.device, self.swapchain.extent);
 
         // self.update();
     }
