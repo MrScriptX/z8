@@ -21,6 +21,11 @@ pub const renderer_t = struct {
     current_frame: u32 = 0,
     last_frame: u32 = 0,
 
+    vertex_buffer: c.VkBuffer = undefined,
+    vertex_buffer_mem: c.VkDeviceMemory = undefined,
+    index_buffer: c.VkBuffer = undefined,
+    index_buffer_mem: c.VkDeviceMemory = undefined, 
+
     pub fn init(self: *renderer_t, window: ?*c.SDL_Window, width: u32, height: u32) !void {
         try self.app.init(window);
 
@@ -44,9 +49,17 @@ pub const renderer_t = struct {
         }
 
         // _ = try utils.create_pipeline(self.app.device, self.swapchain.extent);
+
+        // self.update();
     }
 
     pub fn deinit(self: *renderer_t) void {
+        c.vkDestroyBuffer(self.app.device, self.vertex_buffer, null);
+        c.vkFreeMemory(self.app.device, self.vertex_buffer_mem, null);
+        
+        c.vkDestroyBuffer(self.app.device, self.index_buffer, null);
+        c.vkFreeMemory(self.app.device, self.index_buffer_mem, null);
+
         try self.clean_swapchain();
 
         for (&self.frames) |*frame| {
@@ -84,15 +97,7 @@ pub const renderer_t = struct {
         self.swapchain.deinit(self.app);
     }
 
-    pub fn draw(self: *renderer_t) void {
-        _ = c.vkWaitForFences(self.app.device, 1, &self.frames[self.current_frame].render_fence, c.VK_TRUE, std.math.maxInt(u64));
-        _ = c.vkResetFences(self.app.device, 1, &self.frames[self.current_frame].render_fence);
-
-        // acquire next image
-        self.last_frame = self.current_frame;
-        _ = c.vkAcquireNextImageKHR(self.app.device, self.swapchain.handle, std.math.maxInt(u64), self.frames[self.current_frame].image_available_sem, null, &self.current_frame);
-
-        // begin command buffer
+    pub fn begin_cmd(self: *renderer_t) !void {
         const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
         _ = c.vkResetCommandBuffer(current_cmd_buffer.*, 0);
 
@@ -102,9 +107,11 @@ pub const renderer_t = struct {
         };
 
         _ = c.vkBeginCommandBuffer(current_cmd_buffer.*, &command_buffer_begin_info);
+    }
 
+    pub fn begin_renderpass(self: *renderer_t) !void {
+        const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
 
-        // begin render pass
         const render_area = c.VkRect2D {
             .offset = c.VkOffset2D {.x = 0, .y = 0},
             .extent = self.swapchain.extent,
@@ -127,10 +134,36 @@ pub const renderer_t = struct {
         };
 
         _ = c.vkCmdBeginRenderPass(current_cmd_buffer.*, &render_pass_begin_info, c.VK_SUBPASS_CONTENTS_INLINE);
+    }
+
+    pub fn end_recording(self: *renderer_t) !void {
+        const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
 
         _ = c.vkCmdEndRenderPass(current_cmd_buffer.*);
         _ = c.vkEndCommandBuffer(current_cmd_buffer.*);
+    }
 
+    pub fn update(self: *renderer_t) void {
+        _ = c.vkWaitForFences(self.app.device, 1, &self.frames[self.current_frame].render_fence, c.VK_TRUE, std.math.maxInt(u64));
+        _ = c.vkResetFences(self.app.device, 1, &self.frames[self.current_frame].render_fence);
+
+        // acquire next image
+        self.last_frame = self.current_frame;
+        _ = c.vkAcquireNextImageKHR(self.app.device, self.swapchain.handle, std.math.maxInt(u64), self.frames[self.current_frame].image_available_sem, null, &self.current_frame);
+
+        try self.begin_cmd();
+
+        // record buffer
+        try self.record_vertices_buffer();
+        try self.record_indices_buffer();
+
+        try self.begin_renderpass();
+
+        try self.end_recording();
+    }
+
+    pub fn draw(self: *renderer_t) void {
+        const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
 
         // submit queue
         const cmd_buffers_to_submit = [1]c.VkCommandBuffer{ current_cmd_buffer.* };
@@ -148,7 +181,12 @@ pub const renderer_t = struct {
             .pSignalSemaphores = @ptrCast(&signal_sem),
         };
 
-        _ = c.vkQueueSubmit(self.queues.graphics_queue, 1, &submit_info, self.frames[self.current_frame].render_fence);
+        _ = c.vkResetFences(self.app.device, 1, &self.frames[self.current_frame].render_fence);
+
+        const result = c.vkQueueSubmit(self.queues.graphics_queue, 1, &submit_info, self.frames[self.current_frame].render_fence);
+        if (result != c.VK_SUCCESS) {
+            std.debug.panic("failed to submit draw command buffer !", .{});
+        }
 
         const pswapchain = [1]c.VkSwapchainKHR { self.swapchain.handle };
         const present_info = c.VkPresentInfoKHR {
@@ -161,5 +199,88 @@ pub const renderer_t = struct {
         };
 
         _ = c.vkQueuePresentKHR(self.queues.present_queue, &present_info);
+    }
+
+    pub fn record_vertices_buffer(self: *renderer_t) !void {
+        const vertices = [_]f32{
+            -1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            -1.0, 1.0, -1.0,
+            1.0, 1.0, -1.0,
+            -1.0, -1.0, 1.0,
+            1.0, -1.0, 1.0,
+            -1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0
+        };
+
+        const buffer_size: c.VkDeviceSize = @sizeOf(@TypeOf(vertices)) * 1;
+
+        const staging_buffer = try utils.create_buffer(self.app.device, buffer_size, c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+        defer c.vkDestroyBuffer(self.app.device, staging_buffer, null);
+        
+        const staging_buffer_mem = try utils.allocate_buffer(self.app.device, self.app.physical_device, staging_buffer, c.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | c.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        defer c.vkFreeMemory(self.app.device, staging_buffer_mem, null);
+
+        var data: ?*anyopaque = undefined;
+	    _ = c.vkMapMemory(self.app.device, staging_buffer_mem, 0, buffer_size, 0, &data);
+        defer c.vkUnmapMemory(self.app.device, staging_buffer_mem);
+
+        @memcpy(@as([*]f32, @alignCast(@ptrCast(data))), &vertices);
+
+        self.vertex_buffer = try utils.create_buffer(self.app.device, buffer_size, c.VK_BUFFER_USAGE_TRANSFER_DST_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        self.vertex_buffer_mem = try utils.allocate_buffer(self.app.device, self.app.physical_device, self.vertex_buffer, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        // copy buffer into command buffer
+        const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
+        const copy_region = c.VkBufferCopy{
+            .size = buffer_size,
+        };
+	    c.vkCmdCopyBuffer(current_cmd_buffer.*, staging_buffer, self.vertex_buffer, 1, &copy_region);
+    }
+
+    pub fn record_indices_buffer(self: *renderer_t) !void {
+        const indices = [_]u32{
+            0, 2, 1,
+            1, 2, 3,
+            5, 7, 4,
+            4, 7, 6,
+            1, 3, 5,
+            5, 3, 7,
+            4, 6, 0,
+            0, 6, 2,
+            2, 6, 0,
+            0, 6, 2,
+            2, 6, 3,
+            3, 6, 7,
+            4, 0, 5,
+            5, 0, 1,
+        };
+
+        const buffer_size: c.VkDeviceSize = @sizeOf(@TypeOf(indices)) * 1;
+
+        const staging_buffer = try utils.create_buffer(self.app.device, buffer_size, c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+        const staging_buffer_mem = try utils.allocate_buffer(self.app.device, self.app.physical_device, staging_buffer, c.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | c.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        var data: ?*anyopaque = undefined;
+	    const result = c.vkMapMemory(self.app.device, staging_buffer_mem, 0, buffer_size, 0, &data);
+        if (result != c.VK_SUCCESS) {
+            std.debug.panic("mapping memory failed !", .{});
+        }
+        defer c.vkUnmapMemory(self.app.device, staging_buffer_mem);
+
+        @memcpy(@as([*]u32, @alignCast(@ptrCast(data))), &indices);
+	    
+        self.index_buffer = try utils.create_buffer(self.app.device, buffer_size, c.VK_BUFFER_USAGE_TRANSFER_DST_BIT | c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+        self.index_buffer_mem = try utils.allocate_buffer(self.app.device, self.app.physical_device, self.index_buffer, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        // copy buffer into command buffer
+        const current_cmd_buffer = &self.command_buffers[self.current_frame]; 
+        const copy_region = c.VkBufferCopy{
+            .size = buffer_size,
+        };
+	    c.vkCmdCopyBuffer(current_cmd_buffer.*, staging_buffer, self.index_buffer, 1, &copy_region);
+
+        c.vkDestroyBuffer(self.app.device, staging_buffer, null);
+        c.vkFreeMemory(self.app.device, staging_buffer_mem, null);
     }
 };

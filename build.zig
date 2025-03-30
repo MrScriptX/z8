@@ -26,6 +26,8 @@ pub fn build(b: *std.Build) !void {
     exe.addLibraryPath(.{ .cwd_relative = "common/SDL3/lib" });
     exe.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
 
+    exe.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
+
     exe.linkLibC();
     exe.linkLibCpp();
 

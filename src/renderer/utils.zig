@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
+const shader_inputs = @import("shader_inputs.zig");
 
 pub fn print_device_info(device: c.VkPhysicalDevice) void {
     var device_properties: c.VkPhysicalDeviceProperties = undefined;
@@ -124,8 +125,76 @@ pub fn create_command_buffer(count: u32, device: c.VkDevice, command_pool: c.VkC
     return command_buffers;
 }
 
+pub fn create_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModule {
+	const file = try std.fs.cwd().createFile(path, .{ .read = true });
+	defer file.close();
+	
+	var buf_reader = std.io.bufferedReader(file.reader());
+	var in_stream = buf_reader.reader();
+
+	const arena = std.heap.ArenaAllocator(std.heap.page_allocator);
+	defer arena.deinit();
+
+	var contents = std.ArrayList(u8).init(arena.allocator());
+	var buf: [1024]u8 = undefined;
+	while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
+    	contents.appendSlice(line);
+	}
+
+	const shader_module_info = c.VkShaderModuleCreateInfo{
+		.sType = c.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+		.codeSize = contents.items.len,
+		.pCode = contents.items.ptr,
+	};
+
+	var shader_module: c.VkShaderModule = undefined;
+	const create_shader_module_result = c.vkCreateShaderModule(device, &shader_module_info, null, &shader_module);
+	if (create_shader_module_result != c.VK_SUCCESS)
+		std.debug.panic("failed to create shader module!");
+
+	return shader_module;
+}
+
 pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
-    const viewport = c.VkViewport {
+	
+	const vertex_shader_module = create_shader_module(device, "default.vert");
+	
+	const vertex_shader_stage_info = c.VkPipelineShaderStageCreateInfo {
+		.sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		.stage = c.VK_SHADER_STAGE_VERTEX_BIT,
+		.module = vertex_shader_module,
+		.pName = "main",
+	};
+
+	const fragment_shader_module = create_shader_module(device, "default.frag");
+
+	const fragment_shader_stage_info = c.VkPipelineShaderStageCreateInfo {
+		.sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		.stage = c.VK_SHADER_STAGE_FRAGMENT_BIT,
+		.module = fragment_shader_module,
+		.pName = "main",
+	};
+
+	const shader_stages = []c.VkPipelineShaderStageCreateInfo{ vertex_shader_stage_info, fragment_shader_stage_info };
+
+	const binding_description = shader_inputs.get_binding_description();
+	const attribute_descriptions = shader_inputs.get_attributes_description();
+	const vertex_input_info = c.VkPipelineVertexInputStateCreateInfo {
+		.sType = c.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		.pNext = null,
+		.vertexBindingDescriptionCount = 1,
+		.vertexAttributeDescriptionCount = attribute_descriptions.len,
+		.pVertexBindingDescriptions = &binding_description,
+		.pVertexAttributeDescriptions = &attribute_descriptions
+	};
+
+	const input_assembly = c.VkPipelineInputAssemblyStateCreateInfo {
+		.sType = c.VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+		.topology = c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+		.primitiveRestartEnable = c.VK_FALSE,
+	};
+
+	const viewport = c.VkViewport {
         .x = 0.0,
 	    .y = 0.0,
 	    .width = @floatFromInt(extent.width),
@@ -189,6 +258,10 @@ pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
     
     const pipeline_create_info = c.VkGraphicsPipelineCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+		.stageCount = 2,
+		.pStages = shader_stages.ptr,
+		.pVertexInputState = &vertex_input_info,
+		.pInputAssemblyState = &input_assembly,
         .pViewportState = &viewport_state,
         .pRasterizationState = &rasterizer,
         .pMultisampleState = &multisampling,
@@ -203,4 +276,41 @@ pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
     }
 
     return pipeline;
+}
+
+pub fn create_buffer(device: c.VkDevice, size: c.VkDeviceSize, usage: c.VkBufferUsageFlagBits) !c.VkBuffer {
+	const buffer_info = c.VkBufferCreateInfo{
+		.sType = c.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.size = size,
+		.usage = usage,
+		.sharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
+	};
+
+	var buffer: c.VkBuffer = undefined;
+	const result = c.vkCreateBuffer(device, &buffer_info, null, &buffer);
+	if (result != c.VK_SUCCESS)
+		return std.debug.panic("failed to create buffer !", .{});
+	
+	return buffer;
+}
+
+pub fn allocate_buffer(device: c.VkDevice, physical_device: c.VkPhysicalDevice, buffer: c.VkBuffer, properties: c.VkMemoryAllocateFlags) !c.VkDeviceMemory {
+	var mem_requirements: c.VkMemoryRequirements = undefined;
+	c.vkGetBufferMemoryRequirements(device, buffer, &mem_requirements);
+
+	const alloc_info = c.VkMemoryAllocateInfo{
+		.sType = c.VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+		.allocationSize = mem_requirements.size,
+		.memoryTypeIndex = try find_memory_type(physical_device, mem_requirements.memoryTypeBits, properties),
+	};
+	
+
+	var buffer_memory: c.VkDeviceMemory = undefined;
+	if (c.vkAllocateMemory(device, &alloc_info, null, &buffer_memory) != c.VK_SUCCESS)
+		return std.debug.panic("Failed to allocate buffer memory !", .{});
+
+	if (c.vkBindBufferMemory(device, buffer, buffer_memory, 0) != c.VK_SUCCESS)
+		return std.debug.panic("Failed to bind buffer !", .{});
+
+	return buffer_memory;
 }
