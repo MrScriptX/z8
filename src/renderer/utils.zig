@@ -125,6 +125,65 @@ pub fn create_command_buffer(count: u32, device: c.VkDevice, command_pool: c.VkC
     return command_buffers;
 }
 
+pub fn create_descriptor_sets_layout(device: c.VkDevice) !c.VkDescriptorSetLayout {
+	const descriptor_set_layout_binding = [_]c.VkDescriptorSetLayoutBinding{
+		c.VkDescriptorSetLayoutBinding {
+			.binding = 0,
+			.descriptorType = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = 1,
+			.stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
+			.pImmutableSamplers = null,
+		},
+		c.VkDescriptorSetLayoutBinding {
+			.binding = 1,
+			.descriptorType = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = 1,
+			.stageFlags = c.VK_SHADER_STAGE_FRAGMENT_BIT,
+			.pImmutableSamplers = null,
+		},
+	};
+
+	const descriptor_set_layout_info = c.VkDescriptorSetLayoutCreateInfo {
+		.sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.bindingCount = descriptor_set_layout_binding.len,
+		.pBindings = &descriptor_set_layout_binding,
+	};
+
+	var descriptor_set_layout: c.VkDescriptorSetLayout = undefined;
+	const result = c.vkCreateDescriptorSetLayout(device, &descriptor_set_layout_info, null, &descriptor_set_layout);
+	if (result != c.VK_SUCCESS)
+		std.debug.panic("failed to create descriptor set layout!", .{});
+
+	return descriptor_set_layout;
+}
+
+pub fn create_descriptor_pool(device: c.VkDevice) !c.VkDescriptorPool {
+	const pool_sizes = [_]c.VkDescriptorPoolSize{
+		c.VkDescriptorPoolSize {
+			.type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = 10,
+		},
+		c.VkDescriptorPoolSize {
+			.type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = 10,
+		},
+	};
+
+	const descriptor_pool_info = c.VkDescriptorPoolCreateInfo {
+		.sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.poolSizeCount = pool_sizes.len,
+		.pPoolSizes = &pool_sizes,
+		.maxSets = 100,
+	};
+
+	var descriptor_pool: c.VkDescriptorPool = undefined;
+	const result = c.vkCreateDescriptorPool(device, &descriptor_pool_info, null, &descriptor_pool);
+	if (result != c.VK_SUCCESS)
+		std.debug.panic("failed to create descriptor pool!", .{});
+
+	return descriptor_pool;
+}
+
 pub fn create_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModule {
 	const file = try std.fs.cwd().createFile(path, .{ .read = true });
 	defer file.close();
@@ -281,6 +340,21 @@ pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
     }
 
     return pipeline;
+}
+
+pub fn create_pipeline_layout(device: c.VkDevice, descriptor_set_layouts: []c.VkDescriptorSetLayout) !c.VkPipelineLayout {
+	const pipeline_layout_info = c.VkPipelineLayoutCreateInfo{
+		.sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.setLayoutCount = @intCast(descriptor_set_layouts.len),
+		.pSetLayouts = descriptor_set_layouts.ptr,
+	};
+
+	var pipeline_layout: c.VkPipelineLayout = undefined;
+	const result = c.vkCreatePipelineLayout(device, &pipeline_layout_info, null, &pipeline_layout);
+	if (result != c.VK_SUCCESS)
+		return std.debug.panic("failed to create pipeline layout !", .{});
+
+	return pipeline_layout;
 }
 
 pub fn create_buffer(device: c.VkDevice, size: c.VkDeviceSize, usage: c.VkBufferUsageFlagBits) !c.VkBuffer {

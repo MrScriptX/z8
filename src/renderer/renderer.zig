@@ -26,7 +26,11 @@ pub const renderer_t = struct {
     index_buffer: c.VkBuffer = undefined,
     index_buffer_mem: c.VkDeviceMemory = undefined, 
 
+    pipeline_layout: c.VkPipelineLayout = undefined,
     pipeline: c.VkPipeline = undefined,
+
+    descriptor_set_layout: c.VkDescriptorSetLayout = undefined,
+    descriptor_pool: c.VkDescriptorPool = undefined,
 
     pub fn init(self: *renderer_t, window: ?*c.SDL_Window, width: u32, height: u32) !void {
         try self.app.init(window);
@@ -50,9 +54,18 @@ pub const renderer_t = struct {
             frame.buffer = try inits.create_framebuffer(self.app.device, self.renderpass, &attachements, self.swapchain.extent);
         }
 
+        // create descriptors
+        self.descriptor_set_layout = try utils.create_descriptor_sets_layout(self.app.device);
+        self.descriptor_pool = try utils.create_descriptor_pool(self.app.device);
+
+        var cp = [_]c.VkDescriptorSetLayout {
+            self.descriptor_set_layout
+        };
+
+        self.pipeline_layout = try utils.create_pipeline_layout(self.app.device, &cp);
         self.pipeline = try utils.create_pipeline(self.app.device, self.swapchain.extent);
 
-        // self.update();
+        self.update();
     }
 
     pub fn deinit(self: *renderer_t) void {
@@ -160,6 +173,50 @@ pub const renderer_t = struct {
         try self.record_indices_buffer();
 
         try self.begin_renderpass();
+
+        const current_cmd_buffer = &self.command_buffers[self.current_frame];
+        c.vkCmdBindPipeline(current_cmd_buffer.*, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline);
+
+        const vertex_buffer = [_]c.VkBuffer {
+            self.vertex_buffer
+        };
+        const offsets = [_]c.VkDeviceSize{ 0 };
+
+        c.vkCmdBindVertexBuffers(current_cmd_buffer.*, 0, 1, &vertex_buffer, &offsets);
+        c.vkCmdBindIndexBuffer(current_cmd_buffer.*, self.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+
+        const layouts = [_]c.VkDescriptorSetLayout{ self.descriptor_set_layout };
+        const allocation_info = c.VkDescriptorSetAllocateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .descriptorPool = self.descriptor_pool,
+            .descriptorSetCount = 1,
+            .pSetLayouts = &layouts,
+        };
+
+        var descriptor_set: c.VkDescriptorSet = undefined;
+        _ = c.vkAllocateDescriptorSets(self.app.device, &allocation_info, &descriptor_set);
+
+        const sets = [_]c.VkDescriptorSet{ descriptor_set };
+        c.vkCmdBindDescriptorSets(current_cmd_buffer.*, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline_layout, 0, 1, &sets, 0, null);
+
+        const indices = [_]u32{
+            0, 2, 1,
+            1, 2, 3,
+            5, 7, 4,
+            4, 7, 6,
+            1, 3, 5,
+            5, 3, 7,
+            4, 6, 0,
+            0, 6, 2,
+            2, 6, 0,
+            0, 6, 2,
+            2, 6, 3,
+            3, 6, 7,
+            4, 0, 5,
+            5, 0, 1,
+        };
+
+        c.vkCmdDrawIndexed(current_cmd_buffer.*, indices.len, 1, 0, 0, 0);
 
         try self.end_recording();
     }
