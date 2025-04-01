@@ -184,28 +184,24 @@ pub fn create_descriptor_pool(device: c.VkDevice) !c.VkDescriptorPool {
 	return descriptor_pool;
 }
 
-pub fn create_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModule {
+pub fn read_shader_file(path: []const u8, allocator: std.mem.Allocator) ![]const u8 {
 	const file = try std.fs.cwd().createFile(path, .{ .read = true });
 	defer file.close();
 	
-	var buf_reader = std.io.bufferedReader(file.reader());
-	var in_stream = buf_reader.reader();
+	const stat = try file.stat();
 
-	var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-	defer arena.deinit();
+	const code = try allocator.alloc(u8, stat.size);
 
-	const allocator = arena.allocator();
+	_ = try file.readAll(code);
 
-	var contents = std.ArrayList(u8).init(allocator);
-	var buf: [1024]u8 = undefined;
-	while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-    	try contents.appendSlice(line);
-	}
+	return code;
+}
 
+pub fn create_shader_module(device: c.VkDevice, code: []align(@alignOf(u32)) const u8) !c.VkShaderModule {
 	const shader_module_info = c.VkShaderModuleCreateInfo{
 		.sType = c.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-		.codeSize = contents.items.len,
-		.pCode = @ptrCast(@alignCast(contents.items.ptr))
+		.codeSize = code.len,
+		.pCode = std.mem.bytesAsSlice(u32, code).ptr,
 	};
 
 	var shader_module: c.VkShaderModule = undefined;
@@ -217,8 +213,14 @@ pub fn create_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderMod
 }
 
 pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
+	var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+	defer arena.deinit();
+
+	const allocator = arena.allocator();
+
 	// read vertex shader module
-	const vertex_shader_module = try create_shader_module(device, "shaders/vertex.spv");
+	const vertex_code align(4) = try read_shader_file("./zig-out/bin/shaders/vertex.spv", allocator);
+	const vertex_shader_module = try create_shader_module(device, vertex_code);
 	defer c.vkDestroyShaderModule(device, vertex_shader_module, null);
 
 	const vertex_shader_stage_info = c.VkPipelineShaderStageCreateInfo {
@@ -229,7 +231,8 @@ pub fn create_pipeline(device: c.VkDevice, extent: c.VkExtent2D) !c.VkPipeline {
 	};
 
 	// read fragment shader module
-	const fragment_shader_module = try create_shader_module(device, "shaders/fragment.spv");
+	const fragment_code align(4) = try read_shader_file("./zig-out/bin/shaders/fragment.spv", allocator);
+	const fragment_shader_module = try create_shader_module(device, &fragment_code);
 	defer c.vkDestroyShaderModule(device, fragment_shader_module, null);
 
 	const fragment_shader_stage_info = c.VkPipelineShaderStageCreateInfo {
