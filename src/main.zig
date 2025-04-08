@@ -1,6 +1,6 @@
 const std = @import("std");
 const c = @import("clibs.zig");
-const renderer_t = @import("renderer/renderer.zig").renderer_t;
+const engine = @import("renderer/engine.zig");
 
 pub fn main() !u8 {
     const init = c.SDL_Init(c.SDL_INIT_VIDEO);
@@ -17,11 +17,11 @@ pub fn main() !u8 {
     }
     defer c.SDL_DestroyWindow(window);
 
-    var renderer = renderer_t{};
-    try renderer.init(window, 800, 600);
-    defer renderer.deinit();
+    // var engine = vk_engine{};
+    try engine.init(window, 800, 600);
+    defer engine.deinit();
     
-    renderer.draw();
+    engine.draw();
 
     // main loop
     var quit = false;

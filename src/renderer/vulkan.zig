@@ -1,31 +1,10 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
-
-const swapchain_details_t = @import("swapchain.zig").swapchain_details_t;
 const queue = @import("queue_family.zig");
-const queues_t = queue.queues_t;
+const details_t = @import("swapchain.zig").details_t;
 const opt = @import("../options.zig");
 
-pub const app_t = struct {
-    instance: c.VkInstance = undefined,
-    surface: c.VkSurfaceKHR = undefined,
-    physical_device: c.VkPhysicalDevice = undefined,
-    device: c.VkDevice = undefined,
-    queue_indices: queue.queue_indices_t = undefined,
-
-    pub fn init(self: *app_t, window: ?*c.SDL_Window) !void {
-        self.instance = try init_instance();
-        self.surface = try create_surface(window, self.instance);
-        self.physical_device = try select_physical_device(self.instance, self.surface);
-        self.queue_indices = try queue.find_queue_family(self.surface, self.physical_device);
-        self.device = try create_device_interface(self.physical_device, self.queue_indices);
-    }
-
-    pub fn deinit(_: *app_t) void {
-    }
-};
-
-fn init_instance() !c.VkInstance {
+pub fn init_instance() !c.VkInstance {
     const app_info = c.VkApplicationInfo{
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = null,
@@ -33,7 +12,7 @@ fn init_instance() !c.VkInstance {
         .applicationVersion = c.VK_MAKE_VERSION(1, 0, 0),
         .pEngineName = "z8",
         .engineVersion = c.VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = c.VK_API_VERSION_1_0,
+        .apiVersion = c.VK_API_VERSION_1_3,
     };
 
     // get required extensions
@@ -46,21 +25,23 @@ fn init_instance() !c.VkInstance {
     }
 
     try extensions.append("VK_EXT_debug_utils");
-    extension_count += 1;
+    // try extensions.append("VK_KHR_synchronization2");
 
     // validation layer
-    const layers = [_][]const u8{
-        "VK_LAYER_KHRONOS_validation"
-    };
+    var layers = std.ArrayList([*c]const u8).init(std.heap.page_allocator);
+    defer layers.deinit();
 
-    const instance_info = c.VkInstanceCreateInfo{
+    try layers.append("VK_LAYER_KHRONOS_validation");
+    try layers.append("VK_LAYER_KHRONOS_synchronization2");
+
+    const instance_info = c.VkInstanceCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = null,
         .flags = 0,
         .pApplicationInfo = &app_info,
-        .enabledLayerCount = 1,
-        .ppEnabledLayerNames = @ptrCast(&layers),
-        .enabledExtensionCount = extension_count,
+        .enabledLayerCount = @intCast(layers.items.len),
+        .ppEnabledLayerNames = layers.items.ptr,
+        .enabledExtensionCount = @intCast(extensions.items.len),
         .ppEnabledExtensionNames = extensions.items.ptr,
     };
 
@@ -73,7 +54,7 @@ fn init_instance() !c.VkInstance {
     return instance;
 }
 
-fn create_surface(window: ?*c.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
+pub fn create_surface(window: ?*c.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
     var surface: c.VkSurfaceKHR = undefined;
     const result = c.SDL_Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
     if (result == false) {
@@ -83,7 +64,7 @@ fn create_surface(window: ?*c.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKH
     return surface;
 }
 
-fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.VkPhysicalDevice {
+pub fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.VkPhysicalDevice {
     var device_count: u32 = 0;
     _ = c.vkEnumeratePhysicalDevices(instance, &device_count, null);
 
@@ -116,7 +97,7 @@ fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.Vk
     return physical_device.?;
 }
 
-fn create_device_interface(physical_device: c.VkPhysicalDevice, queues: queue.queue_indices_t) !c.VkDevice {
+pub fn create_device_interface(physical_device: c.VkPhysicalDevice, queues: queue.queue_indices_t) !c.VkDevice {
     var queue_priority: f32 = 1.0;
     
     var queue_create_infos = std.ArrayList(c.VkDeviceQueueCreateInfo).init(std.heap.page_allocator);
@@ -230,6 +211,7 @@ fn check_device_extensions_support(device: c.VkPhysicalDevice) !bool {
 
     const required_extensions = [_][]const u8{
         "VK_KHR_swapchain",
+        "VK_KHR_synchronization2"
     };
 
     var match_extensions: u32 = 0;
@@ -249,8 +231,8 @@ fn check_device_extensions_support(device: c.VkPhysicalDevice) !bool {
     return match_extensions == required_extensions.len;
 }
 
-fn query_swapchain_support(device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !swapchain_details_t {
-    var swapchain_details = swapchain_details_t{};
+fn query_swapchain_support(device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !details_t {
+    var swapchain_details = details_t{};
     swapchain_details.init();
 
     _ = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &swapchain_details.capabilities);
