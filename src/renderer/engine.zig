@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
+const err = @import("../errors.zig");
 const vk = @import("vulkan.zig");
 const sw = @import("swapchain.zig");
 const frames = @import("frame.zig");
@@ -50,11 +51,30 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     _delete_queue = deletion_queue.DeletionQueue.init(std.heap.page_allocator);
 
-    try init_vulkan(window);
-    try init_swapchain(width, height);
-    try init_commands();
-    try init_descriptors();
-    try init_pipelines();
+    init_vulkan(window) catch {
+        err.display_error("Failed to init vulkan API !");
+        std.process.exit(1);
+    };
+
+    init_swapchain(width, height) catch {
+        err.display_error("Failed to initialize the swapchain !");
+        std.process.exit(1);
+    };
+
+    init_commands() catch {
+        err.display_error("Failed to initialize command buffers !");
+        std.process.exit(1);
+    };
+
+    init_descriptors() catch {
+        err.display_error("Failed to initialize descriptors !");
+        std.process.exit(1);
+    };
+
+    init_pipelines() catch {
+        err.display_error("Failed to initialize pipelines !");
+        std.process.exit(1);
+    };
 }
 
 pub fn deinit() void {
@@ -224,10 +244,10 @@ fn init_background_pipelines() !void {
 
 	const result = c.vkCreatePipelineLayout(_device, &compute_layout, null, &_gradiant_pipeline_layout);
     if (result != c.VK_SUCCESS) {
-        std.debug.panic("Failed to create pipeline layout", .{});
+        std.debug.panic("Failed to create pipeline layout !", .{});
     }
 
-    const compute_shader = try shaders.load_shader_module(_device, "shaders/compute.spv");
+    const compute_shader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/compute.spv");
     defer c.vkDestroyShaderModule(_device, compute_shader, null);
 
     const stage_info = c.VkPipelineShaderStageCreateInfo {
@@ -247,7 +267,7 @@ fn init_background_pipelines() !void {
 
 	const success = c.vkCreateComputePipelines(_device, null, 1, &compute_pipeline_create_info, null, &_gradiant_pipeline);
     if (success != c.VK_SUCCESS) {
-        std.debug.panic("Failed to create compute pipeline", .{});
+        std.debug.panic("Failed to create compute pipeline !", .{});
     }
 }
 

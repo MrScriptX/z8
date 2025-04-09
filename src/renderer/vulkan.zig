@@ -50,6 +50,7 @@ pub fn init_instance() !c.VkInstance {
     const result = c.vkCreateInstance(&instance_info, null, &instance);
     if (result != c.VK_SUCCESS) {
         err.display_error("Unable to create Vulkan instance");
+        std.process.exit(1);
     }
 
     return instance;
@@ -67,7 +68,11 @@ pub fn create_surface(window: ?*c.SDL_Window, instance: c.VkInstance) !c.VkSurfa
 
 pub fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.VkPhysicalDevice {
     var device_count: u32 = 0;
-    _ = c.vkEnumeratePhysicalDevices(instance, &device_count, null);
+    const enum_device = c.vkEnumeratePhysicalDevices(instance, &device_count, null);
+    if (enum_device != c.VK_SUCCESS) {
+        err.display_error("Failed to enumerate devices");
+        std.process.exit(1);
+    }
 
     if (device_count == 0) {
         return std.debug.panic("No Vulkan devices found", .{});

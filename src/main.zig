@@ -19,7 +19,7 @@ pub fn main() !u8 {
 
     // var engine = vk_engine{};
     engine.init(window, 800, 600) catch {
-        c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine: %s", c.SDL_GetError());   
+        c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
     defer engine.deinit();

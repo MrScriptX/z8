@@ -1,11 +1,29 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
+const err = @import("../errors.zig");
 
 pub fn load_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModule {
-    var file = try std.fs.cwd().openFile(path, .{});
+    var file = std.fs.cwd().openFile(path, .{}) catch |e| {
+        switch (e) {
+            error.FileNotFound => {
+                const msg = try std.fmt.allocPrint(std.heap.page_allocator, "Failed to open file {s}.\nReason : File was not found.", .{ path });
+                err.display_error(msg);
+            },
+            error.AccessDenied => {
+                const msg = try std.fmt.allocPrint(std.heap.page_allocator, "Failed to open file {s}.\nReason : Access was denied.", .{ path });
+                err.display_error(msg);
+            },
+            else => {
+                const msg = try std.fmt.allocPrint(std.heap.page_allocator, "Failed to open file {s}.\nReason : Unknwon error.", .{ path });
+                err.display_error(msg);
+            }
+        }
+        std.process.exit(1);
+    };
     defer file.close();
 
-    const file_size = try file.getEndPos();
+    const stat = try file.stat();
+    const file_size = stat.size;
     const buffer = try std.heap.page_allocator.alloc(u8, file_size);
     defer std.heap.page_allocator.free(buffer);
 
@@ -17,7 +35,7 @@ pub fn load_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModul
     const create_info = c.VkShaderModuleCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .pNext = null,
-        .codeSize = buffer.len * @sizeOf(u32),
+        .codeSize = buffer.len,
         .pCode = @alignCast(@ptrCast(buffer.ptr)),
     };
     
