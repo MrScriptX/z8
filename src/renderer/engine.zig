@@ -161,18 +161,19 @@ fn init_swapchain(width: u32, height: u32) !void {
     _draw_image.format = c.VK_FORMAT_R16G16B16A16_SFLOAT;
     _draw_image.extent = draw_image_extent;
 
-    const draw_image_usages: c.VkImageUsageFlags =
-	    c.VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-	    c.VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-	    c.VK_IMAGE_USAGE_STORAGE_BIT |
-	    c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    var draw_image_usages: c.VkImageUsageFlags = 0;
+	draw_image_usages |= c.VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	draw_image_usages |= c.VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	draw_image_usages |= c.VK_IMAGE_USAGE_STORAGE_BIT;
+	draw_image_usages |= c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    const image_create_info = vk_images.create_image_info(_draw_image.format, draw_image_usages, draw_image_extent);
 
     const rimg_allocinfo = c.VmaAllocationCreateInfo {
         .usage = c.VMA_MEMORY_USAGE_GPU_ONLY,
         .requiredFlags = c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
     };
 
-    const image_create_info = vk_images.create_image_info(_draw_image.format, draw_image_usages, draw_image_extent);
     _ = c.vmaCreateImage(_vma, &image_create_info, &rimg_allocinfo, &_draw_image.image, &_draw_image.allocation, null);
 
     const image_view_info = vk_images.create_imageview_info(_draw_image.format, _draw_image.image, c.VK_IMAGE_ASPECT_COLOR_BIT);
@@ -300,12 +301,12 @@ pub fn draw() void {
 
     _ = c.vkBeginCommandBuffer(cmd_buffer, &cmd_buffer_begin_info);
 
-    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
+    utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
     draw_background(cmd_buffer);
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
     vk_images.copy_image_to_image(cmd_buffer, _draw_image.image, _images[image_index], _draw_extent, _extent);
 
