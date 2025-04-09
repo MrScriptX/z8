@@ -25,6 +25,11 @@ pub fn build(b: *std.Build) !void {
             stage: []const u8
         } {
             .{
+                .source = "assets/shaders/default.compute.hlsl",
+                .output = "compute.spv",
+                .stage = "compute"
+            },
+            .{
                 .source = "assets/shaders/default.vert.hlsl",
                 .output = "vertex.spv",
                 .stage = "vertex"
