@@ -5,6 +5,7 @@ const sw = @import("swapchain.zig");
 const frames = @import("frame.zig");
 const utils = @import("utils.zig");
 const vk_images = @import("vk_images.zig");
+const descriptor = @import("descriptor.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -35,6 +36,10 @@ var _frameNumber: u32 = 0;
 var _draw_image: vk_images.image_t = vk_images.image_t{};
 var _draw_extent = c.VkExtent2D{};
 
+var _descriptor_pool: descriptor.DescriptorAllocator = undefined;
+var _draw_image_descriptor: c.VkDescriptorSetLayout = undefined;
+var _draw_image_descriptor_set: c.VkDescriptorSet = undefined;
+
 var _delete_queue: deletion_queue.DeletionQueue = undefined;
 
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
@@ -44,6 +49,7 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     try init_vulkan(window);
     try init_swapchain(width, height);
     try init_commands();
+    try init_descriptors();
 }
 
 pub fn deinit() void {
@@ -60,6 +66,10 @@ pub fn deinit() void {
     c.vmaDestroyImage(_vma, _draw_image.image, _draw_image.allocation);
 
     c.vmaDestroyAllocator(_vma);
+
+    _descriptor_pool.deinit(_device);
+	c.vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor, null);
+
     _delete_queue.flush();
 
     destroy_swapchain();
@@ -150,6 +160,46 @@ fn init_commands() !void {
     for (&_frames) |*frame| {
         try frame.init(_device, queue_indices.graphics_family);
     }
+}
+
+fn init_descriptors() !void {
+    const sizes = [_]descriptor.PoolSizeRatio{
+        descriptor.PoolSizeRatio{
+            ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+            ._ratio = 1.0,
+        },
+    };
+
+	_descriptor_pool = try descriptor.DescriptorAllocator.init(_device, 10, &sizes);
+
+	//make the descriptor set layout for our compute draw
+	{
+		var builder = descriptor.DescriptorLayout.init();
+        defer builder.deinit();
+
+		try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		_draw_image_descriptor = builder.build(_device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+	}
+
+    _draw_image_descriptor_set = _descriptor_pool.allocate(_device, _draw_image_descriptor);
+
+    const img_info = c.VkDescriptorImageInfo {
+        .imageLayout = c.VK_IMAGE_LAYOUT_GENERAL,
+	    .imageView = _draw_image.view
+    };
+
+	const draw_image_write = c.VkWriteDescriptorSet {
+        .sType = c.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+	    .pNext = null,
+
+	    .dstBinding = 0,
+	    .dstSet = _draw_image_descriptor_set,
+	    .descriptorCount = 1,
+	    .descriptorType = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+	    .pImageInfo = &img_info,
+    };
+
+    c.vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, null);
 }
 
 fn current_frame() *frames.data_t {
