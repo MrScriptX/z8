@@ -25,7 +25,7 @@ pub fn init_instance() !c.VkInstance {
     }
 
     try extensions.append("VK_EXT_debug_utils");
-    // try extensions.append("VK_KHR_synchronization2");
+    try extensions.append("VK_EXT_debug_report");
 
     // validation layer
     var layers = std.ArrayList([*c]const u8).init(std.heap.page_allocator);
