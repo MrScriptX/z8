@@ -6,6 +6,7 @@ const frames = @import("frame.zig");
 const utils = @import("utils.zig");
 const vk_images = @import("vk_images.zig");
 const descriptor = @import("descriptor.zig");
+const shaders = @import("shaders.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -40,6 +41,9 @@ var _descriptor_pool: descriptor.DescriptorAllocator = undefined;
 var _draw_image_descriptor: c.VkDescriptorSetLayout = undefined;
 var _draw_image_descriptor_set: c.VkDescriptorSet = undefined;
 
+var _gradiant_pipeline: c.VkPipeline = undefined;
+var _gradiant_pipeline_layout: c.VkPipelineLayout = undefined;
+
 var _delete_queue: deletion_queue.DeletionQueue = undefined;
 
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
@@ -50,6 +54,7 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     try init_swapchain(width, height);
     try init_commands();
     try init_descriptors();
+    try init_pipelines();
 }
 
 pub fn deinit() void {
@@ -69,6 +74,9 @@ pub fn deinit() void {
 
     _descriptor_pool.deinit(_device);
 	c.vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor, null);
+
+    c.vkDestroyPipeline(_device, _gradiant_pipeline, null);
+    c.vkDestroyPipelineLayout(_device, _gradiant_pipeline_layout, null);
 
     _delete_queue.flush();
 
@@ -202,6 +210,47 @@ fn init_descriptors() !void {
     c.vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, null);
 }
 
+fn init_pipelines() !void {
+    try init_background_pipelines();
+}
+
+fn init_background_pipelines() !void {
+    const compute_layout = c.VkPipelineLayoutCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+	    .pNext = null,
+	    .pSetLayouts = &_draw_image_descriptor,
+	    .setLayoutCount = 1,
+    };
+
+	const result = c.vkCreatePipelineLayout(_device, &compute_layout, null, &_gradiant_pipeline_layout);
+    if (result != c.VK_SUCCESS) {
+        std.debug.panic("Failed to create pipeline layout", .{});
+    }
+
+    const compute_shader = try shaders.load_shader_module(_device, "shaders/compute.spv");
+    defer c.vkDestroyShaderModule(_device, compute_shader, null);
+
+    const stage_info = c.VkPipelineShaderStageCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+	    .pNext = null,
+	    .stage = c.VK_SHADER_STAGE_COMPUTE_BIT,
+	    .module = compute_shader,
+	    .pName = "main",
+    };
+	
+    const compute_pipeline_create_info = c.VkComputePipelineCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+	    .pNext = null,
+	    .layout = _gradiant_pipeline_layout,
+	    .stage = stage_info,
+    };
+
+	const success = c.vkCreateComputePipelines(_device, null, 1, &compute_pipeline_create_info, null, &_gradiant_pipeline);
+    if (success != c.VK_SUCCESS) {
+        std.debug.panic("Failed to create compute pipeline", .{});
+    }
+}
+
 fn current_frame() *frames.data_t {
     return &_frames[_frameNumber % frames.FRAME_OVERLAP];
 }
@@ -233,18 +282,8 @@ pub fn draw() void {
 
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
-    const flash = abs(std.math.sin(@as(f32, @floatFromInt(_frameNumber)) / 120.0));
-    const clear_color = c.VkClearColorValue{
-        .float32 = [_]f32{ 0.0, 0.0, flash, 1.0 },
-    };
-    var clear_value = c.VkClearValue {
-        .color = clear_color,
-    };
+    draw_background(cmd_buffer);
 
-    const clear_range = utils.image_subresource_range(c.VK_IMAGE_ASPECT_COLOR_BIT);
-
-    c.vkCmdClearColorImage(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_GENERAL, &clear_value.color, 1, &clear_range);
-    
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     
@@ -294,6 +333,33 @@ pub fn draw() void {
 
     _frameNumber += 1;
 }
+
+pub fn draw_background(cmd: c.VkCommandBuffer) void {
+	// const flash = abs(std.math.sin(@as(f32, @floatFromInt(_frameNumber)) / 120.0));
+    // const clear_color = c.VkClearColorValue{
+    //     .float32 = [_]f32{ 0.0, 0.0, flash, 1.0 },
+    // };
+    
+    // var clear_value = c.VkClearValue {
+    //     .color = clear_color,
+    // };
+
+    // const clear_range = utils.image_subresource_range(c.VK_IMAGE_ASPECT_COLOR_BIT);
+
+    // c.vkCmdClearColorImage(cmd, _images[image_index], c.VK_IMAGE_LAYOUT_GENERAL, &clear_value.color, 1, &clear_range);
+
+    // bind the gradient drawing compute pipeline
+	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline);
+
+	// bind the descriptor set containing the draw image for the compute pipeline
+	c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &_draw_image_descriptor_set, 0, null);
+
+	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
+    const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.width)) / 16.0)));
+    const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
+	c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
+}
+
 
 fn destroy_swapchain() void {
     c.vkDestroySwapchainKHR(_device, _sw, null);
