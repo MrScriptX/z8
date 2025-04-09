@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Deletor = @TypeOf(*const fn() void);
+
 pub const DeletionQueue = struct {
     deletors: std.ArrayList(*const fn() void),
 

@@ -11,6 +11,7 @@ const queues_t = queue.queues_t;
 const deletion_queue = @import("deletion_queue.zig");
 
 var _arena: std.heap.ArenaAllocator = undefined;
+var _vma: c.VmaAllocator = undefined;
 
 var _instance: c.VkInstance = undefined;
 var _debug_messenger: c.VkDebugUtilsMessengerEXT = undefined;
@@ -34,6 +35,7 @@ var _delete_queue: deletion_queue.DeletionQueue = undefined;
 
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    _vma = c.VmaAllocator{};
     _delete_queue = deletion_queue.DeletionQueue.init(std.heap.page_allocator);
 
     try init_vulkan(window);
@@ -51,6 +53,7 @@ pub fn deinit() void {
         frame.deinit(_device);
     }
 
+    c.vmaDestroyAllocator(_vma);
     _delete_queue.flush();
 
     destroy_swapchain();
@@ -71,6 +74,15 @@ fn init_vulkan(window: ?*c.SDL_Window) !void {
     _chosenGPU = try vk.select_physical_device(_instance, _surface);
     _device = try vk.create_device_interface(_chosenGPU, queue_indices);
     _queues = try queue.get_device_queue(_device, queue_indices);
+
+    const allocator_info = c.VmaAllocatorCreateInfo {
+        .physicalDevice = _chosenGPU,
+        .device = _device,
+        .instance = _instance,
+        .vulkanApiVersion = c.VK_API_VERSION_1_3,
+        .flags = c.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+    };
+    c.vmaCreateAllocator(&allocator_info, &_vma);
 }
 
 fn init_swapchain(width: u32, height: u32) !void {
