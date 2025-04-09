@@ -134,8 +134,14 @@ pub fn create_device_interface(physical_device: c.VkPhysicalDevice, queues: queu
         .fillModeNonSolid = c.VK_TRUE,
     };
 
+    const features_vulkan13 = std.mem.zeroInit(c.VkPhysicalDeviceVulkan13Features, .{
+        .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .synchronization2 = c.VK_TRUE,
+    });
+
     const device_create_info = c.VkDeviceCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pNext = @ptrCast(&features_vulkan13),
         .queueCreateInfoCount = @intCast(queue_create_infos.items.len),
         .pQueueCreateInfos = queue_create_infos.items.ptr,
         .enabledExtensionCount = 1,
