@@ -65,6 +65,8 @@ pub fn build(b: *std.Build) !void {
 
     exe.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
 
+    exe.addCSourceFile(.{ .file = b.path("src/vk_mem_alloc.cpp"), .flags = &.{ "" } });
+
     exe.linkLibC();
     exe.linkLibCpp();
 

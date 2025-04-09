@@ -4,6 +4,7 @@ const vk = @import("vulkan.zig");
 const sw = @import("swapchain.zig");
 const frames = @import("frame.zig");
 const utils = @import("utils.zig");
+const vk_images = @import("vk_images.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -31,11 +32,13 @@ var _extent: c.VkExtent2D = undefined;
 var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
 var _frameNumber: u32 = 0;
 
+var _draw_image: vk_images.image_t = vk_images.image_t{};
+var _draw_extent = c.VkExtent2D{};
+
 var _delete_queue: deletion_queue.DeletionQueue = undefined;
 
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    _vma = c.VmaAllocator{};
     _delete_queue = deletion_queue.DeletionQueue.init(std.heap.page_allocator);
 
     try init_vulkan(window);
@@ -52,6 +55,9 @@ pub fn deinit() void {
     for (&_frames) |*frame| {
         frame.deinit(_device);
     }
+
+    c.vkDestroyImageView(_device, _draw_image.view, null);
+    c.vmaDestroyImage(_vma, _draw_image.image, _draw_image.allocation);
 
     c.vmaDestroyAllocator(_vma);
     _delete_queue.flush();
@@ -82,7 +88,7 @@ fn init_vulkan(window: ?*c.SDL_Window) !void {
         .vulkanApiVersion = c.VK_API_VERSION_1_3,
         .flags = c.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
     };
-    c.vmaCreateAllocator(&allocator_info, &_vma);
+    _ = c.vmaCreateAllocator(&allocator_info, &_vma);
 }
 
 fn init_swapchain(width: u32, height: u32) !void {
@@ -106,6 +112,33 @@ fn init_swapchain(width: u32, height: u32) !void {
     
     _images = try sw.create_images(allocator, _device, _sw, &image_count);
     _image_views = try sw.create_image_views(_device, _images, _image_format.format);
+
+    //draw image size will match the window
+	const draw_image_extent = c.VkExtent3D {
+		.width = width,
+		.height = height,
+		.depth = 1
+	};
+
+    _draw_image.format = c.VK_FORMAT_R16G16B16A16_SFLOAT;
+    _draw_image.extent = draw_image_extent;
+
+    const draw_image_usages: c.VkImageUsageFlags =
+	    c.VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+	    c.VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+	    c.VK_IMAGE_USAGE_STORAGE_BIT |
+	    c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    const rimg_allocinfo = c.VmaAllocationCreateInfo {
+        .usage = c.VMA_MEMORY_USAGE_GPU_ONLY,
+        .requiredFlags = c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    };
+
+    const image_create_info = vk_images.create_image_info(_draw_image.format, draw_image_usages, draw_image_extent);
+    _ = c.vmaCreateImage(_vma, &image_create_info, &rimg_allocinfo, &_draw_image.image, &_draw_image.allocation, null);
+
+    const image_view_info = vk_images.create_imageview_info(_draw_image.format, _draw_image.image, c.VK_IMAGE_ASPECT_COLOR_BIT);
+    _ = c.vkCreateImageView(_device, &image_view_info, null, &_draw_image.view);
 }
 
 fn init_commands() !void {
@@ -162,8 +195,13 @@ pub fn draw() void {
 
     c.vkCmdClearColorImage(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_GENERAL, &clear_value.color, 1, &clear_range);
     
+    utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     
+    vk_images.copy_image_to_image(cmd_buffer, _draw_image.image, _images[image_index], _draw_extent, _extent);
+
+    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
     _ = c.vkEndCommandBuffer(cmd_buffer);
 
     const cmd_submit_info = c.VkCommandBufferSubmitInfo {
