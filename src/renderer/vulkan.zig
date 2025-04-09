@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
+const err = @import("../errors.zig");
 const queue = @import("queue_family.zig");
 const details_t = @import("swapchain.zig").details_t;
 const opt = @import("../options.zig");
@@ -48,7 +49,7 @@ pub fn init_instance() !c.VkInstance {
     var instance: c.VkInstance = undefined;
     const result = c.vkCreateInstance(&instance_info, null, &instance);
     if (result != c.VK_SUCCESS) {
-        return std.debug.panic("Unable to create Vulkan instance: {}", .{result});
+        err.display_error("Unable to create Vulkan instance");
     }
 
     return instance;
@@ -91,7 +92,7 @@ pub fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !
     }
 
     if (physical_device == null) {
-        return std.debug.panic("No suitable Vulkan device found", .{});
+        err.display_error("No suitable Vulkan device found");
     }
 
     return physical_device.?;
