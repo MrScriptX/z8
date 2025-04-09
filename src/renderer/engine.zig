@@ -8,6 +8,8 @@ const utils = @import("utils.zig");
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
 
+const deletion_queue = @import("deletion_queue.zig");
+
 var _arena: std.heap.ArenaAllocator = undefined;
 
 var _instance: c.VkInstance = undefined;
@@ -28,23 +30,28 @@ var _extent: c.VkExtent2D = undefined;
 var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
 var _frameNumber: u32 = 0;
 
+var _delete_queue: deletion_queue.DeletionQueue = undefined;
+
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    _delete_queue = deletion_queue.DeletionQueue.init(std.heap.page_allocator);
 
     try init_vulkan(window);
     try init_swapchain(width, height);
     try init_commands();
-    init_sync();
 }
 
 pub fn deinit() void {
     defer _arena.deinit();
+    defer _delete_queue.deinit();
 
     _ = c.vkDeviceWaitIdle(_device);
 
     for (&_frames) |*frame| {
         frame.deinit(_device);
     }
+
+    _delete_queue.flush();
 
     destroy_swapchain();
 
@@ -100,10 +107,6 @@ fn init_commands() !void {
     }
 }
 
-fn init_sync() void {
-
-}
-
 fn current_frame() *frames.data_t {
     return &_frames[_frameNumber % frames.FRAME_OVERLAP];
 }
@@ -114,6 +117,9 @@ fn abs(n: f32) f32 {
 
 pub fn draw() void {
     _ = c.vkWaitForFences(_device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
+
+    current_frame()._delete_queue.flush();
+
     _ = c.vkResetFences(_device, 1, &current_frame()._render_fence);
 
     var image_index: u32 = 0;

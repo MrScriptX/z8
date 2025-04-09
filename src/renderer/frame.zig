@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
+const deletion_queue = @import("deletion_queue.zig");
 
 pub const FRAME_OVERLAP = 2;
 
@@ -10,7 +11,11 @@ pub const data_t = struct {
     _render_semaphore: c.VkSemaphore = undefined,
 	_render_fence: c.VkFence = undefined,
 
+    _delete_queue: deletion_queue.DeletionQueue = undefined,
+
     pub fn init(self: *data_t, device: c.VkDevice, queue_family_index: u32) !void {
+        self._delete_queue = deletion_queue.DeletionQueue.init(std.heap.page_allocator);
+
         self._cmd_pool = try create_command_pool(device, queue_family_index);
         self._main_buffer = try create_command_buffer(1, device, self._cmd_pool);
         self._sw_semaphore = try create_semaphore(device);
@@ -19,6 +24,8 @@ pub const data_t = struct {
     }
 
     pub fn deinit(self: *data_t, device: c.VkDevice) void {
+        defer self._delete_queue.deinit();
+
         c.vkDestroyCommandPool(device, self._cmd_pool, null);
 
         c.vkDestroySemaphore(device, self._sw_semaphore, null);
