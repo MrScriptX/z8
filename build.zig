@@ -72,6 +72,13 @@ pub fn build(b: *std.Build) !void {
 
     exe.addCSourceFile(.{ .file = b.path("src/vk_mem_alloc.cpp"), .flags = &.{ "" } });
 
+    // add imgui
+    exe.addIncludePath(.{ .cwd_relative = "common/imgui-1.91.9b" });
+    exe.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui.cpp"), .flags = &.{ "" } });
+    exe.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_widgets.cpp"), .flags = &.{ "" } });
+    exe.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_tables.cpp"), .flags = &.{ "" } });
+    exe.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_draw.cpp"), .flags = &.{ "" } });
+
     exe.linkLibC();
     exe.linkLibCpp();
 
