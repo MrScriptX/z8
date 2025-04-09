@@ -18,24 +18,31 @@ pub fn transition_image(cmd: c.VkCommandBuffer, image: c.VkImage, currentLayout:
 
 	const image_barrier = c.VkImageMemoryBarrier2 {
 		.sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+		.pNext = null,
+
 		.srcStageMask = c.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 		.srcAccessMask = c.VK_ACCESS_2_MEMORY_WRITE_BIT,
 		.dstStageMask = c.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 		.dstAccessMask = c.VK_ACCESS_2_MEMORY_WRITE_BIT | c.VK_ACCESS_2_MEMORY_READ_BIT,
+
 		.oldLayout = currentLayout,
 		.newLayout = newLayout,
+
 		.image = image,
 		.subresourceRange = image_subresource_range(aspect_mask),
 	};
 
 	const dep_info = c.VkDependencyInfo {
 		.sType = c.VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+
 		.pNext = null,
+		
 		.dependencyFlags = 0,
 		.memoryBarrierCount = 0,
 		.pMemoryBarriers = null,
 		.bufferMemoryBarrierCount = 0,
 		.pBufferMemoryBarriers = null,
+		
 		.imageMemoryBarrierCount = 1,
 		.pImageMemoryBarriers = &image_barrier,
 	};
