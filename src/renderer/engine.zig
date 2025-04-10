@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
+const imgui = @import("imgui.zig");
 const err = @import("../errors.zig");
 const vk = @import("vulkan.zig");
 const sw = @import("swapchain.zig");
@@ -50,6 +51,8 @@ var _imm_fence: c.VkFence = undefined;
 var _imm_command_buffer: c.VkCommandBuffer = undefined;
 var _imm_command_pool: c.VkCommandPool = undefined;
 
+var _imgui_pool: c.VkDescriptorPool = undefined;
+
 var _delete_queue: deletion_queue.DeletionQueue = undefined;
 
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
@@ -65,6 +68,8 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
         err.display_error("Failed to initialize the swapchain !");
         std.process.exit(1);
     };
+
+    init_imgui(window);
 
     init_commands() catch {
         err.display_error("Failed to initialize command buffers !");
@@ -91,6 +96,10 @@ pub fn deinit() void {
     for (&_frames) |*frame| {
         frame.deinit(_device);
     }
+
+    // destroy imgui context
+    imgui.cImGui_ImplVulkan_Shutdown();
+    c.vkDestroyDescriptorPool(_device, _imgui_pool, null);
 
     c.vkDestroyCommandPool(_device, _imm_command_pool, null);
 
@@ -294,8 +303,60 @@ fn init_background_pipelines() !void {
     }
 }
 
-fn init_imgui() void {
-    
+fn init_imgui(window: ?*c.SDL_Window) void {
+    const pool_sizes = [_]c.VkDescriptorPoolSize{
+        .{ .type = c.VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000 },
+        .{ .type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, .descriptorCount = 1000 },
+		.{ .type = c.VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, .descriptorCount = 1000 }
+    };
+
+    const pool_info = c.VkDescriptorPoolCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .flags = c.VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+	    .maxSets = 1000,
+	    .poolSizeCount = pool_sizes.len,
+	    .pPoolSizes = &pool_sizes,
+    };
+   
+    const result = c.vkCreateDescriptorPool(_device, &pool_info, null, &_imgui_pool);
+    if (result != c.VK_SUCCESS) {
+        err.display_error("Failed to create descriptor pool");
+        std.process.exit(1);
+    }
+
+    _ = imgui.ImGui_CreateContext(null);
+
+    _ = imgui.cImGui_ImplSDL3_InitForVulkan(@ptrCast(window));
+
+    var init_imgui_info = imgui.ImGui_ImplVulkan_InitInfo {
+        .Instance = @ptrCast(_instance),
+	    .PhysicalDevice = @ptrCast(_chosenGPU),
+	    .Device = @ptrCast(_device),
+	    .Queue = @ptrCast(_queues.graphics_queue),
+	    .DescriptorPool = @ptrCast(_imgui_pool),
+	    .MinImageCount = 3,
+	    .ImageCount = 3,
+	    .UseDynamicRendering = true,
+
+        .PipelineRenderingCreateInfo = .{
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = &_image_format.format
+        },
+
+	    .MSAASamples = c.VK_SAMPLE_COUNT_1_BIT,
+    };
+
+    _ = imgui.cImGui_ImplVulkan_Init(&init_imgui_info);
+    _ = imgui.cImGui_ImplVulkan_CreateFontsTexture();
 }
 
 fn current_frame() *frames.data_t {
