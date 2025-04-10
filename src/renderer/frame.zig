@@ -34,7 +34,7 @@ pub const data_t = struct {
     }
 };
 
-fn create_command_pool(device: c.VkDevice, queue_family_index: u32) !c.VkCommandPool {
+pub fn create_command_pool(device: c.VkDevice, queue_family_index: u32) !c.VkCommandPool {
     const command_pool_info = c.VkCommandPoolCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .queueFamilyIndex = queue_family_index,
@@ -50,7 +50,7 @@ fn create_command_pool(device: c.VkDevice, queue_family_index: u32) !c.VkCommand
     return command_pool;
 }
 
-fn create_command_buffer(count: u32, device: c.VkDevice, cmd_pool: c.VkCommandPool) !c.VkCommandBuffer {
+pub fn create_command_buffer(count: u32, device: c.VkDevice, cmd_pool: c.VkCommandPool) !c.VkCommandBuffer {
     const cmd_buffer_info = c.VkCommandBufferAllocateInfo {
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = cmd_pool,
@@ -67,7 +67,7 @@ fn create_command_buffer(count: u32, device: c.VkDevice, cmd_pool: c.VkCommandPo
     return command_buffers;
 }
 
-fn create_fence(device: c.VkDevice) !c.VkFence {
+pub fn create_fence(device: c.VkDevice) !c.VkFence {
     const create_fence_info = c.VkFenceCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
         .pNext = null,

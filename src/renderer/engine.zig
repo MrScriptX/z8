@@ -45,6 +45,11 @@ var _draw_image_descriptor_set: c.VkDescriptorSet = undefined;
 var _gradiant_pipeline: c.VkPipeline = undefined;
 var _gradiant_pipeline_layout: c.VkPipelineLayout = undefined;
 
+ // immediate submit structures
+var _imm_fence: c.VkFence = undefined;
+var _imm_command_buffer: c.VkCommandBuffer = undefined;
+var _imm_command_pool: c.VkCommandPool = undefined;
+
 var _delete_queue: deletion_queue.DeletionQueue = undefined;
 
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
@@ -86,6 +91,8 @@ pub fn deinit() void {
     for (&_frames) |*frame| {
         frame.deinit(_device);
     }
+
+    c.vkDestroyCommandPool(_device, _imm_command_pool, null);
 
     c.vkDestroyImageView(_device, _draw_image.view, null);
     c.vmaDestroyImage(_vma, _draw_image.image, _draw_image.allocation);
@@ -189,6 +196,21 @@ fn init_commands() !void {
     for (&_frames) |*frame| {
         try frame.init(_device, queue_indices.graphics_family);
     }
+
+    _imm_command_pool = frames.create_command_pool(_device, queue_indices.graphics_family) catch {
+        err.display_error("Failed to create immediate command pool !\n");
+        std.process.exit(1);
+    };
+
+    _imm_command_buffer = frames.create_command_buffer(1, _device, _imm_command_pool) catch {
+        err.display_error("Failed to allocate immediate command buffers !");
+        std.process.exit(1);
+    };
+
+    _imm_fence = frames.create_fence(_device) catch {
+        err.display_error("Failed to create fence !");
+        std.process.exit(1);
+    };
 }
 
 fn init_descriptors() !void {
@@ -270,6 +292,10 @@ fn init_background_pipelines() !void {
     if (success != c.VK_SUCCESS) {
         std.debug.panic("Failed to create compute pipeline !", .{});
     }
+}
+
+fn init_imgui() void {
+    
 }
 
 fn current_frame() *frames.data_t {
@@ -381,6 +407,47 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
 	c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
 }
 
+fn immediate_submit() void {
+    _ = c.vkResetFences(_device, 1, &_imm_fence);
+    _ = c.vkResetCommandBuffer(_imm_command_buffer, 0);
+
+    const cmd = _imm_command_buffer;
+
+    const begin_info = c.VkCommandBufferBeginInfo {
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = null,
+        .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+
+    _ = c.vkBeginCommandBuffer(cmd, &begin_info);
+
+
+    _ = c.vkEndCommandBuffer(cmd);
+
+    const cmd_submit_info = c.VkCommandBufferSubmitInfo {
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+        .pNext = null,
+        .commandBuffer = cmd,
+        .deviceMask = 0
+    };
+
+    const submit_info = c.VkSubmitInfo2 {
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_2,
+        .pNext = null,
+        .flags = 0,
+
+        .pCommandBufferInfos = &cmd_submit_info,
+        .commandBufferInfoCount = 1,
+
+        .pSignalSemaphoreInfos = null,
+        .pWaitSemaphoreInfos = null,
+        .signalSemaphoreInfoCount = 0,
+        .waitSemaphoreInfoCount = 0,
+    };
+
+    _ = c.vkQueueSubmit2(_queues.graphics_queue, 1, &submit_info, _imm_fence); // TODO : run it on other queue
+    _ = c.vkWaitForFences(_device, 1, &_imm_fence, c.VK_TRUE, 9999999999);
+}
 
 fn destroy_swapchain() void {
     c.vkDestroySwapchainKHR(_device, _sw, null);
