@@ -10,6 +10,7 @@ const vk_images = @import("vk_images.zig");
 const descriptor = @import("descriptor.zig");
 const shaders = @import("shaders.zig");
 const effects = @import("compute_effect.zig");
+const pipelines = @import("pipeline.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -44,6 +45,9 @@ var _draw_image_descriptor_set: c.VkDescriptorSet = undefined;
 
 var _gradiant_pipeline: c.VkPipeline = undefined;
 var _gradiant_pipeline_layout: c.VkPipelineLayout = undefined;
+
+var _trianglePipelineLayout: c.VkPipelineLayout = undefined;
+var _trianglePipeline: c.VkPipeline = undefined;
 
 var _background_effects: std.ArrayList(effects.ComputeEffect) = undefined;
 var _current_effect: u32 = 0;
@@ -141,6 +145,9 @@ pub fn deinit() void {
         c.vkDestroyPipeline(_device, it.pipeline, null);
     }
     c.vkDestroyPipelineLayout(_device, _gradiant_pipeline_layout, null);
+
+    c.vkDestroyPipeline(_device, _trianglePipeline, null);
+    c.vkDestroyPipelineLayout(_device, _trianglePipelineLayout, null);
 
     destroy_swapchain();
 
@@ -290,6 +297,7 @@ fn init_descriptors() !void {
 
 fn init_pipelines() !void {
     try init_background_pipelines();
+    try init_triangle_pipeline();
 }
 
 fn init_background_pipelines() !void {
@@ -392,6 +400,47 @@ fn init_background_pipelines() !void {
     try _background_effects.append(sky);
 }
 
+fn init_triangle_pipeline() !void {
+    const triangleFragShader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+    defer c.vkDestroyShaderModule(_device, triangleFragShader, null);
+
+	const triangleVertexShader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
+    defer c.vkDestroyShaderModule(_device, triangleVertexShader, null);
+
+    const pipelineLayoutInfo = c.VkPipelineLayoutCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    };
+	
+    const result = c.vkCreatePipelineLayout(_device, &pipelineLayoutInfo, null, &_trianglePipelineLayout); 
+	if (result != c.VK_SUCCESS) {
+        std.debug.panic("failed to create pipeline layout!", .{});
+    }
+
+    var pipeline_builder = pipelines.builder_t.init();
+    defer pipeline_builder.deinit();
+
+    pipeline_builder._pipeline_layout = _trianglePipelineLayout;
+    try pipeline_builder.set_shaders(triangleVertexShader, triangleFragShader);
+    pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	//filled triangles
+	pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
+	//no backface culling
+	pipeline_builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
+	//no multisampling
+	pipeline_builder.set_multisampling_none();
+	//no blending
+	pipeline_builder.disable_blending();
+	//no depth testing
+	pipeline_builder.disable_depthtest();
+
+    //connect the image format we will draw into, from draw image
+	pipeline_builder.set_color_attachment_format(_draw_image.format);
+	pipeline_builder.set_depth_format(c.VK_FORMAT_UNDEFINED);
+
+	//finally build the pipeline
+	_trianglePipeline = pipeline_builder.build_pipeline(_device);
+}
+
 fn current_frame() *frames.data_t {
     return &_frames[_frameNumber % frames.FRAME_OVERLAP];
 }
@@ -425,7 +474,11 @@ pub fn draw() void {
 
     draw_background(cmd_buffer);
 
-    utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+    draw_geometry(cmd_buffer);
+
+    utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
     vk_images.copy_image_to_image(cmd_buffer, _draw_image.image, _images[image_index], _draw_extent, _extent);
@@ -494,6 +547,63 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
     const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
 
 	c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
+}
+
+pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
+    //begin a render pass  connected to our draw image
+	const color_attachment = c.VkRenderingAttachmentInfo {
+        .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .pNext = null,
+
+        .imageView = _draw_image.view,
+        .imageLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    };
+
+	const render_info = c.VkRenderingInfo {
+        .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .pNext = null,
+        .pColorAttachments = &color_attachment,
+        .colorAttachmentCount = 1,
+        .renderArea = .{
+            .extent = _draw_extent,
+            .offset = .{
+                .x = 0,
+                .y = 0
+            }
+        },
+        .flags = 0,
+        .layerCount = 1,
+        .pDepthAttachment = null,
+        .pStencilAttachment = null,
+        .viewMask = 0
+    };
+	c.vkCmdBeginRendering(cmd, &render_info);
+
+	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
+
+	//set dynamic viewport and scissor
+	const viewport = c.VkViewport {
+        .x = 0,
+	    .y = 0,
+	    .width = @floatFromInt(_draw_extent.width),
+	    .height = @floatFromInt(_draw_extent.height),
+	    .minDepth = 0.0,
+	    .maxDepth = 1.0,
+    };
+
+	c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+	const scissor = c.VkRect2D {
+        .offset = .{ .x = 0, .y = 0 },
+	    .extent = _draw_extent,
+    };
+
+	c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	//launch a draw command to draw 3 vertices
+	c.vkCmdDraw(cmd, 3, 1, 0, 0);
+
+	c.vkCmdEndRendering(cmd);
 }
 
 fn immediate_submit() void {

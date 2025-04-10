@@ -134,6 +134,12 @@ pub fn create_device_interface(physical_device: c.VkPhysicalDevice, queues: queu
         .fillModeNonSolid = c.VK_TRUE,
     };
 
+    // const dynamic_rendering_unused_attachment = c.VkPhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT {
+    //     .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_FEATURES_EXT,
+    //     .pNext = null,
+    //     .dynamicRenderingUnusedAttachments = c.VK_TRUE,
+    // };
+
     const features_vulkan12 = c.VkPhysicalDeviceVulkan12Features {
         .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
         .pNext = null,

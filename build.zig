@@ -48,7 +48,17 @@ pub fn build(b: *std.Build) !void {
                 .source = "assets/shaders/sky.glsl",
                 .output = "sky.spv",
                 .stage = "compute"
-            }
+            },
+            .{
+                .source = "assets/shaders/colored_triangle.frag.glsl",
+                .output = "colored_triangle.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/colored_triangle.vert.glsl",
+                .output = "colored_triangle.vert.spv",
+                .stage = "vertex"
+            },
         };
 
         for (shaders) |shader| {
