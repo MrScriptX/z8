@@ -20,7 +20,7 @@ var _vma: c.VmaAllocator = undefined;
 
 var _instance: c.VkInstance = undefined;
 var _debug_messenger: c.VkDebugUtilsMessengerEXT = undefined;
-var _chosenGPU: c.VkPhysicalDevice = undefined;
+var _gpu: c.VkPhysicalDevice = undefined;
 var _device: c.VkDevice = undefined;
 var _surface: c.VkSurfaceKHR = undefined;
 
@@ -103,7 +103,7 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
         std.process.exit(1);
     };
 
-    _gui_context = imgui.GuiContext.init(window, _device, _instance, _chosenGPU, _queues.graphics_queue, &_image_format.format) catch |e| {
+    _gui_context = imgui.GuiContext.init(window, _device, _instance, _gpu, _queues.graphics_queue, &_image_format.format) catch |e| {
         switch (e) {
            imgui.Error.PoolAllocFailed => {
                 err.display_error("Failed to create pool for ImGui !");
@@ -157,12 +157,12 @@ pub fn deinit() void {
 fn init_vulkan(window: ?*c.SDL_Window) !void {
     _instance = try vk.init_instance();
     _surface = try vk.create_surface(window, _instance);
-    _chosenGPU = try vk.select_physical_device(_instance, _surface);
-    _device = try vk.create_device_interface(_chosenGPU, queue_indices);
+    _gpu = try vk.select_physical_device(_instance, _surface);
+    _device = try vk.create_device_interface(_gpu, queue_indices);
     _queues = try queue.get_device_queue(_device, queue_indices);
 
     const allocator_info = c.VmaAllocatorCreateInfo {
-        .physicalDevice = _chosenGPU,
+        .physicalDevice = _gpu,
         .device = _device,
         .instance = _instance,
         .vulkanApiVersion = c.VK_API_VERSION_1_3,
@@ -172,7 +172,7 @@ fn init_vulkan(window: ?*c.SDL_Window) !void {
 }
 
 fn init_swapchain(width: u32, height: u32) !void {
-    const details = try sw.query_swapchain_support(_chosenGPU, _surface);
+    const details = try sw.query_swapchain_support(_gpu, _surface);
     defer details.deinit();
 
     _image_format = try sw.select_surface_format(details);
