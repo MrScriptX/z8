@@ -126,6 +126,7 @@ pub fn deinit() void {
     // destroy imgui context
     _gui_context.deinit(_device);
 
+    c.vkDestroyFence(_device, _imm_fence, null);
     c.vkDestroyCommandPool(_device, _imm_command_pool, null);
 
     c.vkDestroyImageView(_device, _draw_image.view, null);
