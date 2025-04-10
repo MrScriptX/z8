@@ -15,8 +15,6 @@ const effects = @import("compute_effect.zig");
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
 
-const deletion_queue = @import("deletion_queue.zig");
-
 var _arena: std.heap.ArenaAllocator = undefined;
 var _vma: c.VmaAllocator = undefined;
 
@@ -76,12 +74,9 @@ var _imm_command_pool: c.VkCommandPool = undefined;
 
 var _gui_context: imgui.GuiContext = undefined;
 
-var _delete_queue: deletion_queue.DeletionQueue = undefined;
-
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     _background_effects = std.ArrayList(effects.ComputeEffect).init(std.heap.page_allocator);
-    _delete_queue = deletion_queue.DeletionQueue.init(std.heap.page_allocator);
 
     init_vulkan(window) catch {
         err.display_error("Failed to init vulkan API !");
@@ -121,7 +116,6 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
 pub fn deinit() void {
     defer _arena.deinit();
     defer _background_effects.deinit();
-    defer _delete_queue.deinit();
 
     _ = c.vkDeviceWaitIdle(_device);
 
@@ -147,8 +141,6 @@ pub fn deinit() void {
         c.vkDestroyPipeline(_device, it.pipeline, null);
     }
     c.vkDestroyPipelineLayout(_device, _gradiant_pipeline_layout, null);
-
-    _delete_queue.flush();
 
     destroy_swapchain();
 
@@ -410,9 +402,6 @@ fn abs(n: f32) f32 {
 
 pub fn draw() void {
     _ = c.vkWaitForFences(_device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
-
-    current_frame()._delete_queue.flush();
-
     _ = c.vkResetFences(_device, 1, &current_frame()._render_fence);
 
     var image_index: u32 = 0;
