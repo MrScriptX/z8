@@ -74,7 +74,7 @@ var _imm_fence: c.VkFence = undefined;
 var _imm_command_buffer: c.VkCommandBuffer = undefined;
 var _imm_command_pool: c.VkCommandPool = undefined;
 
-var _imgui_pool: c.VkDescriptorPool = undefined;
+var _gui_context: imgui.GuiContext = undefined;
 
 var _delete_queue: deletion_queue.DeletionQueue = undefined;
 
@@ -108,7 +108,14 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
         std.process.exit(1);
     };
 
-    init_imgui(window);
+    _gui_context = imgui.GuiContext.init(window, _device, _instance, _chosenGPU, _queues.graphics_queue, &_image_format.format) catch |e| {
+        switch (e) {
+           imgui.Error.PoolAllocFailed => {
+                err.display_error("Failed to create pool for ImGui !");
+                std.process.exit(1);
+           }
+        }
+    };
 }
 
 pub fn deinit() void {
@@ -123,8 +130,7 @@ pub fn deinit() void {
     }
 
     // destroy imgui context
-    imgui.cImGui_ImplVulkan_Shutdown();
-    c.vkDestroyDescriptorPool(_device, _imgui_pool, null);
+    _gui_context.deinit(_device);
 
     c.vkDestroyCommandPool(_device, _imm_command_pool, null);
 
@@ -394,62 +400,6 @@ fn init_background_pipelines() !void {
     try _background_effects.append(sky);
 }
 
-fn init_imgui(window: ?*c.SDL_Window) void {
-    const pool_sizes = [_]c.VkDescriptorPoolSize{
-        .{ .type = c.VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000 },
-        .{ .type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, .descriptorCount = 1000 },
-		.{ .type = c.VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, .descriptorCount = 1000 }
-    };
-
-    const pool_info = c.VkDescriptorPoolCreateInfo {
-        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .flags = c.VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-	    .maxSets = 1000,
-	    .poolSizeCount = pool_sizes.len,
-	    .pPoolSizes = &pool_sizes,
-    };
-   
-    const result = c.vkCreateDescriptorPool(_device, &pool_info, null, &_imgui_pool);
-    if (result != c.VK_SUCCESS) {
-        err.display_error("Failed to create descriptor pool");
-        std.process.exit(1);
-    }
-
-    _ = imgui.ImGui_CreateContext(null);
-
-    _ = imgui.cImGui_ImplSDL3_InitForVulkan(@ptrCast(window));
-
-    var init_imgui_info = imgui.ImGui_ImplVulkan_InitInfo {
-        .Instance = @ptrCast(_instance),
-	    .PhysicalDevice = @ptrCast(_chosenGPU),
-	    .Device = @ptrCast(_device),
-	    .Queue = @ptrCast(_queues.graphics_queue),
-	    .DescriptorPool = @ptrCast(_imgui_pool),
-	    .MinImageCount = 3,
-	    .ImageCount = 3,
-	    .UseDynamicRendering = true,
-
-        .PipelineRenderingCreateInfo = .{
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-            .colorAttachmentCount = 1,
-            .pColorAttachmentFormats = &_image_format.format
-        },
-
-	    .MSAASamples = c.VK_SAMPLE_COUNT_1_BIT,
-    };
-
-    _ = imgui.cImGui_ImplVulkan_Init(&init_imgui_info);
-    _ = imgui.cImGui_ImplVulkan_CreateFontsTexture();
-}
-
 fn current_frame() *frames.data_t {
     return &_frames[_frameNumber % frames.FRAME_OVERLAP];
 }
@@ -493,7 +443,7 @@ pub fn draw() void {
 
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-    draw_imgui(cmd_buffer, _image_views[image_index]);
+    _gui_context.draw(cmd_buffer, _image_views[image_index], _extent);
 
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -555,37 +505,6 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
     const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
 
 	c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
-}
-
-pub fn draw_imgui(cmd: c.VkCommandBuffer, view: c.VkImageView) void {
-    const color_attachment = c.VkRenderingAttachmentInfo {
-        .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .pNext = null,
-
-        .imageView = view,
-        .imageLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .loadOp = c.VK_ATTACHMENT_LOAD_OP_LOAD,
-        .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-    };
-
-	const render_info = c.VkRenderingInfo {
-        .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
-        .pNext = null,
-        .pColorAttachments = &color_attachment,
-        .colorAttachmentCount = 1,
-        .renderArea = .{
-            .extent = _extent,
-            .offset = c.VkOffset2D {.x = 0, .y = 0}
-        },
-        .layerCount = 1,
-        .viewMask = 0
-    };
-
-	c.vkCmdBeginRendering(cmd, &render_info);
-
-	imgui.cImGui_ImplVulkan_RenderDrawData(imgui.ImGui_GetDrawData(), @ptrCast(cmd));
-
-	c.vkCmdEndRendering(cmd);
 }
 
 fn immediate_submit() void {
