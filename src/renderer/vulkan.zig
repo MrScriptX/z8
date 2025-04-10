@@ -144,6 +144,7 @@ pub fn create_device_interface(physical_device: c.VkPhysicalDevice, queues: queu
         .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
         .pNext = @constCast(@ptrCast(&features_vulkan12)),
         .synchronization2 = c.VK_TRUE,
+        .dynamicRendering = c.VK_TRUE,
     };
 
     const device_create_info = c.VkDeviceCreateInfo{

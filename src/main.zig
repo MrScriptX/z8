@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("clibs.zig");
 const engine = @import("renderer/engine.zig");
+const imgui = @import("renderer/imgui.zig");
 
 pub fn main() !u8 {
     const init = c.SDL_Init(c.SDL_INIT_VIDEO);
@@ -23,8 +24,6 @@ pub fn main() !u8 {
         return 1;
     };
     defer engine.deinit();
-    
-    engine.draw();
 
     // main loop
     var quit = false;
@@ -35,6 +34,16 @@ pub fn main() !u8 {
                 quit = true;
             }
         }
+
+        imgui.cImGui_ImplVulkan_NewFrame();
+        imgui.cImGui_ImplSDL3_NewFrame();
+        imgui.ImGui_NewFrame();
+
+        imgui.ImGui_ShowDemoWindow(null);
+
+        imgui.ImGui_Render();
+
+        engine.draw();
     }
 
     return 0;

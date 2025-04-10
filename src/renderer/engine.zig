@@ -69,8 +69,6 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
         std.process.exit(1);
     };
 
-    init_imgui(window);
-
     init_commands() catch {
         err.display_error("Failed to initialize command buffers !");
         std.process.exit(1);
@@ -85,6 +83,8 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
         err.display_error("Failed to initialize pipelines !");
         std.process.exit(1);
     };
+
+    init_imgui(window);
 }
 
 pub fn deinit() void {
@@ -397,7 +397,11 @@ pub fn draw() void {
     
     vk_images.copy_image_to_image(cmd_buffer, _draw_image.image, _images[image_index], _draw_extent, _extent);
 
-    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+    draw_imgui(cmd_buffer, _image_views[image_index]);
+
+    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     _ = c.vkEndCommandBuffer(cmd_buffer);
 
@@ -409,7 +413,7 @@ pub fn draw() void {
     };
 
     const wait_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, current_frame()._sw_semaphore);
-    const signal_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR, current_frame()._render_semaphore);
+    const signal_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, current_frame()._render_semaphore);
 
     const submit_info = c.VkSubmitInfo2 {
         .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
@@ -466,6 +470,34 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
     const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.width)) / 16.0)));
     const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
 	c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
+}
+
+pub fn draw_imgui(cmd: c.VkCommandBuffer, view: c.VkImageView) void {
+    const color_attachment = c.VkRenderingAttachmentInfo {
+        .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .pNext = null,
+
+        .imageView = view,
+        .imageLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = c.VK_ATTACHMENT_LOAD_OP_LOAD,
+        .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+    };
+
+	const render_info = c.VkRenderingInfo {
+        .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .pNext = null,
+        .pColorAttachments = &color_attachment,
+        .colorAttachmentCount = 1,
+        .renderArea = .{
+            .extent = _extent
+        },
+    };
+
+	c.vkCmdBeginRendering(cmd, &render_info);
+
+	imgui.cImGui_ImplVulkan_RenderDrawData(imgui.ImGui_GetDrawData(), @ptrCast(cmd));
+
+	c.vkCmdEndRendering(cmd);
 }
 
 fn immediate_submit() void {
