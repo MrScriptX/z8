@@ -59,6 +59,11 @@ pub fn build(b: *std.Build) !void {
                 .output = "colored_triangle.vert.spv",
                 .stage = "vertex"
             },
+            .{
+                .source = "assets/shaders/colored_triangle_mesh.vert.glsl",
+                .output = "colored_triangle_mesh.vert.spv",
+                .stage = "vertex"
+            },
         };
 
         for (shaders) |shader| {

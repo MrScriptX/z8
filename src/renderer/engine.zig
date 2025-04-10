@@ -8,9 +8,9 @@ const frames = @import("frame.zig");
 const utils = @import("utils.zig");
 const vk_images = @import("vk_images.zig");
 const descriptor = @import("descriptor.zig");
-const shaders = @import("shaders.zig");
 const effects = @import("compute_effect.zig");
 const pipelines = @import("pipeline.zig");
+const buffers = @import("buffers.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -77,6 +77,11 @@ var _imm_command_pool: c.VkCommandPool = undefined;
 
 var _gui_context: imgui.GuiContext = undefined;
 
+var _meshPipelineLayout: c.VkPipelineLayout = undefined;
+var _meshPipeline: c.VkPipeline = undefined;
+
+var rectangle: buffers.GPUMeshBuffers = undefined;
+
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     _background_effects = std.ArrayList(effects.ComputeEffect).init(std.heap.page_allocator);
@@ -114,6 +119,11 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
            }
         }
     };
+
+    init_default_data() catch {
+        err.display_error("Failed to initialize data !");
+        std.process.exit(1);
+    };
 }
 
 pub fn deinit() void {
@@ -121,6 +131,8 @@ pub fn deinit() void {
     defer _background_effects.deinit();
 
     _ = c.vkDeviceWaitIdle(_device);
+
+    rectangle.deinit(_vma);
 
     for (&_frames) |*frame| {
         frame.deinit(_device);
@@ -148,6 +160,9 @@ pub fn deinit() void {
 
     c.vkDestroyPipeline(_device, _trianglePipeline, null);
     c.vkDestroyPipelineLayout(_device, _trianglePipelineLayout, null);
+
+    c.vkDestroyPipeline(_device, _meshPipeline, null);
+    c.vkDestroyPipelineLayout(_device, _meshPipelineLayout, null);
 
     destroy_swapchain();
 
@@ -298,6 +313,7 @@ fn init_descriptors() !void {
 fn init_pipelines() !void {
     try init_background_pipelines();
     try init_triangle_pipeline();
+    try init_mesh_pipeline();
 }
 
 fn init_background_pipelines() !void {
@@ -323,7 +339,7 @@ fn init_background_pipelines() !void {
         std.debug.panic("Failed to create pipeline layout !", .{});
     }
 
-    const compute_shader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/gradiant.spv");
+    const compute_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/gradiant.spv");
     defer c.vkDestroyShaderModule(_device, compute_shader, null);
 
     const gradiant_stage_info = c.VkPipelineShaderStageCreateInfo {
@@ -360,7 +376,7 @@ fn init_background_pipelines() !void {
     }
 
     // sky shader
-    const sky_shader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/sky.spv");
+    const sky_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/sky.spv");
     defer c.vkDestroyShaderModule(_device, sky_shader, null);
 
     const sky_stage_info = c.VkPipelineShaderStageCreateInfo {
@@ -401,10 +417,10 @@ fn init_background_pipelines() !void {
 }
 
 fn init_triangle_pipeline() !void {
-    const triangleFragShader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+    const triangleFragShader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
     defer c.vkDestroyShaderModule(_device, triangleFragShader, null);
 
-	const triangleVertexShader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
+	const triangleVertexShader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
     defer c.vkDestroyShaderModule(_device, triangleVertexShader, null);
 
     const pipelineLayoutInfo = c.VkPipelineLayoutCreateInfo {
@@ -439,6 +455,59 @@ fn init_triangle_pipeline() !void {
 
 	//finally build the pipeline
 	_trianglePipeline = pipeline_builder.build_pipeline(_device);
+}
+
+fn init_mesh_pipeline() !void {
+    const frag_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+    defer c.vkDestroyShaderModule(_device, frag_shader, null);
+
+	const vertex_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle_mesh.vert.spv");
+    defer c.vkDestroyShaderModule(_device, vertex_shader, null);
+
+    const buffer_range = c.VkPushConstantRange {
+        .offset = 0,
+        .size = @sizeOf(buffers.GPUDrawPushConstants),
+        .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
+    };
+
+    const layout_info = c.VkPipelineLayoutCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .pNext = null,
+        .pPushConstantRanges = &buffer_range,
+        .pushConstantRangeCount = 1
+    };
+	
+    const result = c.vkCreatePipelineLayout(_device, &layout_info, null, &_meshPipelineLayout); 
+	if (result != c.VK_SUCCESS) {
+        std.debug.panic("failed to create pipeline layout!", .{});
+    }
+
+    var pipeline_builder = pipelines.builder_t.init();
+    defer pipeline_builder.deinit();
+
+    //use the triangle layout we created
+	pipeline_builder._pipeline_layout = _meshPipelineLayout;
+	//connecting the vertex and pixel shaders to the pipeline
+	try pipeline_builder.set_shaders(vertex_shader, frag_shader);
+	//it will draw triangles
+	pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	//filled triangles
+	pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
+	//no backface culling
+	pipeline_builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
+	//no multisampling
+	pipeline_builder.set_multisampling_none();
+	//no blending
+	pipeline_builder.disable_blending();
+
+	pipeline_builder.disable_depthtest();
+
+	//connect the image format we will draw into, from draw image
+	pipeline_builder.set_color_attachment_format(_draw_image.format);
+	pipeline_builder.set_depth_format(c.VK_FORMAT_UNDEFINED);
+
+	//finally build the pipeline
+	_meshPipeline = pipeline_builder.build_pipeline(_device);
 }
 
 fn current_frame() *frames.data_t {
@@ -603,6 +672,18 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 	//launch a draw command to draw 3 vertices
 	c.vkCmdDraw(cmd, 3, 1, 0, 0);
 
+	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
+
+    const push_constants = buffers.GPUDrawPushConstants {
+        .world_matrix = c.glms_mat4_zero().raw,
+        .vertex_buffer = rectangle.vertex_buffer_address,
+    };
+
+	c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants);
+	c.vkCmdBindIndexBuffer(cmd, rectangle.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+
+	c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+
 	c.vkCmdEndRendering(cmd);
 }
 
@@ -646,6 +727,54 @@ fn immediate_submit() void {
 
     _ = c.vkQueueSubmit2(_queues.graphics_queue, 1, &submit_info, _imm_fence); // TODO : run it on other queue
     _ = c.vkWaitForFences(_device, 1, &_imm_fence, c.VK_TRUE, 9999999999);
+}
+
+fn init_default_data() !void {
+    var rect_vertices =  std.ArrayList(buffers.Vertex).init(std.heap.page_allocator);
+
+    try rect_vertices.append(.{
+        .position = .{ 0.5, -0.5, 0.0 },
+        .color = .{ 0, 0, 0, 1},
+        .uv_x = 0,
+        .uv_y = 0,
+        .normal = .{ 0, 0, 0 }
+    });
+
+    try rect_vertices.append(.{
+        .position = .{ 0.5, 0.5, 0 },
+        .color = .{ 0.5, 0.5, 0.5 ,1},
+        .uv_x = 0,
+        .uv_y = 0,
+        .normal = .{ 0, 0, 0 }
+    });
+
+    try rect_vertices.append(.{
+        .position = .{ -0.5, -0.5, 0 },
+        .color = .{ 1,0, 0,1 },
+        .uv_x = 0,
+        .uv_y = 0,
+        .normal = .{ 0, 0, 0 }
+    });
+
+    try rect_vertices.append(.{
+        .position = .{ -0.5, 0.5, 0 },
+        .color = .{ 0, 1, 0, 1 },
+        .uv_x = 0,
+        .uv_y = 0,
+        .normal = .{ 0, 0, 0 }
+    });
+
+    var rect_indices = std.ArrayList(u32).init(std.heap.page_allocator);
+
+    try rect_indices.append(0);
+    try rect_indices.append(1);
+    try rect_indices.append(2);
+
+    try rect_indices.append(2);
+    try rect_indices.append(1);
+    try rect_indices.append(3);
+
+	rectangle = buffers.GPUMeshBuffers.init(_vma, _device, _imm_fence, _queues.graphics_queue, rect_indices.items, rect_vertices.items, _imm_command_buffer);
 }
 
 fn destroy_swapchain() void {
