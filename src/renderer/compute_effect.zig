@@ -1,5 +1,11 @@
 const c = @import("../clibs.zig");
-const constants = @import("compute_push_constants.zig");
+
+pub const ComputePushConstants = struct {
+    data1: c.vec4 = undefined,
+    data2: c.vec4 = undefined,
+    data3: c.vec4 = undefined,
+    data4: c.vec4 = undefined,
+};
 
 pub const ComputeEffect = struct {
     name: []const u8 = undefined,
@@ -7,5 +13,5 @@ pub const ComputeEffect = struct {
     pipeline: c.VkPipeline = undefined,
 	layout: c.VkPipelineLayout = undefined,
 
-    data: constants.ComputePushConstants = undefined
+    data: ComputePushConstants = undefined
 };

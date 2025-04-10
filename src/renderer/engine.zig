@@ -9,7 +9,6 @@ const utils = @import("utils.zig");
 const vk_images = @import("vk_images.zig");
 const descriptor = @import("descriptor.zig");
 const shaders = @import("shaders.zig");
-const constants = @import("compute_push_constants.zig");
 const effects = @import("compute_effect.zig");
 
 const queue = @import("queue_family.zig");
@@ -296,7 +295,7 @@ fn init_pipelines() !void {
 fn init_background_pipelines() !void {
     const push_constant = c.VkPushConstantRange {
         .offset = 0,
-        .size = @sizeOf(constants.ComputePushConstants),
+        .size = @sizeOf(effects.ComputePushConstants),
         .stageFlags = c.VK_SHADER_STAGE_COMPUTE_BIT,
     };
     
@@ -489,7 +488,7 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
 	// bind the descriptor set containing the draw image for the compute pipeline
 	c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &_draw_image_descriptor_set, 0, null);
 
-	c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(constants.ComputePushConstants), &effect.data);
+	c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(effects.ComputePushConstants), &effect.data);
 
     const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.width)) / 16.0)));
     const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
