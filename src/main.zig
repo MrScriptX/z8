@@ -44,7 +44,21 @@ pub fn main() !u8 {
         imgui.cImGui_ImplSDL3_NewFrame();
         imgui.ImGui_NewFrame();
 
-        imgui.ImGui_ShowDemoWindow(null);
+        if (imgui.ImGui_Begin("background", null, 0)) {
+			
+			const selected = engine.current_effect();
+		
+            const name = try std.fmt.allocPrint(std.heap.page_allocator, "Selected effect: {s}", .{ selected.name });
+			imgui.ImGui_Text(@ptrCast(&name));
+		
+			_ = imgui.ImGui_SliderInt("Effect Index", @ptrCast(engine.effect_index()), 0, @intCast(engine.max_effect() - 1));
+		
+			_ = imgui.ImGui_InputFloat4("data1", &selected.data.data1);
+			_ = imgui.ImGui_InputFloat4("data2", &selected.data.data2);
+			_ = imgui.ImGui_InputFloat4("data3", &selected.data.data3);
+			_ = imgui.ImGui_InputFloat4("data4", &selected.data.data4);
+		}
+		imgui.ImGui_End();
 
         imgui.ImGui_Render();
 

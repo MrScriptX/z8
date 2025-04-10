@@ -43,6 +43,11 @@ pub fn build(b: *std.Build) !void {
                 .source = "assets/shaders/gradiant.glsl",
                 .output = "gradiant.spv",
                 .stage = "compute"
+            },
+            .{
+                .source = "assets/shaders/sky.glsl",
+                .output = "sky.spv",
+                .stage = "compute"
             }
         };
 

@@ -10,6 +10,7 @@ const vk_images = @import("vk_images.zig");
 const descriptor = @import("descriptor.zig");
 const shaders = @import("shaders.zig");
 const constants = @import("compute_push_constants.zig");
+const effects = @import("compute_effect.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -47,6 +48,27 @@ var _draw_image_descriptor_set: c.VkDescriptorSet = undefined;
 var _gradiant_pipeline: c.VkPipeline = undefined;
 var _gradiant_pipeline_layout: c.VkPipelineLayout = undefined;
 
+var _background_effects: std.ArrayList(effects.ComputeEffect) = undefined;
+var _current_effect: u32 = 0;
+
+pub fn max_effect() u32 {
+    return @intCast(_background_effects.items.len);
+}
+
+pub fn effect_index() *u32 {
+    return &_current_effect;
+}
+
+pub fn current_effect() *effects.ComputeEffect {
+    for (_background_effects.items, 0..) |*e, i| {
+        if (i == _current_effect) {
+            return e;
+        }
+    }
+
+    return @constCast(&_background_effects.getLast());
+}
+
  // immediate submit structures
 var _imm_fence: c.VkFence = undefined;
 var _imm_command_buffer: c.VkCommandBuffer = undefined;
@@ -58,6 +80,7 @@ var _delete_queue: deletion_queue.DeletionQueue = undefined;
 
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    _background_effects = std.ArrayList(effects.ComputeEffect).init(std.heap.page_allocator);
     _delete_queue = deletion_queue.DeletionQueue.init(std.heap.page_allocator);
 
     init_vulkan(window) catch {
@@ -90,6 +113,7 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
 
 pub fn deinit() void {
     defer _arena.deinit();
+    defer _background_effects.deinit();
     defer _delete_queue.deinit();
 
     _ = c.vkDeviceWaitIdle(_device);
@@ -112,7 +136,10 @@ pub fn deinit() void {
     _descriptor_pool.deinit(_device);
 	c.vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor, null);
 
-    c.vkDestroyPipeline(_device, _gradiant_pipeline, null);
+    // c.vkDestroyPipeline(_device, _gradiant_pipeline, null);
+    for (_background_effects.items) |*it| {
+        c.vkDestroyPipeline(_device, it.pipeline, null);
+    }
     c.vkDestroyPipelineLayout(_device, _gradiant_pipeline_layout, null);
 
     _delete_queue.flush();
@@ -293,7 +320,7 @@ fn init_background_pipelines() !void {
     const compute_shader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/gradiant.spv");
     defer c.vkDestroyShaderModule(_device, compute_shader, null);
 
-    const stage_info = c.VkPipelineShaderStageCreateInfo {
+    const gradiant_stage_info = c.VkPipelineShaderStageCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 	    .pNext = null,
 	    .stage = c.VK_SHADER_STAGE_COMPUTE_BIT,
@@ -305,13 +332,66 @@ fn init_background_pipelines() !void {
         .sType = c.VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 	    .pNext = null,
 	    .layout = _gradiant_pipeline_layout,
-	    .stage = stage_info,
+	    .stage = gradiant_stage_info,
     };
 
-	const success = c.vkCreateComputePipelines(_device, null, 1, &compute_pipeline_create_info, null, &_gradiant_pipeline);
-    if (success != c.VK_SUCCESS) {
-        std.debug.panic("Failed to create compute pipeline !", .{});
+    var gradient = effects.ComputeEffect {
+        .layout = _gradiant_pipeline_layout,
+        .name = "gradient",
+        .data = .{
+            .data1 = c.vec4{ 1, 0, 0, 1 },
+	        .data2 = c.vec4{ 0, 0, 1, 1 },
+            .data3 = c.glms_vec4_zero().raw,
+            .data4 = c.glms_vec4_zero().raw 
+        },
+    };
+
+    {
+        const success = c.vkCreateComputePipelines(_device, null, 1, &compute_pipeline_create_info, null, &gradient.pipeline);
+        if (success != c.VK_SUCCESS) {
+            std.debug.panic("Failed to create compute pipeline !", .{});
+        }
     }
+
+    // sky shader
+    const sky_shader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/sky.spv");
+    defer c.vkDestroyShaderModule(_device, sky_shader, null);
+
+    const sky_stage_info = c.VkPipelineShaderStageCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+	    .pNext = null,
+	    .stage = c.VK_SHADER_STAGE_COMPUTE_BIT,
+	    .module = sky_shader,
+	    .pName = "main",
+    };
+	
+    const sky_pipeline_create_info = c.VkComputePipelineCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+	    .pNext = null,
+	    .layout = _gradiant_pipeline_layout,
+	    .stage = sky_stage_info,
+    };
+
+    var sky = effects.ComputeEffect {
+        .layout = _gradiant_pipeline_layout,
+        .name = "sky",
+        .data = .{
+            .data1 = c.vec4{ 0.1, 0.2, 0.4 , 0.97 },
+	        .data2 = c.glms_vec4_zero().raw,
+            .data3 = c.glms_vec4_zero().raw,
+            .data4 = c.glms_vec4_zero().raw 
+        },
+    };
+
+    {
+        const success = c.vkCreateComputePipelines(_device, null, 1, &sky_pipeline_create_info, null, &sky.pipeline);
+        if (success != c.VK_SUCCESS) {
+            std.debug.panic("Failed to create compute pipeline !", .{});
+        }
+    }
+
+    try _background_effects.append(gradient);
+    try _background_effects.append(sky);
 }
 
 fn init_imgui(window: ?*c.SDL_Window) void {
@@ -461,20 +541,15 @@ pub fn draw() void {
 }
 
 pub fn draw_background(cmd: c.VkCommandBuffer) void {
+    const effect = current_effect();
+
     // bind the gradient drawing compute pipeline
-	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline);
+	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
 	c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &_draw_image_descriptor_set, 0, null);
 
-    const pc = constants.ComputePushConstants {
-        .data1 = c.vec4{ 1, 0, 0, 1 },
-	    .data2 = c.vec4{ 0, 0, 1, 1 },
-        .data3 = c.glms_vec4_zero().raw,
-        .data4 = c.glms_vec4_zero().raw
-    };
-
-	c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(constants.ComputePushConstants), &pc);
+	c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(constants.ComputePushConstants), &effect.data);
 
     const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.width)) / 16.0)));
     const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
