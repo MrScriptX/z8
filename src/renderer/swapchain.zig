@@ -65,7 +65,7 @@ pub fn create_swapchain(device: c.VkDevice, surface: c.VkSurfaceKHR, details: de
     if (details.capabilities.maxImageCount > 0 and image_count > details.capabilities.maxImageCount) {
         image_count = details.capabilities.maxImageCount;
     }
-    
+
     var swapchain_info = c.VkSwapchainCreateInfoKHR {
         .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = surface,
@@ -74,10 +74,10 @@ pub fn create_swapchain(device: c.VkDevice, surface: c.VkSurfaceKHR, details: de
         .imageColorSpace = surface_format.colorSpace,
         .imageExtent = extent,
         .imageArrayLayers = 1,
-        .imageUsage = c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .imageUsage = c.VK_IMAGE_USAGE_TRANSFER_DST_BIT | c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         .imageSharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = 0,
-        .pQueueFamilyIndices = null,
+        .pQueueFamilyIndices = 0,
         .preTransform = details.capabilities.currentTransform,
         .compositeAlpha = c.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode = present_mode,

@@ -38,6 +38,11 @@ pub fn build(b: *std.Build) !void {
                 .source = "assets/shaders/default.frag.hlsl",
                 .output = "fragment.spv",
                 .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/gradiant.glsl",
+                .output = "gradiant.spv",
+                .stage = "compute"
             }
         };
 

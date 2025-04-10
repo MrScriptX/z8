@@ -9,6 +9,7 @@ const utils = @import("utils.zig");
 const vk_images = @import("vk_images.zig");
 const descriptor = @import("descriptor.zig");
 const shaders = @import("shaders.zig");
+const constants = @import("compute_push_constants.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -267,11 +268,21 @@ fn init_pipelines() !void {
 }
 
 fn init_background_pipelines() !void {
+    const push_constant = c.VkPushConstantRange {
+        .offset = 0,
+        .size = @sizeOf(constants.ComputePushConstants),
+        .stageFlags = c.VK_SHADER_STAGE_COMPUTE_BIT,
+    };
+    
     const compute_layout = c.VkPipelineLayoutCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 	    .pNext = null,
+
 	    .pSetLayouts = &_draw_image_descriptor,
 	    .setLayoutCount = 1,
+
+        .pPushConstantRanges = &push_constant,
+        .pushConstantRangeCount = 1,
     };
 
 	const result = c.vkCreatePipelineLayout(_device, &compute_layout, null, &_gradiant_pipeline_layout);
@@ -279,7 +290,7 @@ fn init_background_pipelines() !void {
         std.debug.panic("Failed to create pipeline layout !", .{});
     }
 
-    const compute_shader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/compute.spv");
+    const compute_shader = try shaders.load_shader_module(_device, "./zig-out/bin/shaders/gradiant.spv");
     defer c.vkDestroyShaderModule(_device, compute_shader, null);
 
     const stage_info = c.VkPipelineShaderStageCreateInfo {
@@ -386,6 +397,9 @@ pub fn draw() void {
         .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
 
+    _draw_extent.width = _draw_image.extent.width;
+    _draw_extent.height = _draw_image.extent.height;
+
     _ = c.vkBeginCommandBuffer(cmd_buffer, &cmd_buffer_begin_info);
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
@@ -447,28 +461,24 @@ pub fn draw() void {
 }
 
 pub fn draw_background(cmd: c.VkCommandBuffer) void {
-	// const flash = abs(std.math.sin(@as(f32, @floatFromInt(_frameNumber)) / 120.0));
-    // const clear_color = c.VkClearColorValue{
-    //     .float32 = [_]f32{ 0.0, 0.0, flash, 1.0 },
-    // };
-    
-    // var clear_value = c.VkClearValue {
-    //     .color = clear_color,
-    // };
-
-    // const clear_range = utils.image_subresource_range(c.VK_IMAGE_ASPECT_COLOR_BIT);
-
-    // c.vkCmdClearColorImage(cmd, _images[image_index], c.VK_IMAGE_LAYOUT_GENERAL, &clear_value.color, 1, &clear_range);
-
     // bind the gradient drawing compute pipeline
 	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
 	c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &_draw_image_descriptor_set, 0, null);
 
-	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
+    const pc = constants.ComputePushConstants {
+        .data1 = c.vec4{ 1, 0, 0, 1 },
+	    .data2 = c.vec4{ 0, 0, 1, 1 },
+        .data3 = c.glms_vec4_zero().raw,
+        .data4 = c.glms_vec4_zero().raw
+    };
+
+	c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(constants.ComputePushConstants), &pc);
+
     const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.width)) / 16.0)));
     const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
+
 	c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
 }
 
@@ -489,8 +499,11 @@ pub fn draw_imgui(cmd: c.VkCommandBuffer, view: c.VkImageView) void {
         .pColorAttachments = &color_attachment,
         .colorAttachmentCount = 1,
         .renderArea = .{
-            .extent = _extent
+            .extent = _extent,
+            .offset = c.VkOffset2D {.x = 0, .y = 0}
         },
+        .layerCount = 1,
+        .viewMask = 0
     };
 
 	c.vkCmdBeginRendering(cmd, &render_info);

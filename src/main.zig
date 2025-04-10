@@ -33,6 +33,8 @@ pub fn main() !u8 {
             if (event.type == c.SDL_EVENT_QUIT) {
                 quit = true;
             }
+
+            _ = imgui.cImGui_ImplSDL3_ProcessEvent(@ptrCast(&event));
         }
 
         imgui.cImGui_ImplVulkan_NewFrame();
