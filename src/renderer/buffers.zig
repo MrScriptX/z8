@@ -34,11 +34,11 @@ pub const AllocatedBuffer = struct {
 };
 
 pub const Vertex = struct {
-    position: c.vec3,
-    uv_x: f32,
-    normal: c.vec3,
-    uv_y: f32,
-    color: c.vec4,
+    position: [3]f32 align(@alignOf([3]f32)),
+    uv_x: f32 align(@alignOf(f32)),
+    normal: [3]f32 align(@alignOf([3]f32)),
+    uv_y: f32 align(@alignOf(f32)),
+    color: [4]f32 align(@alignOf([4]f32)),
 };
 
 pub const GPUMeshBuffers = struct {

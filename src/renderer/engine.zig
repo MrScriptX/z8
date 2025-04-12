@@ -593,7 +593,7 @@ pub fn draw() void {
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
-    // draw_background(cmd_buffer);
+    draw_background(cmd_buffer);
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     utils.transition_image(cmd_buffer, _depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -607,7 +607,7 @@ pub fn draw() void {
 
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-    // _gui_context.draw(cmd_buffer, _image_views[image_index], _extent);
+    _gui_context.draw(cmd_buffer, _image_views[image_index], _extent);
 
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -754,9 +754,7 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
 	c.vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-	//launch a draw command to draw 3 vertices
-	// c.vkCmdDraw(cmd, 3, 1, 0, 0);
-
+    // draw rectangle
 	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
 
     const push_constants = buffers.GPUDrawPushConstants {
@@ -769,28 +767,48 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
 	c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
-    // var view: z.Mat4 = z.Mat4.identity();
-    // view = view.translate(z.Vec3.new(0, 0, -5));
+    // draw meshes
+    const delta_time = calculate_delta_time();
+    
+    var view: z.Mat4 = _last_view;
+    // view = view.translate(z.Vec3.new(0, 0, -150));
+    
+    // Rotate the mesh using delta time
+    const rotation_speed: f32 = 45.0; // Degrees per second
+    const rotation_angle = rotation_speed * (delta_time / 1_000_000_000.0);
+    view = view.rotate(rotation_angle, z.Vec3.new(0, 1, 0));
 
-    // // camera projection
-    // const deg: f32 = 70.0;
-    // var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
+    _last_view = view;
 
-	// // invert the Y direction on projection matrix so that we are more similar
-	// // to opengl and gltf axis
-    // projection.data[1][1] *= -1.0;
+    // camera projection
+    const deg: f32 = 70.0;
+    var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
 
-    // const push_constants_mesh = buffers.GPUDrawPushConstants {
-    //     .world_matrix = z.Mat4.mul(projection, view).data,
-    //     .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
-    // };
+	// invert the Y direction on projection matrix so that we are more similar
+	// to opengl and gltf axis
+    projection.data[1][1] *= -1.0;
 
-    // c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-	// c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+    const push_constants_mesh = buffers.GPUDrawPushConstants {
+        .world_matrix = z.Mat4.mul(projection, view).data,
+        .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
+    };
 
-	// c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
+    c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+	c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+
+	c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
 	
 	c.vkCmdEndRendering(cmd);
+}
+
+var _last_view: z.Mat4 = z.Mat4.identity().translate(z.Vec3.new(0, 0, -150));
+var _last_frame_time: u128 = 0;
+
+fn calculate_delta_time() f32 {
+    const current_time: u128 = @intCast(std.time.nanoTimestamp()); // casting because we won't have neg value
+    const delta_time: f32 = @floatFromInt(current_time - _last_frame_time);
+    _last_frame_time = current_time;
+    return delta_time;
 }
 
 fn init_default_data() !void {
