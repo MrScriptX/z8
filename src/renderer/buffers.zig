@@ -1,4 +1,5 @@
 const c = @import("../clibs.zig");
+const log = @import("../utils/log.zig");
 
 pub const AllocatedBuffer = struct {
     buffer: c.VkBuffer = undefined,
@@ -19,7 +20,10 @@ pub const AllocatedBuffer = struct {
         };
 
 	    var new_buffer: AllocatedBuffer = .{};
-	    _ = c.vmaCreateBuffer(vma, &buffer_info, &vmaalloc_info, &new_buffer.buffer, &new_buffer.allocation, &new_buffer.info);
+	    const result = c.vmaCreateBuffer(vma, &buffer_info, &vmaalloc_info, &new_buffer.buffer, &new_buffer.allocation, &new_buffer.info);
+        if (result != c.VK_SUCCESS) {
+            log.write("Failed to create buffer with error {x}", .{ result });
+        }
 
 	    return new_buffer;
     }
@@ -42,7 +46,7 @@ pub const GPUMeshBuffers = struct {
     vertex_buffer: AllocatedBuffer,
     vertex_buffer_address: c.VkDeviceAddress,
 
-    pub fn init(vma: c.VmaAllocator, device: c.VkDevice, fence: c.VkFence, queue: c.VkQueue, indices: []u32, vertices: []Vertex, cmd: c.VkCommandBuffer) GPUMeshBuffers {
+    pub fn init(vma: c.VmaAllocator, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, indices: []u32, vertices: []Vertex, cmd: c.VkCommandBuffer) GPUMeshBuffers {
         const vertex_buffer_size = vertices.len * @sizeOf(Vertex);
         
         var new_surface = GPUMeshBuffers{
@@ -54,7 +58,8 @@ pub const GPUMeshBuffers = struct {
 
         const device_adress_info = c.VkBufferDeviceAddressInfo {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-            .buffer = new_surface.vertex_buffer.buffer
+            .pNext = null,
+            .buffer = new_surface.vertex_buffer.buffer,
         };
 	    new_surface.vertex_buffer_address = c.vkGetBufferDeviceAddress(device, &device_adress_info);
 
@@ -64,17 +69,54 @@ pub const GPUMeshBuffers = struct {
         var staging = AllocatedBuffer.init(vma, vertex_buffer_size + index_buffer_size, c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT, c.VMA_MEMORY_USAGE_CPU_ONLY);
         defer staging.deinit(vma);
 
-	    const data = staging.info.pMappedData;
+	    // const data = staging.info.pMappedData;
+        var data: ?*anyopaque = undefined;
+        const result = c.vmaMapMemory(vma, staging.allocation, &data);
+        if (result != c.VK_SUCCESS) {
+            log.write("vmaMapMemory failed with error {x}\n", .{ result });
+        }
 
 	    // copy vertex buffer
-	    @memcpy(@as([*]Vertex, @alignCast(@ptrCast(data))), vertices.ptr[0..vertices.len]);
+        const vertices_ptr: [*]Vertex = @alignCast(@ptrCast(data));
+	    @memcpy(vertices_ptr, vertices);
+
+        for (0..vertices.len) |i| {
+            log.write("vtx[{x}] = ({d}, {d}, {d})\n", .{ i, vertices_ptr[i].position[0], vertices_ptr[i].position[1], vertices_ptr[i].position[2] });
+        }
 
 	    // copy index buffer
-	    @memcpy(@as([*]u32, @alignCast(@ptrCast(data))) + vertices.len, indices.ptr[0..indices.len]); // @as([*]u32, @alignCast(@ptrCast(data[vertex_buffer_size])))
-	    
+        const base_ptr: [*]u8 = @ptrCast(data);
+        const index_ptr_u8 = base_ptr + vertex_buffer_size;
+        const index_ptr: [*]u32 = @as([*]u32, @alignCast(@ptrCast(index_ptr_u8)));
+	    @memcpy(index_ptr, indices);
+
+        for (0..indices.len) |i| {
+            log.write("idx[{x}] = {x}\n", .{ i, index_ptr[i] });
+        }
+
+        c.vmaUnmapMemory(vma, staging.allocation);
+
         // submit immediate
-        _ = c.vkResetFences(device, 1, &fence);
-        _ = c.vkResetCommandBuffer(cmd, 0);
+        new_surface.submit(device, fence, queue, cmd, vertex_buffer_size, index_buffer_size, &staging);
+
+        return new_surface;
+    }
+
+    pub fn deinit(self: *GPUMeshBuffers, vma: c.VmaAllocator) void {
+        self.index_buffer.deinit(vma);
+        self.vertex_buffer.deinit(vma);
+    }
+
+    fn submit(self: *GPUMeshBuffers, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vertex_buffer_size: usize, index_buffer_size: usize, buffer: *AllocatedBuffer) void {
+        var result = c.vkResetFences(device, 1, fence);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkResetFences failed with error {x}\n", .{ result });
+        }
+
+        result = c.vkResetCommandBuffer(cmd, 0);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
+        }
 
         const begin_info = c.VkCommandBufferBeginInfo {
             .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -82,7 +124,10 @@ pub const GPUMeshBuffers = struct {
             .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
 
-        _ = c.vkBeginCommandBuffer(cmd, &begin_info);
+        result = c.vkBeginCommandBuffer(cmd, &begin_info);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkBeginCommandBuffer failed with error {x}\n", .{ result });
+        }
 
         const vertex_copy = c.VkBufferCopy { 
             .dstOffset = 0,
@@ -90,7 +135,7 @@ pub const GPUMeshBuffers = struct {
 		    .size = vertex_buffer_size,
         };
 
-		c.vkCmdCopyBuffer(cmd, staging.buffer, new_surface.vertex_buffer.buffer, 1, &vertex_copy);
+		c.vkCmdCopyBuffer(cmd, buffer.buffer, self.vertex_buffer.buffer, 1, &vertex_copy);
 
 		const index_copy = c.VkBufferCopy{ 
             .dstOffset = 0,
@@ -98,9 +143,12 @@ pub const GPUMeshBuffers = struct {
 		    .size = index_buffer_size,
         };
 
-		c.vkCmdCopyBuffer(cmd, staging.buffer, new_surface.index_buffer.buffer, 1, &index_copy);
+		c.vkCmdCopyBuffer(cmd, buffer.buffer, self.index_buffer.buffer, 1, &index_copy);
 
-        _ = c.vkEndCommandBuffer(cmd);
+        result = c.vkEndCommandBuffer(cmd);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkEndCommandBuffer failed with error {x}\n", .{ result });
+        }
 
         const cmd_submit_info = c.VkCommandBufferSubmitInfo {
             .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -118,20 +166,21 @@ pub const GPUMeshBuffers = struct {
             .commandBufferInfoCount = 1,
 
             .pSignalSemaphoreInfos = null,
-            .pWaitSemaphoreInfos = null,
             .signalSemaphoreInfoCount = 0,
+            
+            .pWaitSemaphoreInfos = null,
             .waitSemaphoreInfoCount = 0,
         };
 
-        _ = c.vkQueueSubmit2(queue, 1, &submit_info, fence); // TODO : run it on other queue
-        _ = c.vkWaitForFences(device, 1, &fence, c.VK_TRUE, 9999999999);
+        result = c.vkQueueSubmit2(queue, 1, &submit_info, fence.*); // TODO : run it on other queue
+        if (result != c.VK_SUCCESS) {
+            log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
+        }
 
-        return new_surface;
-    }
-
-    pub fn deinit(self: *GPUMeshBuffers, vma: c.VmaAllocator) void {
-        self.index_buffer.deinit(vma);
-        self.vertex_buffer.deinit(vma);
+        result = c.vkWaitForFences(device, 1, fence, c.VK_TRUE, 9999999999);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkWaitForFences failed with error {x}\n", .{ result });
+        }
     }
 };
 

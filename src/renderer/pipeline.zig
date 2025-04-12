@@ -59,7 +59,13 @@ pub const builder_t = struct {
         };
 
         const vertex_input_info = c.VkPipelineVertexInputStateCreateInfo { 
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .pNext = null,
+            .pVertexAttributeDescriptions = null,
+            .vertexAttributeDescriptionCount = 0,
+            .pVertexBindingDescriptions = null,
+            .vertexBindingDescriptionCount = 0,
+            .flags = 0
         };
 
         const state = [_]c.VkDynamicState{ c.VK_DYNAMIC_STATE_VIEWPORT, c.VK_DYNAMIC_STATE_SCISSOR };
@@ -155,8 +161,20 @@ pub const builder_t = struct {
         self._depth_stencil.depthCompareOp = c.VK_COMPARE_OP_NEVER;
         self._depth_stencil.depthBoundsTestEnable = c.VK_FALSE;
         self._depth_stencil.stencilTestEnable = c.VK_FALSE;
-        self._depth_stencil.front = .{};
-        self._depth_stencil.back = .{};
+        self._depth_stencil.front = std.mem.zeroes(c.VkStencilOpState);
+        self._depth_stencil.back = std.mem.zeroes(c.VkStencilOpState);
+        self._depth_stencil.minDepthBounds = 0.0;
+        self._depth_stencil.maxDepthBounds = 1.0;
+    }
+
+    pub fn enable_depthtest(self: *builder_t, depth_write_enable: bool, op: c.VkCompareOp) void {
+        self._depth_stencil.depthTestEnable = c.VK_TRUE;
+        self._depth_stencil.depthWriteEnable = if (depth_write_enable) c.VK_TRUE else c.VK_FALSE;
+        self._depth_stencil.depthCompareOp = op;
+        self._depth_stencil.depthBoundsTestEnable = c.VK_FALSE;
+        self._depth_stencil.stencilTestEnable = c.VK_FALSE;
+        self._depth_stencil.front = std.mem.zeroes(c.VkStencilOpState);
+        self._depth_stencil.back = std.mem.zeroes(c.VkStencilOpState);
         self._depth_stencil.minDepthBounds = 0.0;
         self._depth_stencil.maxDepthBounds = 1.0;
     }

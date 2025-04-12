@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
 const imgui = @import("imgui.zig");
+const z = @import("zalgebra");
 const err = @import("../errors.zig");
 const vk = @import("vulkan.zig");
 const sw = @import("swapchain.zig");
@@ -11,9 +12,12 @@ const descriptor = @import("descriptor.zig");
 const effects = @import("compute_effect.zig");
 const pipelines = @import("pipeline.zig");
 const buffers = @import("buffers.zig");
+const loader = @import("loader.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
+
+const log = @import("../utils/log.zig");
 
 var _arena: std.heap.ArenaAllocator = undefined;
 var _vma: c.VmaAllocator = undefined;
@@ -37,6 +41,7 @@ var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
 var _frameNumber: u32 = 0;
 
 var _draw_image: vk_images.image_t = vk_images.image_t{};
+var _depth_image: vk_images.image_t = vk_images.image_t{};
 var _draw_extent = c.VkExtent2D{};
 
 var _descriptor_pool: descriptor.DescriptorAllocator = undefined;
@@ -51,6 +56,8 @@ var _trianglePipeline: c.VkPipeline = undefined;
 
 var _background_effects: std.ArrayList(effects.ComputeEffect) = undefined;
 var _current_effect: u32 = 0;
+
+var _test_meshes: []loader.MeshAsset = undefined;
 
 pub fn max_effect() u32 {
     return @intCast(_background_effects.items.len);
@@ -132,6 +139,10 @@ pub fn deinit() void {
 
     _ = c.vkDeviceWaitIdle(_device);
 
+    // for (_test_meshes) |*mesh| {
+    //     mesh.meshBuffers.deinit(_vma);
+    // }
+
     rectangle.deinit(_vma);
 
     for (&_frames) |*frame| {
@@ -146,6 +157,9 @@ pub fn deinit() void {
 
     c.vkDestroyImageView(_device, _draw_image.view, null);
     c.vmaDestroyImage(_vma, _draw_image.image, _draw_image.allocation);
+
+    c.vkDestroyImageView(_device, _depth_image.view, null);
+    c.vmaDestroyImage(_vma, _depth_image.image, _depth_image.allocation);
 
     c.vmaDestroyAllocator(_vma);
 
@@ -227,7 +241,7 @@ fn init_swapchain(width: u32, height: u32) !void {
 
     var draw_image_usages: c.VkImageUsageFlags = 0;
 	draw_image_usages |= c.VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-	draw_image_usages |= c.VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	// draw_image_usages |= c.VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	draw_image_usages |= c.VK_IMAGE_USAGE_STORAGE_BIT;
 	draw_image_usages |= c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -242,6 +256,20 @@ fn init_swapchain(width: u32, height: u32) !void {
 
     const image_view_info = vk_images.create_imageview_info(_draw_image.format, _draw_image.image, c.VK_IMAGE_ASPECT_COLOR_BIT);
     _ = c.vkCreateImageView(_device, &image_view_info, null, &_draw_image.view);
+
+    // depth image
+    _depth_image.format = c.VK_FORMAT_D32_SFLOAT;
+    _depth_image.extent = draw_image_extent;
+
+    var depth_image_usages: c.VkImageUsageFlags = 0;
+	depth_image_usages |= c.VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    const depth_create_info = vk_images.create_image_info(_depth_image.format, depth_image_usages, _depth_image.extent);
+
+    _ = c.vmaCreateImage(_vma, &depth_create_info, &rimg_allocinfo, &_depth_image.image, &_depth_image.allocation, null);
+
+    const depth_view_info = vk_images.create_imageview_info(_depth_image.format, _depth_image.image, c.VK_IMAGE_ASPECT_DEPTH_BIT);
+    _ = c.vkCreateImageView(_device, &depth_view_info, null, &_depth_image.view);
 }
 
 fn init_commands() !void {
@@ -500,11 +528,12 @@ fn init_mesh_pipeline() !void {
 	//no blending
 	pipeline_builder.disable_blending();
 
-	pipeline_builder.disable_depthtest();
+	// pipeline_builder.disable_depthtest();
+    pipeline_builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	//connect the image format we will draw into, from draw image
 	pipeline_builder.set_color_attachment_format(_draw_image.format);
-	pipeline_builder.set_depth_format(c.VK_FORMAT_UNDEFINED);
+	pipeline_builder.set_depth_format(_depth_image.format);
 
 	//finally build the pipeline
 	_meshPipeline = pipeline_builder.build_pipeline(_device);
@@ -519,12 +548,34 @@ fn abs(n: f32) f32 {
 }
 
 pub fn draw() void {
-    _ = c.vkWaitForFences(_device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
-    _ = c.vkResetFences(_device, 1, &current_frame()._render_fence);
+    var result = c.vkWaitForFences(_device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
+    if (result != c.VK_SUCCESS) {
+        log.write("vkWaitForFences failed with error {x}\n", .{ result });
+        _frameNumber += 1;
+        return;
+    }
 
     var image_index: u32 = 0;
-    _ = c.vkAcquireNextImageKHR(_device, _sw, 1000000000, current_frame()._sw_semaphore, null, &image_index);
+    result = c.vkAcquireNextImageKHR(_device, _sw, 1000000000, current_frame()._sw_semaphore, null, &image_index);
+    if (result != c.VK_SUCCESS) {
+        log.write("vkAcquireNextImageKHR failed with error {x}\n", .{ result });
+        return;
+    }
 
+    result = c.vkResetFences(_device, 1, &current_frame()._render_fence);
+    if (result != c.VK_SUCCESS) {
+        log.write("vkResetFences failed with error {x}\n", .{ result });
+        return;
+    }
+
+    _draw_extent.width = _draw_image.extent.width;
+    _draw_extent.height = _draw_image.extent.height;
+
+    result = c.vkResetCommandBuffer(current_frame()._main_buffer, 0);
+    if (result != c.VK_SUCCESS) {
+        log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
+        return;
+    }
 
     const cmd_buffer: c.VkCommandBuffer = current_frame()._main_buffer;
     const cmd_buffer_begin_info = c.VkCommandBufferBeginInfo{
@@ -534,16 +585,18 @@ pub fn draw() void {
         .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
 
-    _draw_extent.width = _draw_image.extent.width;
-    _draw_extent.height = _draw_image.extent.height;
-
-    _ = c.vkBeginCommandBuffer(cmd_buffer, &cmd_buffer_begin_info);
+    result = c.vkBeginCommandBuffer(cmd_buffer, &cmd_buffer_begin_info);
+    if (result != c.VK_SUCCESS) {
+        log.write("vkBeginCommandBuffer failed with error {x}\n", .{ result });
+        return;
+    }
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
     draw_background(cmd_buffer);
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    utils.transition_image(cmd_buffer, _depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     draw_geometry(cmd_buffer);
 
@@ -558,7 +611,10 @@ pub fn draw() void {
 
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
-    _ = c.vkEndCommandBuffer(cmd_buffer);
+    result = c.vkEndCommandBuffer(cmd_buffer);
+    if (result != c.VK_SUCCESS) {
+        log.write("vkEndCommandBuffer failed with error {x}\n", .{ result });
+    }
 
     const cmd_submit_info = c.VkCommandBufferSubmitInfo {
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -581,7 +637,10 @@ pub fn draw() void {
         .pCommandBufferInfos = &cmd_submit_info,
     };
 
-    _ = c.vkQueueSubmit2(_queues.graphics_queue, 1, &submit_info, current_frame()._render_fence);
+    result = c.vkQueueSubmit2(_queues.graphics_queue, 1, &submit_info, current_frame()._render_fence);
+    if (result != c.VK_SUCCESS) {
+        log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
+    }
 
     const present_info = c.VkPresentInfoKHR {
         .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -596,7 +655,10 @@ pub fn draw() void {
     };
 	
 
-	_ = c.vkQueuePresentKHR(_queues.graphics_queue, &present_info);
+	result = c.vkQueuePresentKHR(_queues.graphics_queue, &present_info);
+    if (result != c.VK_SUCCESS) {
+        log.write("vkQueuePresentKHR failed with error {x}\n", .{ result });
+    }
 
     _frameNumber += 1;
 }
@@ -626,6 +688,29 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
         .imageView = _draw_image.view,
         .imageLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+
+        .loadOp = c.VK_ATTACHMENT_LOAD_OP_LOAD,
+        .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+
+        .clearValue = std.mem.zeroes(c.VkClearValue),
+    };
+
+    const depth_attachment = c.VkRenderingAttachmentInfo {
+        .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .pNext = null,
+
+        .imageView = _depth_image.view,
+        .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+
+        .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+
+        .clearValue = .{
+            .depthStencil = .{
+                .depth = 0.0,
+                .stencil = 0
+            }
+        }
     };
 
 	const render_info = c.VkRenderingInfo {
@@ -633,6 +718,7 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
         .pNext = null,
         .pColorAttachments = &color_attachment,
         .colorAttachmentCount = 1,
+        .pDepthAttachment = &depth_attachment,
         .renderArea = .{
             .extent = _draw_extent,
             .offset = .{
@@ -642,9 +728,8 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
         },
         .flags = 0,
         .layerCount = 1,
-        .pDepthAttachment = null,
         .pStencilAttachment = null,
-        .viewMask = 0
+        .viewMask = 0,
     };
 	c.vkCmdBeginRendering(cmd, &render_info);
 
@@ -670,12 +755,12 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 	c.vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 	//launch a draw command to draw 3 vertices
-	c.vkCmdDraw(cmd, 3, 1, 0, 0);
+	// c.vkCmdDraw(cmd, 3, 1, 0, 0);
 
 	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
 
     const push_constants = buffers.GPUDrawPushConstants {
-        .world_matrix = c.glms_mat4_zero().raw,
+        .world_matrix = z.Mat4.identity().data,
         .vertex_buffer = rectangle.vertex_buffer_address,
     };
 
@@ -684,53 +769,33 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
 	c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
+    // var view: z.Mat4 = z.Mat4.identity();
+    // view = view.translate(z.Vec3.new(0, 0, -5));
+
+    // // camera projection
+    // const deg: f32 = 70.0;
+    // var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
+
+	// // invert the Y direction on projection matrix so that we are more similar
+	// // to opengl and gltf axis
+    // projection.data[1][1] *= -1.0;
+
+    // const push_constants_mesh = buffers.GPUDrawPushConstants {
+    //     .world_matrix = z.Mat4.mul(projection, view).data,
+    //     .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
+    // };
+
+    // c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+	// c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+
+	// c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
+	
 	c.vkCmdEndRendering(cmd);
-}
-
-fn immediate_submit() void {
-    _ = c.vkResetFences(_device, 1, &_imm_fence);
-    _ = c.vkResetCommandBuffer(_imm_command_buffer, 0);
-
-    const cmd = _imm_command_buffer;
-
-    const begin_info = c.VkCommandBufferBeginInfo {
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext = null,
-        .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-
-    _ = c.vkBeginCommandBuffer(cmd, &begin_info);
-
-
-    _ = c.vkEndCommandBuffer(cmd);
-
-    const cmd_submit_info = c.VkCommandBufferSubmitInfo {
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-        .pNext = null,
-        .commandBuffer = cmd,
-        .deviceMask = 0
-    };
-
-    const submit_info = c.VkSubmitInfo2 {
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_2,
-        .pNext = null,
-        .flags = 0,
-
-        .pCommandBufferInfos = &cmd_submit_info,
-        .commandBufferInfoCount = 1,
-
-        .pSignalSemaphoreInfos = null,
-        .pWaitSemaphoreInfos = null,
-        .signalSemaphoreInfoCount = 0,
-        .waitSemaphoreInfoCount = 0,
-    };
-
-    _ = c.vkQueueSubmit2(_queues.graphics_queue, 1, &submit_info, _imm_fence); // TODO : run it on other queue
-    _ = c.vkWaitForFences(_device, 1, &_imm_fence, c.VK_TRUE, 9999999999);
 }
 
 fn init_default_data() !void {
     var rect_vertices =  std.ArrayList(buffers.Vertex).init(std.heap.page_allocator);
+    defer rect_vertices.deinit();
 
     try rect_vertices.append(.{
         .position = .{ 0.5, -0.5, 0.0 },
@@ -750,7 +815,7 @@ fn init_default_data() !void {
 
     try rect_vertices.append(.{
         .position = .{ -0.5, -0.5, 0 },
-        .color = .{ 1,0, 0,1 },
+        .color = .{ 1, 0, 0, 1 },
         .uv_x = 0,
         .uv_y = 0,
         .normal = .{ 0, 0, 0 }
@@ -765,6 +830,7 @@ fn init_default_data() !void {
     });
 
     var rect_indices = std.ArrayList(u32).init(std.heap.page_allocator);
+    defer rect_indices.deinit();
 
     try rect_indices.append(0);
     try rect_indices.append(1);
@@ -774,7 +840,9 @@ fn init_default_data() !void {
     try rect_indices.append(1);
     try rect_indices.append(3);
 
-	rectangle = buffers.GPUMeshBuffers.init(_vma, _device, _imm_fence, _queues.graphics_queue, rect_indices.items, rect_vertices.items, _imm_command_buffer);
+	rectangle = buffers.GPUMeshBuffers.init(_vma, _device, &_imm_fence, _queues.graphics_queue, rect_indices.items, rect_vertices.items, _imm_command_buffer);
+
+    // _test_meshes = try loader.load_gltf_meshes(std.heap.page_allocator, "./assets/models/basicmesh.glb", _vma, _device, &_imm_fence, _queues.graphics_queue, _imm_command_buffer);
 }
 
 fn destroy_swapchain() void {

@@ -111,6 +111,19 @@ pub fn build(b: *std.Build) !void {
     exe.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_sdl3.cpp"), .flags = &.{ "" } });
     exe.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_vulkan.cpp"), .flags = &.{ "" } });
 
+    // add cgltf
+    exe.addIncludePath(.{ .cwd_relative = "common/cgltf" });
+    exe.addCSourceFile(.{ .file = b.path("src/lib/gltf.c"), .flags = &.{ "" } });
+
+    // add zalgebra
+    const zalgebra = b.addModule("zalgebra", .{
+        .root_source_file = b.path("common/zalgebra/src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.root_module.addImport("zalgebra", zalgebra);
+
     exe.linkLibC();
     exe.linkLibCpp();
 
