@@ -178,6 +178,28 @@ pub const builder_t = struct {
         self._depth_stencil.minDepthBounds = 0.0;
         self._depth_stencil.maxDepthBounds = 1.0;
     }
+
+    pub fn enable_blending_additive(self: *builder_t) void {
+        self._color_blend_attachment.colorWriteMask = c.VK_COLOR_COMPONENT_R_BIT | c.VK_COLOR_COMPONENT_G_BIT | c.VK_COLOR_COMPONENT_B_BIT | c.VK_COLOR_COMPONENT_A_BIT;
+        self._color_blend_attachment.blendEnable = c.VK_TRUE;
+        self._color_blend_attachment.srcColorBlendFactor = c.VK_BLEND_FACTOR_SRC_ALPHA;
+        self._color_blend_attachment.dstColorBlendFactor = c.VK_BLEND_FACTOR_ONE;
+        self._color_blend_attachment.colorBlendOp = c.VK_BLEND_OP_ADD;
+        self._color_blend_attachment.srcAlphaBlendFactor = c.VK_BLEND_FACTOR_ONE;
+        self._color_blend_attachment.dstAlphaBlendFactor = c.VK_BLEND_FACTOR_ZERO;
+        self._color_blend_attachment.alphaBlendOp = c.VK_BLEND_OP_ADD;
+    }
+
+    pub fn enable_blending_alphablend(self: *builder_t) void {
+        self._color_blend_attachment.colorWriteMask = c.VK_COLOR_COMPONENT_R_BIT | c.VK_COLOR_COMPONENT_G_BIT | c.VK_COLOR_COMPONENT_B_BIT | c.VK_COLOR_COMPONENT_A_BIT;
+        self._color_blend_attachment.blendEnable = c.VK_TRUE;
+        self._color_blend_attachment.srcColorBlendFactor = c.VK_BLEND_FACTOR_SRC_ALPHA;
+        self._color_blend_attachment.dstColorBlendFactor = c.VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        self._color_blend_attachment.colorBlendOp = c.VK_BLEND_OP_ADD;
+        self._color_blend_attachment.srcAlphaBlendFactor = c.VK_BLEND_FACTOR_ONE;
+        self._color_blend_attachment.dstAlphaBlendFactor = c.VK_BLEND_FACTOR_ZERO;
+        self._color_blend_attachment.alphaBlendOp = c.VK_BLEND_OP_ADD;
+    }
 };
 
 pub fn create_shader_stage_info(shader: c.VkShaderModule, stage: c.VkShaderStageFlagBits) c.VkPipelineShaderStageCreateInfo {
