@@ -593,7 +593,7 @@ pub fn draw() void {
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
-    draw_background(cmd_buffer);
+    // draw_background(cmd_buffer);
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     utils.transition_image(cmd_buffer, _depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -607,7 +607,7 @@ pub fn draw() void {
 
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-    _gui_context.draw(cmd_buffer, _image_views[image_index], _extent);
+    // _gui_context.draw(cmd_buffer, _image_views[image_index], _extent);
 
     utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -733,7 +733,7 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
     };
 	c.vkCmdBeginRendering(cmd, &render_info);
 
-	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
+	// c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
 
 	//set dynamic viewport and scissor
 	const viewport = c.VkViewport {
@@ -769,26 +769,26 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
 	c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
-    var view: z.Mat4 = z.Mat4.identity();
-    view = view.translate(z.Vec3.new(0, 0, -5));
+    // var view: z.Mat4 = z.Mat4.identity();
+    // view = view.translate(z.Vec3.new(0, 0, -5));
 
-    // camera projection
-    const deg: f32 = 70.0;
-    var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
+    // // camera projection
+    // const deg: f32 = 70.0;
+    // var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
 
-	// invert the Y direction on projection matrix so that we are more similar
-	// to opengl and gltf axis
-    projection.data[1][1] *= -1.0;
+	// // invert the Y direction on projection matrix so that we are more similar
+	// // to opengl and gltf axis
+    // projection.data[1][1] *= -1.0;
 
-    const push_constants_mesh = buffers.GPUDrawPushConstants {
-        .world_matrix = z.Mat4.mul(projection, view).data,
-        .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
-    };
+    // const push_constants_mesh = buffers.GPUDrawPushConstants {
+    //     .world_matrix = z.Mat4.mul(projection, view).data,
+    //     .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
+    // };
 
-    c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-	c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+    // c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+	// c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
 
-	c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
+	// c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
 	
 	c.vkCmdEndRendering(cmd);
 }

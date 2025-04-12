@@ -81,7 +81,7 @@ pub const GPUMeshBuffers = struct {
 	    @memcpy(vertices_ptr, vertices);
 
         // for (0..vertices.len) |i| {
-        //     log.write("vtx[{x}] = ({d}, {d}, {d})\n", .{ i, vertices_ptr[i].position[0], vertices_ptr[i].position[1], vertices_ptr[i].position[2] });
+        //     log.write("vtx[{d}] = ({d}, {d}, {d})\n", .{ i, vertices_ptr[i].position[0], vertices_ptr[i].position[1], vertices_ptr[i].position[2] });
         // }
 
 	    // copy index buffer
@@ -185,6 +185,6 @@ pub const GPUMeshBuffers = struct {
 };
 
 pub const GPUDrawPushConstants = struct {
-    world_matrix: c.mat4 = undefined,
+    world_matrix: [4][4]f32 align(16) = undefined,
     vertex_buffer: c.VkDeviceAddress = undefined
 };
