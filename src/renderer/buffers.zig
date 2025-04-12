@@ -80,9 +80,9 @@ pub const GPUMeshBuffers = struct {
         const vertices_ptr: [*]Vertex = @alignCast(@ptrCast(data));
 	    @memcpy(vertices_ptr, vertices);
 
-        for (0..vertices.len) |i| {
-            log.write("vtx[{x}] = ({d}, {d}, {d})\n", .{ i, vertices_ptr[i].position[0], vertices_ptr[i].position[1], vertices_ptr[i].position[2] });
-        }
+        // for (0..vertices.len) |i| {
+        //     log.write("vtx[{x}] = ({d}, {d}, {d})\n", .{ i, vertices_ptr[i].position[0], vertices_ptr[i].position[1], vertices_ptr[i].position[2] });
+        // }
 
 	    // copy index buffer
         const base_ptr: [*]u8 = @ptrCast(data);
@@ -90,9 +90,9 @@ pub const GPUMeshBuffers = struct {
         const index_ptr: [*]u32 = @as([*]u32, @alignCast(@ptrCast(index_ptr_u8)));
 	    @memcpy(index_ptr, indices);
 
-        for (0..indices.len) |i| {
-            log.write("idx[{x}] = {x}\n", .{ i, index_ptr[i] });
-        }
+        // for (0..indices.len) |i| {
+        //     log.write("idx[{x}] = {x}\n", .{ i, index_ptr[i] });
+        // }
 
         c.vmaUnmapMemory(vma, staging.allocation);
 

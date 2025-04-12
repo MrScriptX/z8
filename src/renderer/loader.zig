@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
 const buffers = @import("buffers.zig");
+const log = @import("../utils/log.zig");
 
 pub const GeoSurface = struct {
     startIndex: u32,
@@ -23,6 +24,11 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
     }
     defer c.cgltf_free(data);
 
+    const success = c.cgltf_load_buffers(&options, data, path.ptr);
+    if (success != c.cgltf_result_success) {
+        std.debug.panic("Failed to load buffers!\n", .{});
+    }
+
     var vertices = std.ArrayList(buffers.Vertex).init(allocator);
     defer vertices.deinit();
 
@@ -43,18 +49,20 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
         indices.clearAndFree();
 
         for (mesh.primitives[0..mesh.primitives_count]) |prim| {
+            const indices_count: usize = prim.indices.*.count;
+
             const surface = GeoSurface {
                 .startIndex = @intCast(indices.items.len),
-                .count = @intCast(prim.indices.*.count),
+                .count = @intCast(indices_count),
             };
 
-            try indices.ensureTotalCapacity(indices.items.len + prim.indices.*.count);
+            try indices.ensureTotalCapacity(indices.items.len + indices_count);
 
             // load indexes
-            for (0..prim.indices.*.count) |i| {
+            const offset: u32 = @intCast(vertices.items.len);
+            for (0..indices_count) |i| {
                 const idx: u32 = @intCast(c.cgltf_accessor_read_index(prim.indices, @intCast(i)));
-                // indices.items[indices.items.len + i] = idx + @as(u32, @intCast(vertices.items.len));
-                try indices.append(idx + @as(u32, @intCast(vertices.items.len)));
+                try indices.append(idx + offset);
             }
 
             // load vertex positions

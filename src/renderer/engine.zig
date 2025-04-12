@@ -769,26 +769,26 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
 	c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
-    // var view: z.Mat4 = z.Mat4.identity();
-    // view = view.translate(z.Vec3.new(0, 0, -5));
+    var view: z.Mat4 = z.Mat4.identity();
+    view = view.translate(z.Vec3.new(0, 0, -5));
 
-    // // camera projection
-    // const deg: f32 = 70.0;
-    // var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
+    // camera projection
+    const deg: f32 = 70.0;
+    var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
 
-	// // invert the Y direction on projection matrix so that we are more similar
-	// // to opengl and gltf axis
-    // projection.data[1][1] *= -1.0;
+	// invert the Y direction on projection matrix so that we are more similar
+	// to opengl and gltf axis
+    projection.data[1][1] *= -1.0;
 
-    // const push_constants_mesh = buffers.GPUDrawPushConstants {
-    //     .world_matrix = z.Mat4.mul(projection, view).data,
-    //     .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
-    // };
+    const push_constants_mesh = buffers.GPUDrawPushConstants {
+        .world_matrix = z.Mat4.mul(projection, view).data,
+        .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
+    };
 
-    // c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-	// c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+    c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+	c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
 
-	// c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
+	c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
 	
 	c.vkCmdEndRendering(cmd);
 }
@@ -842,7 +842,7 @@ fn init_default_data() !void {
 
 	rectangle = buffers.GPUMeshBuffers.init(_vma, _device, &_imm_fence, _queues.graphics_queue, rect_indices.items, rect_vertices.items, _imm_command_buffer);
 
-    // _test_meshes = try loader.load_gltf_meshes(std.heap.page_allocator, "./assets/models/basicmesh.glb", _vma, _device, &_imm_fence, _queues.graphics_queue, _imm_command_buffer);
+    _test_meshes = try loader.load_gltf_meshes(std.heap.page_allocator, "./assets/models/basicmesh.glb", _vma, _device, &_imm_fence, _queues.graphics_queue, _imm_command_buffer);
 }
 
 fn destroy_swapchain() void {
