@@ -139,9 +139,9 @@ pub fn deinit() void {
 
     _ = c.vkDeviceWaitIdle(_device);
 
-    // for (_test_meshes) |*mesh| {
-    //     mesh.meshBuffers.deinit(_vma);
-    // }
+    for (_test_meshes) |*mesh| {
+        mesh.meshBuffers.deinit(_vma);
+    }
 
     rectangle.deinit(_vma);
 

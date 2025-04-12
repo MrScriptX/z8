@@ -31,10 +31,10 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
     }
 
     var vertices = std.ArrayList(buffers.Vertex).init(allocator);
-    // defer vertices.deinit();
+    defer vertices.deinit();
 
     var indices = std.ArrayList(u32).init(allocator);
-    // defer indices.deinit();
+    defer indices.deinit();
         
     var meshes = std.ArrayList(MeshAsset).init(allocator);
     // defer meshes.deinit();

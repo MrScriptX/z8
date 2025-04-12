@@ -69,12 +69,7 @@ pub const GPUMeshBuffers = struct {
         var staging = AllocatedBuffer.init(vma, vertex_buffer_size + index_buffer_size, c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT, c.VMA_MEMORY_USAGE_CPU_ONLY);
         defer staging.deinit(vma);
 
-	    // const data = staging.info.pMappedData;
-        var data: ?*anyopaque = undefined;
-        const result = c.vmaMapMemory(vma, staging.allocation, &data);
-        if (result != c.VK_SUCCESS) {
-            log.write("vmaMapMemory failed with error {x}\n", .{ result });
-        }
+	    const data = staging.info.pMappedData;
 
 	    // copy vertex buffer
         const vertices_ptr: [*]Vertex = @alignCast(@ptrCast(data));
@@ -93,8 +88,6 @@ pub const GPUMeshBuffers = struct {
         // for (0..indices.len) |i| {
         //     log.write("idx[{x}] = {x}\n", .{ i, index_ptr[i] });
         // }
-
-        c.vmaUnmapMemory(vma, staging.allocation);
 
         // submit immediate
         new_surface.submit(device, fence, queue, cmd, vertex_buffer_size, index_buffer_size, &staging);
