@@ -40,12 +40,18 @@ pub fn main() !u8 {
             _ = imgui.cImGui_ImplSDL3_ProcessEvent(@ptrCast(&event));
         }
 
+        if (engine.should_rebuild_sw()) {
+            engine.rebuild_swapchain(window);
+        }
+
+
         imgui.cImGui_ImplVulkan_NewFrame();
         imgui.cImGui_ImplSDL3_NewFrame();
         imgui.ImGui_NewFrame();
 
         if (imgui.ImGui_Begin("background", null, 0)) {
-			
+            _ = imgui.ImGui_SliderFloat("Render Scale", @ptrCast(engine.render_scale()), 0.3, 1.0);
+
 			const selected = engine.current_effect();
 		
             const name = try std.fmt.allocPrint(std.heap.page_allocator, "Selected effect: {s}", .{ selected.name });

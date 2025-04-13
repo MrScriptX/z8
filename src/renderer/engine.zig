@@ -43,6 +43,7 @@ var _frameNumber: u32 = 0;
 var _draw_image: vk_images.image_t = vk_images.image_t{};
 var _depth_image: vk_images.image_t = vk_images.image_t{};
 var _draw_extent = c.VkExtent2D{};
+var _render_scale: f32 = 1.0;
 
 var _descriptor_pool: descriptor.DescriptorAllocator = undefined;
 var _draw_image_descriptor: c.VkDescriptorSetLayout = undefined;
@@ -548,6 +549,8 @@ fn abs(n: f32) f32 {
     return @max(-n, n);
 }
 
+var _rebuild_swapchain: bool = false;
+
 pub fn draw() void {
     var result = c.vkWaitForFences(_device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
     if (result != c.VK_SUCCESS) {
@@ -556,11 +559,25 @@ pub fn draw() void {
         return;
     }
 
+    // compute draw extent
+    const min_width: f32 = @floatFromInt(@min(_extent.width, _draw_image.extent.width));
+    const min_height: f32 = @floatFromInt(@min(_extent.height, _draw_image.extent.height));
+
+    _draw_extent.width = @intFromFloat(min_width * _render_scale); // TODO : convert render_scale to int and divide to scale back
+    _draw_extent.height = @intFromFloat(min_height * _render_scale);
+
     var image_index: u32 = 0;
     result = c.vkAcquireNextImageKHR(_device, _sw, 1000000000, current_frame()._sw_semaphore, null, &image_index);
-    if (result != c.VK_SUCCESS) {
-        log.write("vkAcquireNextImageKHR failed with error {x}\n", .{ result });
-        return;
+    switch(result) {
+        c.VK_SUCCESS => {},
+        c.VK_ERROR_OUT_OF_DATE_KHR => {
+            _rebuild_swapchain = true;
+            return;
+        },
+        else => {
+            log.write("vkAcquireNextImageKHR failed with error {x}\n", .{ result });
+            return;
+        }
     }
 
     result = c.vkResetFences(_device, 1, &current_frame()._render_fence);
@@ -568,9 +585,6 @@ pub fn draw() void {
         log.write("vkResetFences failed with error {x}\n", .{ result });
         return;
     }
-
-    _draw_extent.width = _draw_image.extent.width;
-    _draw_extent.height = _draw_image.extent.height;
 
     result = c.vkResetCommandBuffer(current_frame()._main_buffer, 0);
     if (result != c.VK_SUCCESS) {
@@ -657,8 +671,15 @@ pub fn draw() void {
 	
 
 	result = c.vkQueuePresentKHR(_queues.graphics_queue, &present_info);
-    if (result != c.VK_SUCCESS) {
-        log.write("vkQueuePresentKHR failed with error {x}\n", .{ result });
+    switch(result) {
+        c.VK_SUCCESS => {},
+        c.VK_ERROR_OUT_OF_DATE_KHR => {
+            _rebuild_swapchain = true;
+            return;
+        },
+        else => {
+            log.write("vkQueuePresentKHR failed with error {x}\n", .{ result });
+        }
     }
 
     _frameNumber += 1;
@@ -862,6 +883,34 @@ fn init_default_data() !void {
 	rectangle = buffers.GPUMeshBuffers.init(_vma, _device, &_imm_fence, _queues.graphics_queue, rect_indices.items, rect_vertices.items, _imm_command_buffer);
 
     _test_meshes = try loader.load_gltf_meshes(std.heap.page_allocator, "./assets/models/basicmesh.glb", _vma, _device, &_imm_fence, _queues.graphics_queue, _imm_command_buffer);
+}
+
+pub fn render_scale() *f32 {
+    return &_render_scale;
+}
+
+pub fn should_rebuild_sw() bool {
+    return _rebuild_swapchain;
+}
+
+pub fn rebuild_swapchain(window: ?*c.SDL_Window) void {
+    const result = c.vkDeviceWaitIdle(_device);
+    if (result != c.VK_SUCCESS) {
+        log.write("Failed to wait for device with error {x}", .{ result });
+    }
+
+    destroy_swapchain();
+
+    var width: i32 = 0;
+    var height: i32 = 0;
+    _ = c.SDL_GetWindowSize(window, &width, &height);
+
+    init_swapchain(@intCast(width), @intCast(height)) catch {
+        log.write("Failed to build swapchain !", .{});
+        return;
+    };
+
+    _rebuild_swapchain = false;
 }
 
 fn destroy_swapchain() void {
