@@ -31,11 +31,12 @@ var _surface: c.VkSurfaceKHR = undefined;
 var _queues: queue.queues_t = undefined;
 var queue_indices: queue.queue_indices_t = undefined;
 
-var _sw: c.VkSwapchainKHR = undefined;
-var _image_format: c.VkSurfaceFormatKHR = undefined;
-var _images: []c.VkImage = undefined;
-var _image_views: []c.VkImageView = undefined;
-var _extent: c.VkExtent2D = undefined;
+// var _sw: c.VkSwapchainKHR = undefined;
+// var _image_format: c.VkSurfaceFormatKHR = undefined;
+// var _images: []c.VkImage = undefined;
+// var _image_views: []c.VkImageView = undefined;
+// var _extent: c.VkExtent2D = undefined;
+var _sw: sw.swapchain_t = undefined;
 
 var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
 var _frameNumber: u32 = 0;
@@ -119,7 +120,7 @@ pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
         std.process.exit(1);
     };
 
-    _gui_context = imgui.GuiContext.init(window, _device, _instance, _gpu, _queues.graphics_queue, &_image_format.format) catch |e| {
+    _gui_context = imgui.GuiContext.init(window, _device, _instance, _gpu, _queues.graphics_queue, &_sw._image_format.format) catch |e| {
         switch (e) {
            imgui.Error.PoolAllocFailed => {
                 err.display_error("Failed to create pool for ImGui !");
@@ -188,26 +189,12 @@ fn init_vulkan(window: ?*c.SDL_Window) !void {
 }
 
 fn init_swapchain(width: u32, height: u32) !void {
-    const details = try sw.query_swapchain_support(_gpu, _surface);
-    defer details.deinit();
-
-    _image_format = try sw.select_surface_format(details);
-
     const window_extent = c.VkExtent2D{
         .width = width,
         .height = height,
     };
 
-    _extent = try sw.select_extent(details.capabilities, window_extent);
-    _sw = try sw.create_swapchain(_device, _surface, details, _image_format, _extent, queue_indices);
-    
-    var image_count: u32 = 0;
-    _ = c.vkGetSwapchainImagesKHR(_device, _sw, &image_count, null);
-
-    const allocator = _arena.allocator();
-    
-    _images = try sw.create_images(allocator, _device, _sw, &image_count);
-    _image_views = try sw.create_image_views(_device, _images, _image_format.format);
+    _sw = try sw.swapchain_t.init(_arena.allocator(), _device, _gpu, _surface, window_extent, queue_indices);
 
     //draw image size will match the window
 	const draw_image_extent = c.VkExtent3D {
@@ -221,7 +208,6 @@ fn init_swapchain(width: u32, height: u32) !void {
 
     var draw_image_usages: c.VkImageUsageFlags = 0;
 	draw_image_usages |= c.VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-	// draw_image_usages |= c.VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	draw_image_usages |= c.VK_IMAGE_USAGE_STORAGE_BIT;
 	draw_image_usages |= c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -425,17 +411,17 @@ fn init_background_pipelines() !void {
 }
 
 fn init_triangle_pipeline() !void {
-    const triangleFragShader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
-    defer c.vkDestroyShaderModule(_device, triangleFragShader, null);
+    const triangle_frag_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+    defer c.vkDestroyShaderModule(_device, triangle_frag_shader, null);
 
-	const triangleVertexShader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
-    defer c.vkDestroyShaderModule(_device, triangleVertexShader, null);
+	const triangle_vertex_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
+    defer c.vkDestroyShaderModule(_device, triangle_vertex_shader, null);
 
-    const pipelineLayoutInfo = c.VkPipelineLayoutCreateInfo {
+    const pipeline_layout_info = c.VkPipelineLayoutCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
     };
 	
-    const result = c.vkCreatePipelineLayout(_device, &pipelineLayoutInfo, null, &_trianglePipelineLayout); 
+    const result = c.vkCreatePipelineLayout(_device, &pipeline_layout_info, null, &_trianglePipelineLayout); 
 	if (result != c.VK_SUCCESS) {
         std.debug.panic("failed to create pipeline layout!", .{});
     }
@@ -444,7 +430,7 @@ fn init_triangle_pipeline() !void {
     defer pipeline_builder.deinit();
 
     pipeline_builder._pipeline_layout = _trianglePipelineLayout;
-    try pipeline_builder.set_shaders(triangleVertexShader, triangleFragShader);
+    try pipeline_builder.set_shaders(triangle_vertex_shader, triangle_frag_shader);
     pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	//filled triangles
 	pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
@@ -539,14 +525,14 @@ pub fn draw() void {
     }
 
     // compute draw extent
-    const min_width: f32 = @floatFromInt(@min(_extent.width, _draw_image.extent.width));
-    const min_height: f32 = @floatFromInt(@min(_extent.height, _draw_image.extent.height));
+    const min_width: f32 = @floatFromInt(@min(_sw._extent.width, _draw_image.extent.width));
+    const min_height: f32 = @floatFromInt(@min(_sw._extent.height, _draw_image.extent.height));
 
     _draw_extent.width = @intFromFloat(min_width * _render_scale); // TODO : convert render_scale to int and divide to scale back
     _draw_extent.height = @intFromFloat(min_height * _render_scale);
 
     var image_index: u32 = 0;
-    result = c.vkAcquireNextImageKHR(_device, _sw, 1000000000, current_frame()._sw_semaphore, null, &image_index);
+    result = c.vkAcquireNextImageKHR(_device, _sw._sw, 1000000000, current_frame()._sw_semaphore, null, &image_index);
     switch(result) {
         c.VK_SUCCESS => {},
         c.VK_ERROR_OUT_OF_DATE_KHR => {
@@ -595,15 +581,15 @@ pub fn draw() void {
     draw_geometry(cmd_buffer);
 
     utils.transition_image(cmd_buffer, _draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    utils.transition_image(cmd_buffer, _sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
-    vk_images.copy_image_to_image(cmd_buffer, _draw_image.image, _images[image_index], _draw_extent, _extent);
+    vk_images.copy_image_to_image(cmd_buffer, _draw_image.image, _sw._images[image_index], _draw_extent, _sw._extent);
 
-    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    utils.transition_image(cmd_buffer, _sw._images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-    _gui_context.draw(cmd_buffer, _image_views[image_index], _extent);
+    _gui_context.draw(cmd_buffer, _sw._image_views[image_index], _sw._extent);
 
-    utils.transition_image(cmd_buffer, _images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    utils.transition_image(cmd_buffer, _sw._images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     result = c.vkEndCommandBuffer(cmd_buffer);
     if (result != c.VK_SUCCESS) {
@@ -639,7 +625,7 @@ pub fn draw() void {
     const present_info = c.VkPresentInfoKHR {
         .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 	    .pNext = null,
-	    .pSwapchains = &_sw,
+	    .pSwapchains = &_sw._sw,
 	    .swapchainCount = 1,
 
 	    .pWaitSemaphores = &current_frame()._render_semaphore,
@@ -903,12 +889,7 @@ pub fn rebuild_swapchain(window: ?*c.SDL_Window) void {
 }
 
 fn destroy_swapchain() void {
-    c.vkDestroySwapchainKHR(_device, _sw, null);
-
-    // destroy sw images
-    for (_image_views) |image_view| {
-        c.vkDestroyImageView(_device, image_view, null);
-    }
+    _sw.deinit(_device);
 
     // destroy draw images
     c.vkDestroyImageView(_device, _draw_image.view, null);

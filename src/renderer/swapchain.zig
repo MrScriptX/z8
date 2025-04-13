@@ -12,15 +12,15 @@ pub const swapchain_t = struct {
     _images: []c.VkImage = undefined,
     _image_views: []c.VkImageView = undefined,
 
-    pub fn init(alloc: std.mem.Allocator, device: c.VkDevice, gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR, window_extent: c.VkExtent2D, queue_indices: queue.queue_indices_t) swapchain_t {
+    pub fn init(alloc: std.mem.Allocator, device: c.VkDevice, gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR, window_extent: c.VkExtent2D, queue_indices: queue.queue_indices_t) !swapchain_t {
         const details = try query_swapchain_support(gpu, surface);
         defer details.deinit();
 
         // create swapchain
         var sw: swapchain_t = swapchain_t{};
         sw._image_format = try select_surface_format(details);
-        sw._extent = try sw.select_extent(details.capabilities, window_extent);
-        sw._sw = try sw.create_swapchain(device, surface, details, sw._image_format, sw._extent, queue_indices);
+        sw._extent = try select_extent(details.capabilities, window_extent);
+        sw._sw = try create_swapchain(device, surface, details, sw._image_format, sw._extent, queue_indices);
 
         // create swapchain images
         var image_count: u32 = 0;
