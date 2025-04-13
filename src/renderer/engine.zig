@@ -31,11 +31,6 @@ var _surface: c.VkSurfaceKHR = undefined;
 var _queues: queue.queues_t = undefined;
 var queue_indices: queue.queue_indices_t = undefined;
 
-// var _sw: c.VkSwapchainKHR = undefined;
-// var _image_format: c.VkSurfaceFormatKHR = undefined;
-// var _images: []c.VkImage = undefined;
-// var _image_views: []c.VkImageView = undefined;
-// var _extent: c.VkExtent2D = undefined;
 var _sw: sw.swapchain_t = undefined;
 
 var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
@@ -50,11 +45,15 @@ var _descriptor_pool: descriptor.DescriptorAllocator = undefined;
 var _draw_image_descriptor: c.VkDescriptorSetLayout = undefined;
 var _draw_image_descriptor_set: c.VkDescriptorSet = undefined;
 
+// pipelines
 var _gradiant_pipeline: c.VkPipeline = undefined;
 var _gradiant_pipeline_layout: c.VkPipelineLayout = undefined;
 
 var _trianglePipelineLayout: c.VkPipelineLayout = undefined;
 var _trianglePipeline: c.VkPipeline = undefined;
+
+var _meshPipelineLayout: c.VkPipelineLayout = undefined;
+var _meshPipeline: c.VkPipeline = undefined;
 
 var _background_effects: std.ArrayList(effects.ComputeEffect) = undefined;
 var _current_effect: u32 = 0;
@@ -85,9 +84,6 @@ var _imm_command_buffer: c.VkCommandBuffer = undefined;
 var _imm_command_pool: c.VkCommandPool = undefined;
 
 var _gui_context: imgui.GuiContext = undefined;
-
-var _meshPipelineLayout: c.VkPipelineLayout = undefined;
-var _meshPipeline: c.VkPipeline = undefined;
 
 var rectangle: buffers.GPUMeshBuffers = undefined;
 
