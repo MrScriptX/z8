@@ -3,6 +3,13 @@ const c = @import("../clibs.zig");
 const queue = @import("queue_family.zig");
 const log = @import("../utils/log.zig");
 
+const SWError = error{
+    SwapchainCreationFailed,
+    GetCapabilitiesFailed,
+    NoFormat,
+    NoPresentMode,
+};
+
 // swapchain data
 pub const swapchain_t = struct {
     _sw: c.VkSwapchainKHR = undefined,
@@ -20,7 +27,7 @@ pub const swapchain_t = struct {
         var sw: swapchain_t = swapchain_t{};
         sw._image_format = try select_surface_format(details);
         sw._extent = try select_extent(details.capabilities, window_extent);
-        sw._sw = try create_swapchain(device, surface, details, sw._image_format, sw._extent, queue_indices);
+        sw._sw = try sw.create_swapchain(device, surface, details, queue_indices);
 
         // create swapchain images
         var image_count: u32 = 0;
@@ -44,6 +51,53 @@ pub const swapchain_t = struct {
             c.vkDestroyImageView(device, image_view, null);
         }
     }
+
+    fn create_swapchain(self: *const swapchain_t, device: c.VkDevice, surface: c.VkSurfaceKHR, details: details_t, queue_indices: queue.queue_indices_t) SWError!c.VkSwapchainKHR {
+        const present_mode = select_present_mode(details);
+    
+        var image_count: u32 = details.capabilities.minImageCount + 1;
+        if (details.capabilities.maxImageCount > 0 and image_count > details.capabilities.maxImageCount) {
+            image_count = details.capabilities.maxImageCount;
+        }
+
+        var swapchain_info = c.VkSwapchainCreateInfoKHR {
+            .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            .surface = surface,
+            .minImageCount = image_count,
+            .imageFormat = self._image_format.format,
+            .imageColorSpace = self._image_format.colorSpace,
+            .imageExtent = self._extent,
+            .imageArrayLayers = 1,
+            .imageUsage = c.VK_IMAGE_USAGE_TRANSFER_DST_BIT | c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .imageSharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = 0,
+            .preTransform = details.capabilities.currentTransform,
+            .compositeAlpha = c.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+            .presentMode = present_mode,
+            .clipped = c.VK_TRUE,
+            .oldSwapchain = @ptrCast(c.VK_NULL_HANDLE),
+        };
+
+        if (queue_indices.graphics_family != queue_indices.present_family) {
+            const pqueue_family_indices: []const u32 = &.{ 
+                queue_indices.graphics_family,
+                queue_indices.present_family
+            };
+
+            swapchain_info.imageSharingMode = c.VK_SHARING_MODE_CONCURRENT;
+            swapchain_info.queueFamilyIndexCount = 2;
+            swapchain_info.pQueueFamilyIndices = pqueue_family_indices.ptr;
+        }
+
+        var swapchain: c.VkSwapchainKHR = undefined;
+        const result = c.vkCreateSwapchainKHR(device, &swapchain_info, null, &swapchain);
+        if (result != c.VK_SUCCESS) {
+            return SWError.SwapchainCreationFailed;
+        }
+
+        return swapchain;
+    }
 };
 
 pub const details_t = struct {
@@ -52,18 +106,28 @@ pub const details_t = struct {
     present_modes: []c.VkPresentModeKHR = undefined,
     arena: std.heap.ArenaAllocator = undefined,
 
-    pub fn init(self: *details_t) void {
-        self.arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    pub fn init() details_t {
+        const details = details_t {
+            .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+        };
+
+        return details;
     }
 
-    pub fn resize_formats(self: *details_t, size: usize) !void {
+    pub fn resize_formats(self: *details_t, size: usize) void {
         const allocator = self.arena.allocator();
-        self.formats = try allocator.alloc(c.VkSurfaceFormatKHR, size);
+        self.formats = allocator.alloc(c.VkSurfaceFormatKHR, size) catch {
+            log.err("VkSurfaceFormatKHR : Out of memory", .{});
+            @panic("Out of memory");
+        };
     }
 
-    pub fn resize_present_modes(self: *details_t, size: usize) !void {
+    pub fn resize_present_modes(self: *details_t, size: usize) void {
         const allocator = self.arena.allocator();
-        self.present_modes = try allocator.alloc(c.VkPresentModeKHR, size);
+        self.present_modes = allocator.alloc(c.VkPresentModeKHR, size) catch {
+            log.err("VkPresentModeKHR : Out of memory", .{});
+            @panic("Out of memory");
+        };
     }
 
     pub fn deinit(self: *const details_t) void {
@@ -71,7 +135,7 @@ pub const details_t = struct {
     }
 };
 
-pub fn select_surface_format(details: details_t) !c.VkSurfaceFormatKHR {
+fn select_surface_format(details: details_t) !c.VkSurfaceFormatKHR {
     if (details.formats.len == 1 and details.formats[0].format == c.VK_FORMAT_UNDEFINED) {
         return c.VkSurfaceFormatKHR{
             .format = c.VK_FORMAT_B8G8R8A8_UNORM,
@@ -88,7 +152,7 @@ pub fn select_surface_format(details: details_t) !c.VkSurfaceFormatKHR {
     return details.formats[0];
 }
 
-pub fn select_extent(capabilities: c.VkSurfaceCapabilitiesKHR, current_extent: c.VkExtent2D) !c.VkExtent2D {
+fn select_extent(capabilities: c.VkSurfaceCapabilitiesKHR, current_extent: c.VkExtent2D) !c.VkExtent2D {
     if (capabilities.currentExtent.width != std.math.maxInt(u32)) {
         return capabilities.currentExtent;
     }
@@ -101,73 +165,40 @@ pub fn select_extent(capabilities: c.VkSurfaceCapabilitiesKHR, current_extent: c
     return actual_extent;
 }
 
-pub fn create_swapchain(device: c.VkDevice, surface: c.VkSurfaceKHR, details: details_t, surface_format: c.VkSurfaceFormatKHR, extent: c.VkExtent2D, queue_indices: queue.queue_indices_t) !c.VkSwapchainKHR {
-    const present_mode = select_present_mode(details);
-    
-    var image_count: u32 = details.capabilities.minImageCount + 1;
-    if (details.capabilities.maxImageCount > 0 and image_count > details.capabilities.maxImageCount) {
-        image_count = details.capabilities.maxImageCount;
-    }
+pub fn query_swapchain_support(gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) SWError!details_t {
+    var details: details_t = details_t.init();
 
-    var swapchain_info = c.VkSwapchainCreateInfoKHR {
-        .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface = surface,
-        .minImageCount = image_count,
-        .imageFormat = surface_format.format,
-        .imageColorSpace = surface_format.colorSpace,
-        .imageExtent = extent,
-        .imageArrayLayers = 1,
-        .imageUsage = c.VK_IMAGE_USAGE_TRANSFER_DST_BIT | c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        .imageSharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = 0,
-        .pQueueFamilyIndices = 0,
-        .preTransform = details.capabilities.currentTransform,
-        .compositeAlpha = c.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-        .presentMode = present_mode,
-        .clipped = c.VK_TRUE,
-        .oldSwapchain = @ptrCast(c.VK_NULL_HANDLE),
-    };
-
-    if (queue_indices.graphics_family != queue_indices.present_family) {
-        const pqueue_family_indices: []const u32 = &.{ 
-            queue_indices.graphics_family,
-            queue_indices.present_family
-        };
-
-        swapchain_info.imageSharingMode = c.VK_SHARING_MODE_CONCURRENT;
-        swapchain_info.queueFamilyIndexCount = 2;
-        swapchain_info.pQueueFamilyIndices = pqueue_family_indices.ptr;
-    }
-
-    var swapchain: c.VkSwapchainKHR = undefined;
-    const result = c.vkCreateSwapchainKHR(device, &swapchain_info, null, &swapchain);
+    var result = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &details.capabilities);
     if (result != c.VK_SUCCESS) {
-        return std.debug.panic("Failed to create swapchain: {}", .{result});
+        return SWError.GetCapabilitiesFailed;
     }
-
-    return swapchain;
-}
-
-pub fn query_swapchain_support(gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !details_t {
-    var details: details_t = undefined;
-    details.init();
-
-    _ = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &details.capabilities);
 
     var format_count: u32 = 0;
-    _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &format_count, null);
+    result = c.vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &format_count, null);
+    if (result != c.VK_SUCCESS) {
+        return SWError.NoFormat;
+    }
 
     if (format_count != 0) {
-        try details.resize_formats(format_count);
-        _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &format_count, details.formats.ptr);
+        details.resize_formats(format_count);
+        result = c.vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &format_count, details.formats.ptr);
+        if (result != c.VK_SUCCESS) {
+            return SWError.NoFormat;
+        }
     }
 
     var present_mode_count: u32 = 0;
-    _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &present_mode_count, null);
+    result = c.vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &present_mode_count, null);
+    if (result != c.VK_SUCCESS) {
+        return SWError.NoPresentMode;
+    }
 
     if (present_mode_count != 0) {
-        try details.resize_present_modes(present_mode_count);
-        _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &present_mode_count, details.present_modes.ptr);
+        details.resize_present_modes(present_mode_count);
+        result = c.vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &present_mode_count, details.present_modes.ptr);
+        if (result != c.VK_SUCCESS) {
+            return SWError.NoPresentMode;
+        }
     }
 
     return details;

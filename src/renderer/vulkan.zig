@@ -2,7 +2,7 @@ const std = @import("std");
 const c = @import("../clibs.zig");
 const err = @import("../errors.zig");
 const queue = @import("queue_family.zig");
-const details_t = @import("swapchain.zig").details_t;
+const sw = @import("swapchain.zig");
 const opt = @import("../options.zig");
 
 pub fn init_instance() !c.VkInstance {
@@ -258,27 +258,26 @@ fn check_device_extensions_support(device: c.VkPhysicalDevice) !bool {
     return match_extensions == required_extensions.len;
 }
 
-fn query_swapchain_support(device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !details_t {
-    var swapchain_details = details_t{};
-    swapchain_details.init();
+fn query_swapchain_support(device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !sw.details_t {
+    var sw_details = sw.details_t.init();
 
-    _ = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &swapchain_details.capabilities);
+    _ = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities);
 
     var format_count: u32 = 0;
     _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
 
     if (format_count != 0) {
-        try swapchain_details.resize_formats(@intCast(format_count));
-        _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, swapchain_details.formats.ptr);
+        sw_details.resize_formats(@intCast(format_count));
+        _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr);
     }
 
     var present_mode_count: u32 = 0;
     _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null);
 
     if (present_mode_count != 0) {
-        try swapchain_details.resize_present_modes(@intCast(present_mode_count));
-        _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, swapchain_details.present_modes.ptr);
+        sw_details.resize_present_modes(@intCast(present_mode_count));
+        _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, sw_details.present_modes.ptr);
     }
 
-    return swapchain_details;
+    return sw_details;
 }
