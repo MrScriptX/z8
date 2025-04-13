@@ -156,30 +156,9 @@ pub fn deinit() void {
     c.vkDestroyFence(_device, _imm_fence, null);
     c.vkDestroyCommandPool(_device, _imm_command_pool, null);
 
-    c.vkDestroyImageView(_device, _draw_image.view, null);
-    c.vmaDestroyImage(_vma, _draw_image.image, _draw_image.allocation);
-
-    c.vkDestroyImageView(_device, _depth_image.view, null);
-    c.vmaDestroyImage(_vma, _depth_image.image, _depth_image.allocation);
+    destroy_swapchain();
 
     c.vmaDestroyAllocator(_vma);
-
-    _descriptor_pool.deinit(_device);
-	c.vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor, null);
-
-    // c.vkDestroyPipeline(_device, _gradiant_pipeline, null);
-    for (_background_effects.items) |*it| {
-        c.vkDestroyPipeline(_device, it.pipeline, null);
-    }
-    c.vkDestroyPipelineLayout(_device, _gradiant_pipeline_layout, null);
-
-    c.vkDestroyPipeline(_device, _trianglePipeline, null);
-    c.vkDestroyPipelineLayout(_device, _trianglePipelineLayout, null);
-
-    c.vkDestroyPipeline(_device, _meshPipeline, null);
-    c.vkDestroyPipelineLayout(_device, _meshPipelineLayout, null);
-
-    destroy_swapchain();
 
     c.vkDestroySurfaceKHR(_instance, _surface, null);
     c.vkDestroyDevice(_device, null);
@@ -910,13 +889,50 @@ pub fn rebuild_swapchain(window: ?*c.SDL_Window) void {
         return;
     };
 
+    init_descriptors() catch {
+        log.write("Failed to build descriptors !", .{});
+        return;
+    };
+
+    init_pipelines() catch {
+        log.write("Failed to build pipelines !", .{});
+        return;
+    };
+
     _rebuild_swapchain = false;
 }
 
 fn destroy_swapchain() void {
     c.vkDestroySwapchainKHR(_device, _sw, null);
 
+    // destroy sw images
     for (_image_views) |image_view| {
         c.vkDestroyImageView(_device, image_view, null);
     }
+
+    // destroy draw images
+    c.vkDestroyImageView(_device, _draw_image.view, null);
+    c.vmaDestroyImage(_vma, _draw_image.image, _draw_image.allocation);
+
+    c.vkDestroyImageView(_device, _depth_image.view, null);
+    c.vmaDestroyImage(_vma, _depth_image.image, _depth_image.allocation);
+
+    // destroy descriptors
+    _descriptor_pool.deinit(_device);
+	c.vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor, null);
+
+    // destroy pipelines
+    for (_background_effects.items) |*it| {
+        c.vkDestroyPipeline(_device, it.pipeline, null);
+    }
+    c.vkDestroyPipelineLayout(_device, _gradiant_pipeline_layout, null);
+
+    c.vkDestroyPipeline(_device, _trianglePipeline, null);
+    c.vkDestroyPipelineLayout(_device, _trianglePipelineLayout, null);
+
+    c.vkDestroyPipeline(_device, _meshPipeline, null);
+    c.vkDestroyPipelineLayout(_device, _meshPipelineLayout, null);
+
+    // clear pipelines array
+    _background_effects.clearAndFree();
 }
