@@ -527,6 +527,7 @@ fn init_mesh_pipeline() !void {
 	pipeline_builder.set_multisampling_none();
 	//no blending
 	pipeline_builder.disable_blending();
+    // pipeline_builder.enable_blending_additive();
 
 	// pipeline_builder.disable_depthtest();
     pipeline_builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
