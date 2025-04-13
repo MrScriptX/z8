@@ -1,6 +1,50 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
 const queue = @import("queue_family.zig");
+const log = @import("../utils/log.zig");
+
+// swapchain data
+pub const swapchain_t = struct {
+    _sw: c.VkSwapchainKHR = undefined,
+    _extent: c.VkExtent2D = undefined,
+    _image_format: c.VkSurfaceFormatKHR = undefined,
+
+    _images: []c.VkImage = undefined,
+    _image_views: []c.VkImageView = undefined,
+
+    pub fn init(alloc: std.mem.Allocator, device: c.VkDevice, gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR, window_extent: c.VkExtent2D, queue_indices: queue.queue_indices_t) swapchain_t {
+        const details = try query_swapchain_support(gpu, surface);
+        defer details.deinit();
+
+        // create swapchain
+        var sw: swapchain_t = swapchain_t{};
+        sw._image_format = try select_surface_format(details);
+        sw._extent = try sw.select_extent(details.capabilities, window_extent);
+        sw._sw = try sw.create_swapchain(device, surface, details, sw._image_format, sw._extent, queue_indices);
+
+        // create swapchain images
+        var image_count: u32 = 0;
+        const result = c.vkGetSwapchainImagesKHR(device, sw._sw, &image_count, null);
+        if (result != c.VK_SUCCESS) {
+            log.write("Failed to retrive swapchain image count ! reason {d}", .{result});
+            std.debug.panic("Failed to retrive swapchain image count !", .{});
+        }
+    
+        sw._images = try create_images(alloc, device, sw._sw, &image_count);
+        sw._image_views = try create_image_views(device, sw._images, sw._image_format.format);
+
+        return sw;
+    }
+
+    pub fn deinit(self: *swapchain_t, device: c.VkDevice) void {
+        c.vkDestroySwapchainKHR(device, self._sw, null);
+
+         // destroy sw images
+        for (self._image_views) |image_view| {
+            c.vkDestroyImageView(device, image_view, null);
+        }
+    }
+};
 
 pub const details_t = struct {
     capabilities: c.VkSurfaceCapabilitiesKHR = undefined,
@@ -57,8 +101,7 @@ pub fn select_extent(capabilities: c.VkSurfaceCapabilitiesKHR, current_extent: c
     return actual_extent;
 }
 
-pub fn create_swapchain(device: c.VkDevice, surface: c.VkSurfaceKHR, details: details_t, surface_format: c.VkSurfaceFormatKHR,
-    extent: c.VkExtent2D, queue_indices: queue.queue_indices_t) !c.VkSwapchainKHR {
+pub fn create_swapchain(device: c.VkDevice, surface: c.VkSurfaceKHR, details: details_t, surface_format: c.VkSurfaceFormatKHR, extent: c.VkExtent2D, queue_indices: queue.queue_indices_t) !c.VkSwapchainKHR {
     const present_mode = select_present_mode(details);
     
     var image_count: u32 = details.capabilities.minImageCount + 1;
