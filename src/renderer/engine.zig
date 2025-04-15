@@ -13,6 +13,7 @@ const effects = @import("compute_effect.zig");
 const pipelines = @import("pipeline.zig");
 const buffers = @import("buffers.zig");
 const loader = @import("loader.zig");
+const scene = @import("scene.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -87,6 +88,9 @@ var _gui_context: imgui.GuiContext = undefined;
 
 var rectangle: buffers.GPUMeshBuffers = undefined;
 
+var _scene_data: scene.GPUData = undefined;
+var _gpu_scene_data_descriptor_layout: c.VkDescriptorSetLayout = undefined;
+
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     _background_effects = std.ArrayList(effects.ComputeEffect).init(std.heap.page_allocator);
@@ -144,7 +148,7 @@ pub fn deinit() void {
     rectangle.deinit(_vma);
 
     for (&_frames) |*frame| {
-        frame.deinit(_device);
+        frame.deinit(_device, _vma);
     }
 
     // destroy imgui context
@@ -307,6 +311,15 @@ fn init_descriptors() !void {
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
         };
         frame._frame_descriptors = descriptor.DescriptorAllocator2.init(_device, 1000, &frame_size);
+    }
+
+    // make descriptor for gpu scene data
+    {
+        var builder = descriptor.DescriptorLayout.init();
+        defer builder.deinit();
+
+		try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		_gpu_scene_data_descriptor_layout = builder.build(_device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
     }
 }
 
@@ -530,6 +543,7 @@ pub fn draw() void {
         return;
     }
 
+    current_frame().flush(_vma);
     current_frame()._frame_descriptors.clear(_device);
 
     // compute draw extent
@@ -762,6 +776,19 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
 	c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
+    // allocate new uniform buffer for the scene
+    const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(_vma, @sizeOf(scene.GPUData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    current_frame()._buffers.append(gpu_scene_data_buffer) catch {
+        log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
+        @panic("OOM");
+    };
+
+    const scene_uniform_data: *scene.GPUData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
+    scene_uniform_data.* = _scene_data;
+
+    // const global_descriptor = current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout, null);
+
     // draw meshes
     const delta_time = calculate_delta_time();
     
@@ -909,6 +936,8 @@ fn destroy_swapchain() void {
     // destroy descriptors
     _descriptor_pool.deinit(_device);
 	c.vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor, null);
+
+    c.vkDestroyDescriptorSetLayout(_device, _gpu_scene_data_descriptor_layout, null);
 
     for (&_frames) |*frame| {
         frame._frame_descriptors.deinit(_device);

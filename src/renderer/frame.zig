@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
 const descriptors = @import("descriptor.zig"); 
+const buffers = @import("buffers.zig");
 
 pub const FRAME_OVERLAP = 2;
 
@@ -13,15 +14,18 @@ pub const data_t = struct {
 
     _frame_descriptors: descriptors.DescriptorAllocator2 = undefined,
 
+    _buffers: std.ArrayList(buffers.AllocatedBuffer) = undefined,
+
     pub fn init(self: *data_t, device: c.VkDevice, queue_family_index: u32) !void {
         self._cmd_pool = try create_command_pool(device, queue_family_index);
         self._main_buffer = try create_command_buffer(1, device, self._cmd_pool);
         self._sw_semaphore = try create_semaphore(device);
         self._render_semaphore = try create_semaphore(device);
         self._render_fence = try create_fence(device);
+        self._buffers = std.ArrayList(buffers.AllocatedBuffer).init(std.heap.page_allocator);
     }
 
-    pub fn deinit(self: *data_t, device: c.VkDevice) void {
+    pub fn deinit(self: *data_t, device: c.VkDevice, vma: c.VmaAllocator) void {
         // self._frame_descriptors.deinit(device);
 
         c.vkDestroyCommandPool(device, self._cmd_pool, null);
@@ -29,6 +33,17 @@ pub const data_t = struct {
         c.vkDestroySemaphore(device, self._sw_semaphore, null);
         c.vkDestroySemaphore(device, self._render_semaphore, null);
         c.vkDestroyFence(device, self._render_fence, null);
+
+        self.flush(vma);
+        self._buffers.deinit();
+    }
+
+    pub fn flush(self: *data_t, vma: c.VmaAllocator) void {
+        for (self._buffers.items) |*buffer| {
+            buffer.deinit(vma);
+        }
+
+        self._buffers.clearRetainingCapacity();
     }
 };
 
