@@ -2,6 +2,11 @@ const std = @import("std");
 const c = @import("../clibs.zig");
 const log = @import("../utils/log.zig");
 
+pub const PoolSizeRatio = struct {
+    _type: c.VkDescriptorType = undefined,
+    _ratio: f32 = 0,
+};
+
 pub const DescriptorLayout = struct {
     _bindings: std.ArrayList(c.VkDescriptorSetLayoutBinding),
 
@@ -49,11 +54,6 @@ pub const DescriptorLayout = struct {
 
         return set;
     }
-};
-
-pub const PoolSizeRatio = struct {
-	_type: c.VkDescriptorType = undefined,
-	_ratio: f32 = 0,
 };
 
 pub const DescriptorAllocator = struct {
@@ -230,6 +230,113 @@ pub const DescriptorAllocator2 = struct {
         self._ready_pools.append(pool);
 
         return descriptor_set;
+    }
+};
+
+pub const DescriptorWriter = struct {
+    _arena: std.heap.ArenaAllocator,
+
+    _image_infos: std.ArrayList(*c.VkDescriptorImageInfo),
+    _buffer_infos: std.ArrayList(*c.VkDescriptorBufferInfo),
+    _writes: std.ArrayList(c.VkWriteDescriptorSet),
+
+    pub fn init(allocator: std.mem.Allocator) DescriptorWriter {
+        const writer = DescriptorWriter {
+            ._arena = std.heap.ArenaAllocator.init(allocator),
+            ._image_infos = std.ArrayList(*c.VkDescriptorImageInfo).init(allocator),
+            ._buffer_infos = std.ArrayList(*c.VkDescriptorBufferInfo).init(allocator),
+            ._writes = std.ArrayList(c.VkWriteDescriptorSet).init(allocator),
+        };
+
+        return writer;
+    }
+
+    pub fn deinit(self: *DescriptorWriter) void {
+        self._arena.deinit();
+
+        self._image_infos.deinit();
+        self._buffer_infos.deinit();
+        self._writes.deinit();
+    }
+
+    pub fn write_buffer(self: *DescriptorWriter, binding: u32, buffer: c.VkBuffer, size: usize, offset: usize, dtype: c.VkDescriptorType) void {
+        const allocator = self._arena.allocator();
+        const buffer_info = allocator.create(c.VkDescriptorBufferInfo) catch {
+            log.err("Failed to allocate memory for VkDescriptorBufferInfo.", .{});
+            @panic("OOM");
+        };
+
+        buffer_info.*.buffer = buffer;
+        buffer_info.*.offset = offset;
+        buffer_info.*.range = size;
+
+        self._buffer_infos.append(buffer_info) catch {
+            log.err("Failed to insert new buffer info !", .{});
+            @panic("OOM");
+        };
+
+        const write = c.VkWriteDescriptorSet {
+            .sType = c.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = null,
+
+            .dstBinding = binding,
+            .dstSet = null,
+            .descriptorCount = 1,
+            .descriptorType = dtype,
+            .pBufferInfo = self._buffer_infos.getLast(),
+        };
+
+        self._writes.append(write) catch {
+            log.err("Failed to insert new VkWriteDescriptorSet !", .{});
+            @panic("OOM");
+        };
+    }
+
+    pub fn write_image(self: *DescriptorWriter, binding: u32, image_view: c.VkImageView, sampler: c.VkSampler, layout: c.VkImageLayout, dtype: c.VkDescriptorType) void {
+        const allocator = self._arena.allocator();
+        const image_info = allocator.create(c.VkDescriptorImageInfo) catch {
+            log.err("Failed to allocate memory for VkDescriptorImageInfo.", .{});
+            @panic("OOM");
+        };
+
+        image_info.*.sampler = sampler;
+        image_info.*.imageView = image_view;
+        image_info.*.imageLayout = layout;
+
+        self._image_infos.append(image_info) catch {
+            log.err("Failed to insert new image info !", .{});
+            @panic("OOM");
+        };
+
+        const write = c.VkWriteDescriptorSet {
+            .sType = c.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = null,
+
+            .dstBinding = binding,
+            .dstSet = null,
+            .descriptorCount = 1,
+            .descriptorType = dtype,
+            .pImageInfo = self._image_infos.getLast(),
+        };
+
+        self._writes.append(write) catch {
+            log.err("Failed to insert new VkWriteDescriptorSet !", .{});
+            @panic("OOM");
+        };
+    }
+
+    pub fn clear(self: *DescriptorWriter) void {
+        self._buffer_infos.clearRetainingCapacity();
+        self._image_infos.clearRetainingCapacity();
+        self._writes.clearRetainingCapacity();
+    }
+
+    pub fn update_set(self: *DescriptorWriter, device: c.VkDevice, set: c.VkDescriptorSet) void {
+        for (self._writes.items) |*write| {
+            write.dstSet = set;
+        }
+
+        c.vkUpdateDescriptorSets(device, @intCast(self._writes.items.len), self._writes.items.ptr, 0, null);
     }
 };
 

@@ -285,23 +285,29 @@ fn init_descriptors() !void {
 
     _draw_image_descriptor_set = _descriptor_pool.allocate(_device, _draw_image_descriptor);
 
-    const img_info = c.VkDescriptorImageInfo {
-        .imageLayout = c.VK_IMAGE_LAYOUT_GENERAL,
-	    .imageView = _draw_image.view
-    };
+    // const img_info = c.VkDescriptorImageInfo {
+    //     .imageLayout = c.VK_IMAGE_LAYOUT_GENERAL,
+	//     .imageView = _draw_image.view
+    // };
 
-	const draw_image_write = c.VkWriteDescriptorSet {
-        .sType = c.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-	    .pNext = null,
+	// const draw_image_write = c.VkWriteDescriptorSet {
+    //     .sType = c.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+	//     .pNext = null,
 
-	    .dstBinding = 0,
-	    .dstSet = _draw_image_descriptor_set,
-	    .descriptorCount = 1,
-	    .descriptorType = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-	    .pImageInfo = &img_info,
-    };
+	//     .dstBinding = 0,
+	//     .dstSet = _draw_image_descriptor_set,
+	//     .descriptorCount = 1,
+	//     .descriptorType = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+	//     .pImageInfo = &img_info,
+    // };
 
-    c.vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, null);
+    // c.vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, null);
+    var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+    defer writer.deinit();
+    
+    writer.write_image(0, _draw_image.view, null, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    writer.update_set(_device, _draw_image_descriptor_set);
+
 
     for (&_frames) |*frame| {
         const frame_size = [_]descriptor.PoolSizeRatio {
