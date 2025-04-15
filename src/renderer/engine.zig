@@ -298,6 +298,16 @@ fn init_descriptors() !void {
     };
 
     c.vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, null);
+
+    for (&_frames) |*frame| {
+        const frame_size = [_]descriptor.PoolSizeRatio {
+            descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
+            descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
+            descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 3 },
+            descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
+        };
+        frame._frame_descriptors = descriptor.DescriptorAllocator2.init(_device, 1000, &frame_size);
+    }
 }
 
 fn init_pipelines() !void {
@@ -519,6 +529,8 @@ pub fn draw() void {
         _frameNumber += 1;
         return;
     }
+
+    current_frame()._frame_descriptors.clear(_device);
 
     // compute draw extent
     const min_width: f32 = @floatFromInt(@min(_sw._extent.width, _draw_image.extent.width));
@@ -897,6 +909,10 @@ fn destroy_swapchain() void {
     // destroy descriptors
     _descriptor_pool.deinit(_device);
 	c.vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor, null);
+
+    for (&_frames) |*frame| {
+        frame._frame_descriptors.deinit(_device);
+    }
 
     // destroy pipelines
     for (_background_effects.items) |*it| {

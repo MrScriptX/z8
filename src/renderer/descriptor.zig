@@ -120,7 +120,7 @@ pub const DescriptorAllocator2 = struct {
     _ready_pools: std.ArrayList(c.VkDescriptorPool) = undefined,
     _sets_per_pool: u32 = 0,
     
-    pub fn init(device: c.VkDevice, max_sets: u32, pool_ratios: []PoolSizeRatio) DescriptorAllocator2 {
+    pub fn init(device: c.VkDevice, max_sets: u32, pool_ratios: []const PoolSizeRatio) DescriptorAllocator2 {
         var builder = DescriptorAllocator2{
             ._arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
         };
@@ -150,26 +150,33 @@ pub const DescriptorAllocator2 = struct {
     pub fn deinit(self: *DescriptorAllocator2, device: c.VkDevice) void {
         defer self._arena.deinit();
 
-        defer self._ready_pools.deinit();
-        for (self._ready_pools) |pool| {
+        // defer self._ready_pools.deinit();
+        for (self._ready_pools.items) |pool| {
             c.vkDestroyDescriptorPool(device, pool, null);
         }
 
-        defer self._full_pools.deinit();
-        for (self._full_pools) |pool| {
+        // defer self._full_pools.deinit();
+        for (self._full_pools.items) |pool| {
             c.vkDestroyDescriptorPool(device, pool, null);
         }
 
-        self._ratios.deinit();
+        // self._ratios.deinit();
     }
 
-    fn clear(self: *DescriptorAllocator2, device: c.VkDevice) void {
-        for (self._ready_pools) |p| {
-            c.vkResetDescriptorPool(device, p, 0);
+    pub fn clear(self: *DescriptorAllocator2, device: c.VkDevice) void {
+        for (self._ready_pools.items) |p| {
+            const result = c.vkResetDescriptorPool(device, p, 0);
+            if (result != c.VK_SUCCESS) {
+                log.write("ERROR : Failed to reset descriptor pool ! Reason {d}", .{ result });
+            }
         }
 
-        for (self._full_pools) |p| {
-            c.vkResetDescriptorPool(device, p, 0);
+        for (self._full_pools.items) |p| {
+            const result = c.vkResetDescriptorPool(device, p, 0);
+            if (result != c.VK_SUCCESS) {
+                log.write("ERROR : Failed to reset descriptor pool ! Reason {d}", .{ result });
+            }
+
             self._ready_pools.append(p) catch {
                 log.err("Failed to store Descriptor Pool ! Out of memory", .{});
                 @panic("Out of memory");
@@ -226,22 +233,25 @@ pub const DescriptorAllocator2 = struct {
     }
 };
 
-fn create_pool(device: c.VkDevice, set_count: u32, pool_ratios: []PoolSizeRatio) c.VkDescriptorPool {
-    var pool_sizes = std.ArrayList(PoolSizeRatio).init(std.heap.page_allocator);
+fn create_pool(device: c.VkDevice, set_count: u32, pool_ratios: []const PoolSizeRatio) c.VkDescriptorPool {
+    var pool_sizes = std.ArrayList(c.VkDescriptorPoolSize).init(std.heap.page_allocator);
     defer pool_sizes.deinit();
 
 	for (pool_ratios) |ratio| {
 		pool_sizes.append(c.VkDescriptorPoolSize{
-			.type = ratio.type,
-			.descriptorCount = @intFromFloat(ratio.ratio * @as(f32, @floatFromInt(set_count)))
-		});
+			.type = ratio._type,
+			.descriptorCount = @intFromFloat(ratio._ratio * @as(f32, @floatFromInt(set_count)))
+		}) catch {
+            log.err("Failed to allocate memory for pool sizes ! Out of memory !", .{});
+            @panic("Out of memory");
+        };
 	}
 
     const pool_info = c.VkDescriptorPoolCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 	    .flags = 0,
 	    .maxSets = set_count,
-	    .poolSizeCount = pool_sizes.items.len,
+	    .poolSizeCount = @intCast(pool_sizes.items.len),
 	    .pPoolSizes = pool_sizes.items.ptr,
     };
 

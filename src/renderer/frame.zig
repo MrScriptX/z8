@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
+const descriptors = @import("descriptor.zig"); 
 
 pub const FRAME_OVERLAP = 2;
 
@@ -10,6 +11,8 @@ pub const data_t = struct {
     _render_semaphore: c.VkSemaphore = undefined,
 	_render_fence: c.VkFence = undefined,
 
+    _frame_descriptors: descriptors.DescriptorAllocator2 = undefined,
+
     pub fn init(self: *data_t, device: c.VkDevice, queue_family_index: u32) !void {
         self._cmd_pool = try create_command_pool(device, queue_family_index);
         self._main_buffer = try create_command_buffer(1, device, self._cmd_pool);
@@ -19,6 +22,8 @@ pub const data_t = struct {
     }
 
     pub fn deinit(self: *data_t, device: c.VkDevice) void {
+        // self._frame_descriptors.deinit(device);
+
         c.vkDestroyCommandPool(device, self._cmd_pool, null);
 
         c.vkDestroySemaphore(device, self._sw_semaphore, null);
