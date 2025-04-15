@@ -793,7 +793,13 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
     const scene_uniform_data: *scene.GPUData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
     scene_uniform_data.* = _scene_data;
 
-    // const global_descriptor = current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout, null);
+    const global_descriptor = current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout, null);
+    
+    var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+    defer writer.deinit();
+
+    writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scene.GPUData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.update_set(_device, global_descriptor);
 
     // draw meshes
     const delta_time = calculate_delta_time();

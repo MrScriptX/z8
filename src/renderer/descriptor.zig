@@ -188,10 +188,10 @@ pub const DescriptorAllocator2 = struct {
 
     fn get_pool(self: *DescriptorAllocator2, device: c.VkDevice) c.VkDescriptorPool {
         if (self._ready_pools.items.len != 0) {
-            return self._ready_pools.pop();
+            return self._ready_pools.pop().?;
         }
 
-        const new_pool = create_pool(device, self._sets_per_pool, self._ratios);
+        const new_pool = create_pool(device, self._sets_per_pool, self._ratios.items);
         self._sets_per_pool = @intFromFloat(@as(f32, @floatFromInt(self._sets_per_pool)) * 1.5);
         if (self._sets_per_pool > 4092) {
             self._sets_per_pool = 4092;
@@ -200,7 +200,7 @@ pub const DescriptorAllocator2 = struct {
         return new_pool;
     }
 
-    pub fn allocate(self: *DescriptorAllocator2, device: c.VkDevice, layout: c.VkDeviceLayout, next: ?*anyopaque)c.VkDescriptorSet {
+    pub fn allocate(self: *DescriptorAllocator2, device: c.VkDevice, layout: c.VkDescriptorSetLayout, next: ?*anyopaque) c.VkDescriptorSet {
         var pool = self.get_pool(device);
 
 	    var alloc_info = c.VkDescriptorSetAllocateInfo {
@@ -214,7 +214,10 @@ pub const DescriptorAllocator2 = struct {
 	    var descriptor_set: c.VkDescriptorSet = undefined;
 	    var result = c.vkAllocateDescriptorSets(device, &alloc_info, &descriptor_set);
         if (result == c.VK_ERROR_OUT_OF_POOL_MEMORY or result == c.VK_ERROR_FRAGMENTED_POOL) {
-            self._full_pools.append(pool);
+            self._full_pools.append(pool) catch {
+                log.err("Failed to add new pool\n", .{});
+                @panic("OOM");
+            };
 
             pool = self.get_pool(device);
             alloc_info.descriptorPool = pool;
@@ -227,7 +230,10 @@ pub const DescriptorAllocator2 = struct {
             @panic("Failed to allocate descriptor set");
         }
 
-        self._ready_pools.append(pool);
+        self._ready_pools.append(pool) catch {
+            log.err("Failed to add new pool\n", .{});
+            @panic("OOM");
+        };
 
         return descriptor_set;
     }
