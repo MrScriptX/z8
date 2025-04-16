@@ -1,5 +1,5 @@
-const mat4 = [4][4]f32;
-const vec4 = [4]f32;
+pub const mat4 = [4][4]f32;
+pub const vec4 = [4]f32;
 
 const unorm4x8 = packed struct(u32) {
     x: u8,
