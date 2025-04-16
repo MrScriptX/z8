@@ -14,6 +14,7 @@ const pipelines = @import("pipeline.zig");
 const buffers = @import("buffers.zig");
 const loader = @import("loader.zig");
 const scene = @import("scene.zig");
+const maths = @import("../utils/maths.zig");
 
 const queue = @import("queue_family.zig");
 const queues_t = queue.queues_t;
@@ -91,6 +92,14 @@ var rectangle: buffers.GPUMeshBuffers = undefined;
 var _scene_data: scene.GPUData = undefined;
 var _gpu_scene_data_descriptor_layout: c.VkDescriptorSetLayout = undefined;
 
+var _white_image: vk_images.image_t = undefined;
+var _black_image: vk_images.image_t = undefined;
+var _grey_image: vk_images.image_t = undefined;
+var _error_checker_board_image: vk_images.image_t = undefined;
+
+var _default_sampler_linear: c.VkSampler = undefined;
+var _default_sampler_nearest: c.VkSampler = undefined;
+
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     _background_effects = std.ArrayList(effects.ComputeEffect).init(std.heap.page_allocator);
@@ -140,6 +149,14 @@ pub fn deinit() void {
     defer _background_effects.deinit();
 
     _ = c.vkDeviceWaitIdle(_device);
+
+    c.vkDestroySampler(_device, _default_sampler_nearest, null);
+    c.vkDestroySampler(_device, _default_sampler_linear, null);
+
+    vk_images.destroy_image(_device, _vma, &_white_image);
+    vk_images.destroy_image(_device, _vma, &_grey_image);
+    vk_images.destroy_image(_device, _vma, &_black_image);
+    vk_images.destroy_image(_device, _vma, &_error_checker_board_image);
 
     for (_test_meshes) |*mesh| {
         mesh.meshBuffers.deinit(_vma);
@@ -895,6 +912,42 @@ fn init_default_data() !void {
 	rectangle = buffers.GPUMeshBuffers.init(_vma, _device, &_imm_fence, _queues.graphics_queue, rect_indices.items, rect_vertices.items, _imm_command_buffer);
 
     _test_meshes = try loader.load_gltf_meshes(std.heap.page_allocator, "./assets/models/basicmesh.glb", _vma, _device, &_imm_fence, _queues.graphics_queue, _imm_command_buffer);
+
+    // initialize textures
+    const white = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
+    _white_image = vk_images.create_image_data(_vma, _device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &_imm_fence, _imm_command_buffer, _queues.graphics_queue);
+
+    const grey = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
+    _grey_image = vk_images.create_image_data(_vma, _device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &_imm_fence, _imm_command_buffer, _queues.graphics_queue);
+
+    const black = maths.pack_unorm4x8(.{ 0, 0, 0, 0 });
+    _black_image = vk_images.create_image_data(_vma, _device, @ptrCast(&black), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &_imm_fence, _imm_command_buffer, _queues.graphics_queue);
+
+    const magenta = maths.pack_unorm4x8(.{ 1, 0, 1, 1 });
+    var pixels: [16 * 16]u32 = [_]u32 { 0 } ** (16 * 16);
+    for (0..16) |x| {
+        for (0..16) |y| {
+            pixels[(y * 16) + x] = if(((x % 2) ^ (y % 2)) != 0) magenta else black; 
+        }
+    }
+
+    _error_checker_board_image = vk_images.create_image_data(_vma, _device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &_imm_fence, _imm_command_buffer, _queues.graphics_queue);
+
+    const nearest_sampler_image = c.VkSamplerCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter = c.VK_FILTER_NEAREST,
+        .minFilter = c.VK_FILTER_NEAREST,
+    };
+
+    _ = c.vkCreateSampler(_device, &nearest_sampler_image, null, &_default_sampler_nearest);
+
+    const linear_sampler_image = c.VkSamplerCreateInfo {
+        .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter = c.VK_FILTER_LINEAR,
+        .minFilter = c.VK_FILTER_LINEAR,
+    };
+
+    _ = c.vkCreateSampler(_device, &linear_sampler_image, null, &_default_sampler_linear);
 }
 
 pub fn render_scale() *f32 {
