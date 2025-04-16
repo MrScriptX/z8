@@ -64,6 +64,11 @@ pub fn build(b: *std.Build) !void {
                 .output = "colored_triangle_mesh.vert.spv",
                 .stage = "vertex"
             },
+            .{
+                .source = "assets/shaders/image_texture.frag.glsl",
+                .output = "image_texture.frag.spv",
+                .stage = "fragment"
+            }
         };
 
         for (shaders) |shader| {

@@ -100,6 +100,8 @@ var _error_checker_board_image: vk_images.image_t = undefined;
 var _default_sampler_linear: c.VkSampler = undefined;
 var _default_sampler_nearest: c.VkSampler = undefined;
 
+var _single_image_descriptor_layout: c.VkDescriptorSetLayout = undefined;
+
 pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     _background_effects = std.ArrayList(effects.ComputeEffect).init(std.heap.page_allocator);
@@ -344,6 +346,14 @@ fn init_descriptors() !void {
 		try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		_gpu_scene_data_descriptor_layout = builder.build(_device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
     }
+
+    {
+        var builder = descriptor.DescriptorLayout.init();
+        defer builder.deinit();
+
+		try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		_single_image_descriptor_layout = builder.build(_device, c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
+    }
 }
 
 fn init_pipelines() !void {
@@ -494,7 +504,10 @@ fn init_triangle_pipeline() !void {
 }
 
 fn init_mesh_pipeline() !void {
-    const frag_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+    // const frag_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+    // defer c.vkDestroyShaderModule(_device, frag_shader, null);
+
+    const frag_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/image_texture.frag.spv");
     defer c.vkDestroyShaderModule(_device, frag_shader, null);
 
 	const vertex_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle_mesh.vert.spv");
@@ -510,7 +523,9 @@ fn init_mesh_pipeline() !void {
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .pNext = null,
         .pPushConstantRanges = &buffer_range,
-        .pushConstantRangeCount = 1
+        .pushConstantRangeCount = 1,
+        .pSetLayouts = &_single_image_descriptor_layout,
+        .setLayoutCount = 1,
     };
 	
     const result = c.vkCreatePipelineLayout(_device, &layout_info, null, &_meshPipelineLayout); 
@@ -786,9 +801,23 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
 	c.vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    // draw rectangle
+    // bind pipeline for meshes
 	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
 
+    // bind texture
+    const image_set = current_frame()._frame_descriptors.allocate(_device, _single_image_descriptor_layout, null);
+
+    {
+        var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+        defer writer.deinit();
+
+        writer.write_image(0, _error_checker_board_image.view, _default_sampler_nearest, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writer.update_set(_device, image_set);
+    }
+
+    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipelineLayout, 0, 1, &image_set, 0, null);
+
+    // draw rectangle
     const push_constants = buffers.GPUDrawPushConstants {
         .world_matrix = z.Mat4.identity().data,
         .vertex_buffer = rectangle.vertex_buffer_address,
@@ -812,11 +841,13 @@ pub fn draw_geometry(cmd: c.VkCommandBuffer) void {
 
     const global_descriptor = current_frame()._frame_descriptors.allocate(_device, _gpu_scene_data_descriptor_layout, null);
     
-    var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
-    defer writer.deinit();
+    {
+        var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+        defer writer.deinit();
 
-    writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scene.GPUData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    writer.update_set(_device, global_descriptor);
+        writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scene.GPUData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        writer.update_set(_device, global_descriptor);
+    }
 
     // draw meshes
     const delta_time = calculate_delta_time();
@@ -1003,6 +1034,8 @@ fn destroy_swapchain() void {
 	c.vkDestroyDescriptorSetLayout(_device, _draw_image_descriptor, null);
 
     c.vkDestroyDescriptorSetLayout(_device, _gpu_scene_data_descriptor_layout, null);
+
+    c.vkDestroyDescriptorSetLayout(_device, _single_image_descriptor_layout, null);
 
     for (&_frames) |*frame| {
         frame._frame_descriptors.deinit(_device);
