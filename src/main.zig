@@ -21,12 +21,12 @@ pub fn main() !u8 {
     }
     defer c.SDL_DestroyWindow(window);
 
-    // var engine = vk_engine{};
-    engine.init(window, width, heigh) catch {
+    // var renderer = engine.renderer_t{};
+    engine.renderer_t.init(window, width, heigh) catch {
         c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
-    defer engine.deinit();
+    defer engine.renderer_t.deinit();
 
     // main loop
     var quit = false;
@@ -40,8 +40,8 @@ pub fn main() !u8 {
             _ = imgui.cImGui_ImplSDL3_ProcessEvent(@ptrCast(&event));
         }
 
-        if (engine.should_rebuild_sw()) {
-            engine.rebuild_swapchain(window);
+        if (engine.renderer_t.should_rebuild_sw()) {
+            engine.renderer_t.rebuild_swapchain(window);
         }
 
 
@@ -50,14 +50,14 @@ pub fn main() !u8 {
         imgui.ImGui_NewFrame();
 
         if (imgui.ImGui_Begin("background", null, 0)) {
-            _ = imgui.ImGui_SliderFloat("Render Scale", @ptrCast(engine.render_scale()), 0.3, 1.0);
+            _ = imgui.ImGui_SliderFloat("Render Scale", @ptrCast(engine.renderer_t.render_scale()), 0.3, 1.0);
 
-			const selected = engine.current_effect();
+			const selected = engine.renderer_t.current_effect();
 		
             const name = try std.fmt.allocPrint(std.heap.page_allocator, "Selected effect: {s}", .{ selected.name });
 			imgui.ImGui_Text(@ptrCast(&name));
 		
-			_ = imgui.ImGui_SliderInt("Effect Index", @ptrCast(engine.effect_index()), 0, @intCast(engine.max_effect() - 1));
+			_ = imgui.ImGui_SliderInt("Effect Index", @ptrCast(engine.renderer_t.effect_index()), 0, @intCast(engine.renderer_t.max_effect() - 1));
 		
 			_ = imgui.ImGui_InputFloat4("data1", &selected.data.data1);
 			_ = imgui.ImGui_InputFloat4("data2", &selected.data.data2);
@@ -68,7 +68,7 @@ pub fn main() !u8 {
 
         imgui.ImGui_Render();
 
-        engine.draw();
+        engine.renderer_t.draw();
     }
 
     return 0;

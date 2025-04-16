@@ -21,7 +21,14 @@ const queues_t = queue.queues_t;
 
 const log = @import("../utils/log.zig");
 
-var _arena: std.heap.ArenaAllocator = undefined;
+const Error = error{
+    Failed,
+    VulkanInit,
+    SwapchainInit,
+};
+
+pub const renderer_t = struct {
+    var _arena: std.heap.ArenaAllocator = undefined;
 var _vma: c.VmaAllocator = undefined;
 
 var _instance: c.VkInstance = undefined;
@@ -102,7 +109,7 @@ var _default_sampler_nearest: c.VkSampler = undefined;
 
 var _single_image_descriptor_layout: c.VkDescriptorSetLayout = undefined;
 
-pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
+    pub fn init(window: ?*c.SDL_Window, width: u32, height: u32) !void {
     _arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     _background_effects = std.ArrayList(effects.ComputeEffect).init(std.heap.page_allocator);
 
@@ -1055,4 +1062,5 @@ fn destroy_swapchain() void {
 
     // clear pipelines array
     _background_effects.clearAndFree();
-}
+}  
+};
