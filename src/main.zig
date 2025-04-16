@@ -21,12 +21,11 @@ pub fn main() !u8 {
     }
     defer c.SDL_DestroyWindow(window);
 
-    // var renderer = engine.renderer_t{};
-    engine.renderer_t.init(window, width, heigh) catch {
+    var renderer = engine.renderer_t.init(std.heap.page_allocator, window, width, heigh) catch {
         c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
-    defer engine.renderer_t.deinit();
+    defer renderer.deinit();
 
     // main loop
     var quit = false;
@@ -41,7 +40,7 @@ pub fn main() !u8 {
         }
 
         if (engine.renderer_t.should_rebuild_sw()) {
-            engine.renderer_t.rebuild_swapchain(window);
+            renderer.rebuild_swapchain(window);
         }
 
 
@@ -68,7 +67,7 @@ pub fn main() !u8 {
 
         imgui.ImGui_Render();
 
-        engine.renderer_t.draw();
+        renderer.draw();
     }
 
     return 0;
