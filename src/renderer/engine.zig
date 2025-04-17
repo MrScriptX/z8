@@ -26,9 +26,6 @@ const Error = error{
 };
 
 pub const renderer_t = struct {
-    var _queues: vk.queue.queues_t = undefined;
-    var _queue_indices: vk.queue.indices_t = undefined;
-
     var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
     var _frameNumber: u32 = 0;
 
@@ -101,6 +98,8 @@ pub const renderer_t = struct {
     _debug_messenger: c.VkDebugUtilsMessengerEXT = null,
     _gpu: c.VkPhysicalDevice = undefined,
     _device: c.VkDevice = undefined,
+    _queues: vk.queue.queues_t = undefined,
+    _queue_indices: vk.queue.indices_t = undefined,
 
     // swapchain
     _sw: vk.sw.swapchain_t = undefined,
@@ -143,7 +142,7 @@ pub const renderer_t = struct {
             std.process.exit(1);
         };
 
-        _gui_context = imgui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, _queues.graphics, &renderer._sw._image_format.format) catch |e| {
+        _gui_context = imgui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
             switch (e) {
                 imgui.Error.PoolAllocFailed => {
                     err.display_error("Failed to create pool for ImGui !");
@@ -211,8 +210,8 @@ pub const renderer_t = struct {
         self._instance = try vk.init.init_instance();
         self._surface = try vk.init.create_surface(window, self._instance);
         self._gpu = try vk.init.select_physical_device(self._instance, self._surface);
-        self._device = try vk.init.create_device_interface(self._gpu, _queue_indices);
-        _queues = try vk.queue.get_device_queue(self._device, _queue_indices);
+        self._device = try vk.init.create_device_interface(self._gpu, self._queue_indices);
+        self._queues = try vk.queue.get_device_queue(self._device, self._queue_indices);
 
         const allocator_info = c.VmaAllocatorCreateInfo {
             .physicalDevice = self._gpu,
@@ -230,7 +229,7 @@ pub const renderer_t = struct {
             .height = height,
         };
 
-        self._sw = try vk.sw.swapchain_t.init(self._arena.allocator(),self._device, self._gpu, self._surface, window_extent, _queue_indices);
+        self._sw = try vk.sw.swapchain_t.init(self._arena.allocator(),self._device, self._gpu, self._surface, window_extent, self._queue_indices);
 
         //draw image size will match the window
 	    const draw_image_extent = c.VkExtent3D {
@@ -281,10 +280,10 @@ pub const renderer_t = struct {
         };
 
         for (&_frames) |*frame| {
-            try frame.init(self._device, _queue_indices.graphics);
+            try frame.init(self._device, self._queue_indices.graphics);
         }
 
-        self._imm_command_pool = frames.create_command_pool(self._device, _queue_indices.graphics) catch {
+        self._imm_command_pool = frames.create_command_pool(self._device, self._queue_indices.graphics) catch {
             err.display_error("Failed to create immediate command pool !\n");
             std.process.exit(1);
         };
@@ -300,7 +299,7 @@ pub const renderer_t = struct {
         };
     }
 
-fn init_descriptors(self: *renderer_t) !void {
+    fn init_descriptors(self: *renderer_t) !void {
     const sizes = [_]descriptor.PoolSizeRatio{
         descriptor.PoolSizeRatio{
             ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -354,7 +353,7 @@ fn init_descriptors(self: *renderer_t) !void {
 		try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_single_image_descriptor_layout = builder.build(self._device, c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
     }
-}
+    }
 
 fn init_pipelines(self: *renderer_t) !void {
     try self.init_background_pipelines();
@@ -677,7 +676,7 @@ pub fn draw(self: *renderer_t) void {
         .pCommandBufferInfos = &cmd_submit_info,
     };
 
-    result = c.vkQueueSubmit2(_queues.graphics, 1, &submit_info, current_frame()._render_fence);
+    result = c.vkQueueSubmit2(self._queues.graphics, 1, &submit_info, current_frame()._render_fence);
     if (result != c.VK_SUCCESS) {
         log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
     }
@@ -695,7 +694,7 @@ pub fn draw(self: *renderer_t) void {
     };
 	
 
-	result = c.vkQueuePresentKHR(_queues.graphics, &present_info);
+	result = c.vkQueuePresentKHR(self._queues.graphics, &present_info);
     switch(result) {
         c.VK_SUCCESS => {},
         c.VK_ERROR_OUT_OF_DATE_KHR => {
@@ -940,19 +939,19 @@ fn init_default_data(self: *renderer_t) !void {
     try rect_indices.append(1);
     try rect_indices.append(3);
 
-	rectangle = buffers.GPUMeshBuffers.init(self._vma, self._device, &self._imm_fence, _queues.graphics, rect_indices.items, rect_vertices.items, self._imm_command_buffer);
+	rectangle = buffers.GPUMeshBuffers.init(self._vma, self._device, &self._imm_fence, self._queues.graphics, rect_indices.items, rect_vertices.items, self._imm_command_buffer);
 
-    _test_meshes = try loader.load_gltf_meshes(std.heap.page_allocator, "./assets/models/basicmesh.glb", self._vma, self._device, &self._imm_fence, _queues.graphics, self._imm_command_buffer);
+    _test_meshes = try loader.load_gltf_meshes(std.heap.page_allocator, "./assets/models/basicmesh.glb", self._vma, self._device, &self._imm_fence, self._queues.graphics, self._imm_command_buffer);
 
     // initialize textures
     const white = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
-    _white_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, _queues.graphics);
+    _white_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
 
     const grey = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
-    _grey_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, _queues.graphics);
+    _grey_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
 
     const black = maths.pack_unorm4x8(.{ 0, 0, 0, 0 });
-    _black_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&black), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, _queues.graphics);
+    _black_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&black), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
 
     const magenta = maths.pack_unorm4x8(.{ 1, 0, 1, 1 });
     var pixels: [16 * 16]u32 = [_]u32 { 0 } ** (16 * 16);
@@ -962,7 +961,7 @@ fn init_default_data(self: *renderer_t) !void {
         }
     }
 
-    _error_checker_board_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, _queues.graphics);
+    _error_checker_board_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
 
     const nearest_sampler_image = c.VkSamplerCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
