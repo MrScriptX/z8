@@ -1,9 +1,9 @@
 const std = @import("std");
-const c = @import("../clibs.zig");
-const err = @import("../errors.zig");
+const c = @import("../../clibs.zig");
+const err = @import("../../errors.zig");
 const queue = @import("queue_family.zig");
 const sw = @import("swapchain.zig");
-const opt = @import("../options.zig");
+const opt = @import("../../options.zig");
 
 pub fn init_instance() !c.VkInstance {
     const app_info = c.VkApplicationInfo{

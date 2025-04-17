@@ -3,8 +3,7 @@ const c = @import("../clibs.zig");
 const imgui = @import("imgui.zig");
 const z = @import("zalgebra");
 const err = @import("../errors.zig");
-const vk = @import("vulkan.zig");
-const sw = @import("swapchain.zig");
+const vk = @import("vulkan/vulkan.zig");
 const frames = @import("frame.zig");
 const utils = @import("utils.zig");
 const vk_images = @import("vk_images.zig");
@@ -16,8 +15,7 @@ const loader = @import("loader.zig");
 const scene = @import("scene.zig");
 const maths = @import("../utils/maths.zig");
 
-const queue = @import("queue_family.zig");
-const queues_t = queue.queues_t;
+const queues_t = vk.queue.queues_t;
 
 const log = @import("../utils/log.zig");
 
@@ -28,10 +26,10 @@ const Error = error{
 };
 
 pub const renderer_t = struct {
-    var _queues: queue.queues_t = undefined;
-    var queue_indices: queue.queue_indices_t = undefined;
+    var _queues: vk.queue.queues_t = undefined;
+    var queue_indices: vk.queue.queue_indices_t = undefined;
 
-    var _sw: sw.swapchain_t = undefined;
+    var _sw: vk.sw.swapchain_t = undefined;
 
     var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
     var _frameNumber: u32 = 0;
@@ -207,11 +205,11 @@ pub const renderer_t = struct {
     }
 
     fn init_vulkan(self: *renderer_t, window: ?*c.SDL_Window) !void {
-        self._instance = try vk.init_instance();
-        self._surface = try vk.create_surface(window, self._instance);
-        self._gpu = try vk.select_physical_device(self._instance, self._surface);
-        self._device = try vk.create_device_interface(self._gpu, queue_indices);
-        _queues = try queue.get_device_queue(self._device, queue_indices);
+        self._instance = try vk.init.init_instance();
+        self._surface = try vk.init.create_surface(window, self._instance);
+        self._gpu = try vk.init.select_physical_device(self._instance, self._surface);
+        self._device = try vk.init.create_device_interface(self._gpu, queue_indices);
+        _queues = try vk.queue.get_device_queue(self._device, queue_indices);
 
         const allocator_info = c.VmaAllocatorCreateInfo {
             .physicalDevice = self._gpu,
@@ -229,7 +227,7 @@ pub const renderer_t = struct {
             .height = height,
         };
 
-        _sw = try sw.swapchain_t.init(self._arena.allocator(),self._device, self._gpu, self._surface, window_extent, queue_indices);
+        _sw = try vk.sw.swapchain_t.init(self._arena.allocator(),self._device, self._gpu, self._surface, window_extent, queue_indices);
 
         //draw image size will match the window
 	    const draw_image_extent = c.VkExtent3D {
