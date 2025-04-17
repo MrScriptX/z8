@@ -68,6 +68,16 @@ pub fn build(b: *std.Build) !void {
                 .source = "assets/shaders/image_texture.frag.glsl",
                 .output = "image_texture.frag.spv",
                 .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/mesh.vert.glsl",
+                .output = "mesh.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/mesh.frag.glsl",
+                .output = "mesh.frag.spv",
+                .stage = "fragment"
             }
         };
 

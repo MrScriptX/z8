@@ -50,7 +50,11 @@ pub const DescriptorLayout = struct {
         };
 
         var set: c.VkDescriptorSetLayout = undefined;
-        _ = c.vkCreateDescriptorSetLayout(device, &info, null, &set);
+        const result = c.vkCreateDescriptorSetLayout(device, &info, null, &set);
+        if (result != c.VK_SUCCESS) {
+            log.err("Failed to create descriptor set layout ! Reason {d}", .{result});
+            @panic("Failed to create descriptor set layout !");
+        }
 
         return set;
     }
@@ -105,10 +109,14 @@ pub const DescriptorAllocator = struct {
             .pSetLayouts = &layout,
         };
 
-        var descripto_set: c.VkDescriptorSet = undefined;
-        _ = c.vkAllocateDescriptorSets(device, &alloc_info, &descripto_set);
+        var descriptor_set: c.VkDescriptorSet = undefined;
+        const result = c.vkAllocateDescriptorSets(device, &alloc_info, &descriptor_set);
+        if (result != c.VK_SUCCESS) {
+            log.write("Failed to allocate descriptor set ! Reason {d}", .{result});
+            @panic("Failed to allocate descriptor set !");
+        }
 
-        return descripto_set;
+        return descriptor_set;
     }
 };
 

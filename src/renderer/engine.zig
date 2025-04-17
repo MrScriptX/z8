@@ -14,6 +14,7 @@ const buffers = @import("buffers.zig");
 const loader = @import("loader.zig");
 const scene = @import("scene.zig");
 const maths = @import("../utils/maths.zig");
+const material = @import("material.zig");
 
 const log = @import("../utils/log.zig");
 
@@ -27,7 +28,6 @@ pub const renderer_t = struct {
     var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
     var _frameNumber: u32 = 0;
 
-    var _depth_image: vk_images.image_t = vk_images.image_t{};
     var _draw_extent = c.VkExtent2D{};
     var _render_scale: f32 = 1.0;
 
@@ -50,30 +50,11 @@ pub const renderer_t = struct {
 
     var _test_meshes: []loader.MeshAsset = undefined;
 
-    pub fn max_effect() u32 {
-        return @intCast(_background_effects.items.len);
-    }
-
-    pub fn effect_index() *u32 {
-        return &_current_effect;
-    }
-
-    pub fn current_effect() *effects.ComputeEffect {
-        for (_background_effects.items, 0..) |*e, i| {
-            if (i == _current_effect) {
-                return e;
-            }
-        }
-
-        return @constCast(&_background_effects.getLast());
-    }
-
     var _gui_context: imgui.GuiContext = undefined;
 
     var rectangle: buffers.GPUMeshBuffers = undefined;
 
     var _scene_data: scene.GPUData = undefined;
-    var _gpu_scene_data_descriptor_layout: c.VkDescriptorSetLayout = undefined;
 
     var _white_image: vk_images.image_t = undefined;
     var _black_image: vk_images.image_t = undefined;
@@ -103,11 +84,21 @@ pub const renderer_t = struct {
 
     // draw objects
     _draw_image: vk_images.image_t = vk_images.image_t{},
+    _depth_image: vk_images.image_t = vk_images.image_t{},
 
     // immediate submit structures
     _imm_fence: c.VkFence = undefined,
     _imm_command_buffer: c.VkCommandBuffer = undefined,
     _imm_command_pool: c.VkCommandPool = undefined,
+
+    // scene
+    _gpu_scene_data_descriptor_layout: c.VkDescriptorSetLayout = undefined,
+
+    // data to draw
+    _default_data: material.MaterialInstance = undefined,
+    _metal_rough_material: material.GLTFMetallic_Roughness = undefined,
+
+    _mat_constants: buffers.AllocatedBuffer = undefined,
 
     pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32) !renderer_t {
         var renderer = renderer_t{};
@@ -173,6 +164,9 @@ pub const renderer_t = struct {
         vk_images.destroy_image(self._device, self._vma, &_grey_image);
         vk_images.destroy_image(self._device, self._vma, &_black_image);
         vk_images.destroy_image(self._device, self._vma, &_error_checker_board_image);
+
+        self._mat_constants.deinit(self._vma);
+        self._metal_rough_material.deinit(self._device);
 
         for (_test_meshes) |*mesh| {
             mesh.meshBuffers.deinit(self._vma);
@@ -257,18 +251,18 @@ pub const renderer_t = struct {
         _ = c.vkCreateImageView(self._device, &image_view_info, null, &self._draw_image.view);
 
         // depth image
-        _depth_image.format = c.VK_FORMAT_D32_SFLOAT;
-        _depth_image.extent = draw_image_extent;
+        self._depth_image.format = c.VK_FORMAT_D32_SFLOAT;
+        self._depth_image.extent = draw_image_extent;
 
         var depth_image_usages: c.VkImageUsageFlags = 0;
 	    depth_image_usages |= c.VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-        const depth_create_info = vk_images.create_image_info(_depth_image.format, depth_image_usages, _depth_image.extent);
+        const depth_create_info = vk_images.create_image_info(self._depth_image.format, depth_image_usages, self._depth_image.extent);
 
-        _ = c.vmaCreateImage(self._vma, &depth_create_info, &rimg_allocinfo, &_depth_image.image, &_depth_image.allocation, null);
+        _ = c.vmaCreateImage(self._vma, &depth_create_info, &rimg_allocinfo, &self._depth_image.image, &self._depth_image.allocation, null);
 
-        const depth_view_info = vk_images.create_imageview_info(_depth_image.format, _depth_image.image, c.VK_IMAGE_ASPECT_DEPTH_BIT);
-        _ = c.vkCreateImageView(self._device, &depth_view_info, null, &_depth_image.view);
+        const depth_view_info = vk_images.create_imageview_info(self._depth_image.format, self._depth_image.image, c.VK_IMAGE_ASPECT_DEPTH_BIT);
+        _ = c.vkCreateImageView(self._device, &depth_view_info, null, &self._depth_image.view);
     }
 
     fn init_commands(self: *renderer_t) !void {
@@ -341,7 +335,7 @@ pub const renderer_t = struct {
             defer builder.deinit();
 
 		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		    _gpu_scene_data_descriptor_layout = builder.build(self._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
+		    self._gpu_scene_data_descriptor_layout = builder.build(self._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
         }
 
         {
@@ -357,6 +351,11 @@ pub const renderer_t = struct {
         try self.init_background_pipelines();
         try self.init_triangle_pipeline();
         try self.init_mesh_pipeline();
+
+        if (self._metal_rough_material.opaque_pipeline.pipeline == null) { // initialize it only once !
+            self._metal_rough_material = material.GLTFMetallic_Roughness.init(std.heap.page_allocator);
+            try self._metal_rough_material.build_pipeline(self);
+        }
     }
 
     fn init_background_pipelines(self: *renderer_t) !void {
@@ -459,106 +458,106 @@ pub const renderer_t = struct {
         try _background_effects.append(sky);
     }
 
-fn init_triangle_pipeline(self: *renderer_t) !void {
-    const triangle_frag_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
-    defer c.vkDestroyShaderModule(self._device, triangle_frag_shader, null);
+    fn init_triangle_pipeline(self: *renderer_t) !void {
+        const triangle_frag_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+        defer c.vkDestroyShaderModule(self._device, triangle_frag_shader, null);
 
-	const triangle_vertex_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
-    defer c.vkDestroyShaderModule(self._device, triangle_vertex_shader, null);
+	    const triangle_vertex_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
+        defer c.vkDestroyShaderModule(self._device, triangle_vertex_shader, null);
 
-    const pipeline_layout_info = c.VkPipelineLayoutCreateInfo {
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    };
+        const pipeline_layout_info = c.VkPipelineLayoutCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        };
 	
-    const result = c.vkCreatePipelineLayout(self._device, &pipeline_layout_info, null, &_trianglePipelineLayout); 
-	if (result != c.VK_SUCCESS) {
-        std.debug.panic("failed to create pipeline layout!", .{});
+        const result = c.vkCreatePipelineLayout(self._device, &pipeline_layout_info, null, &_trianglePipelineLayout); 
+	    if (result != c.VK_SUCCESS) {
+            std.debug.panic("failed to create pipeline layout!", .{});
+        }
+
+        var pipeline_builder = pipelines.builder_t.init();
+        defer pipeline_builder.deinit();
+
+        pipeline_builder._pipeline_layout = _trianglePipelineLayout;
+        try pipeline_builder.set_shaders(triangle_vertex_shader, triangle_frag_shader);
+        pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	    //filled triangles
+	    pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
+	    //no backface culling
+	    pipeline_builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
+	    //no multisampling
+	    pipeline_builder.set_multisampling_none();
+	    //no blending
+	    pipeline_builder.disable_blending();
+	    //no depth testing
+	    pipeline_builder.disable_depthtest();
+
+        //connect the image format we will draw into, from draw image
+	    pipeline_builder.set_color_attachment_format(self._draw_image.format);
+	    pipeline_builder.set_depth_format(c.VK_FORMAT_UNDEFINED);
+
+	    //finally build the pipeline
+	    _trianglePipeline = pipeline_builder.build_pipeline(self._device);
     }
 
-    var pipeline_builder = pipelines.builder_t.init();
-    defer pipeline_builder.deinit();
+    fn init_mesh_pipeline(self: *renderer_t) !void {
+        // const frag_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+        // defer c.vkDestroyShaderModule(_device, frag_shader, null);
 
-    pipeline_builder._pipeline_layout = _trianglePipelineLayout;
-    try pipeline_builder.set_shaders(triangle_vertex_shader, triangle_frag_shader);
-    pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	//filled triangles
-	pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
-	//no backface culling
-	pipeline_builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
-	//no multisampling
-	pipeline_builder.set_multisampling_none();
-	//no blending
-	pipeline_builder.disable_blending();
-	//no depth testing
-	pipeline_builder.disable_depthtest();
+        const frag_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/image_texture.frag.spv");
+        defer c.vkDestroyShaderModule(self._device, frag_shader, null);
 
-    //connect the image format we will draw into, from draw image
-	pipeline_builder.set_color_attachment_format(self._draw_image.format);
-	pipeline_builder.set_depth_format(c.VK_FORMAT_UNDEFINED);
+	    const vertex_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle_mesh.vert.spv");
+        defer c.vkDestroyShaderModule(self._device, vertex_shader, null);
 
-	//finally build the pipeline
-	_trianglePipeline = pipeline_builder.build_pipeline(self._device);
-}
+        const buffer_range = c.VkPushConstantRange {
+            .offset = 0,
+            .size = @sizeOf(buffers.GPUDrawPushConstants),
+            .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
+        };
 
-fn init_mesh_pipeline(self: *renderer_t) !void {
-    // const frag_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
-    // defer c.vkDestroyShaderModule(_device, frag_shader, null);
-
-    const frag_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/image_texture.frag.spv");
-    defer c.vkDestroyShaderModule(self._device, frag_shader, null);
-
-	const vertex_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle_mesh.vert.spv");
-    defer c.vkDestroyShaderModule(self._device, vertex_shader, null);
-
-    const buffer_range = c.VkPushConstantRange {
-        .offset = 0,
-        .size = @sizeOf(buffers.GPUDrawPushConstants),
-        .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
-    };
-
-    const layout_info = c.VkPipelineLayoutCreateInfo {
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .pNext = null,
-        .pPushConstantRanges = &buffer_range,
-        .pushConstantRangeCount = 1,
-        .pSetLayouts = &_single_image_descriptor_layout,
-        .setLayoutCount = 1,
-    };
+        const layout_info = c.VkPipelineLayoutCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = null,
+            .pPushConstantRanges = &buffer_range,
+            .pushConstantRangeCount = 1,
+            .pSetLayouts = &_single_image_descriptor_layout,
+            .setLayoutCount = 1,
+        };
 	
-    const result = c.vkCreatePipelineLayout(self._device, &layout_info, null, &_meshPipelineLayout); 
-	if (result != c.VK_SUCCESS) {
-        std.debug.panic("failed to create pipeline layout!", .{});
+        const result = c.vkCreatePipelineLayout(self._device, &layout_info, null, &_meshPipelineLayout); 
+	    if (result != c.VK_SUCCESS) {
+            std.debug.panic("failed to create pipeline layout!", .{});
+        }
+
+        var pipeline_builder = pipelines.builder_t.init();
+        defer pipeline_builder.deinit();
+
+        //use the triangle layout we created
+	    pipeline_builder._pipeline_layout = _meshPipelineLayout;
+	    //connecting the vertex and pixel shaders to the pipeline
+	    try pipeline_builder.set_shaders(vertex_shader, frag_shader);
+	    //it will draw triangles
+	    pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	    //filled triangles
+	    pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
+	    //no backface culling
+	    pipeline_builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
+	    //no multisampling
+	    pipeline_builder.set_multisampling_none();
+	    //no blending
+	    pipeline_builder.disable_blending();
+        // pipeline_builder.enable_blending_additive();
+
+	    // pipeline_builder.disable_depthtest();
+        pipeline_builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	    //connect the image format we will draw into, from draw image
+	    pipeline_builder.set_color_attachment_format(self._draw_image.format);
+	    pipeline_builder.set_depth_format(self._depth_image.format);
+
+	    //finally build the pipeline
+	    _meshPipeline = pipeline_builder.build_pipeline(self._device);
     }
-
-    var pipeline_builder = pipelines.builder_t.init();
-    defer pipeline_builder.deinit();
-
-    //use the triangle layout we created
-	pipeline_builder._pipeline_layout = _meshPipelineLayout;
-	//connecting the vertex and pixel shaders to the pipeline
-	try pipeline_builder.set_shaders(vertex_shader, frag_shader);
-	//it will draw triangles
-	pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	//filled triangles
-	pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
-	//no backface culling
-	pipeline_builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
-	//no multisampling
-	pipeline_builder.set_multisampling_none();
-	//no blending
-	pipeline_builder.disable_blending();
-    // pipeline_builder.enable_blending_additive();
-
-	// pipeline_builder.disable_depthtest();
-    pipeline_builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-	//connect the image format we will draw into, from draw image
-	pipeline_builder.set_color_attachment_format(self._draw_image.format);
-	pipeline_builder.set_depth_format(_depth_image.format);
-
-	//finally build the pipeline
-	_meshPipeline = pipeline_builder.build_pipeline(self._device);
-}
 
 fn current_frame() *frames.data_t {
     return &_frames[_frameNumber % frames.FRAME_OVERLAP];
@@ -568,161 +567,161 @@ fn abs(n: f32) f32 {
     return @max(-n, n);
 }
 
-var _rebuild_swapchain: bool = false;
+    var _rebuild_swapchain: bool = false;
 
-pub fn draw(self: *renderer_t) void {
-    var result = c.vkWaitForFences(self._device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
-    if (result != c.VK_SUCCESS) {
-        log.write("vkWaitForFences failed with error {x}\n", .{ result });
-        _frameNumber += 1;
-        return;
-    }
-
-    current_frame().flush(self._vma);
-    current_frame()._frame_descriptors.clear(self._device);
-
-    // compute draw extent
-    const min_width: f32 = @floatFromInt(@min(self._sw._extent.width, self._draw_image.extent.width));
-    const min_height: f32 = @floatFromInt(@min(self._sw._extent.height, self._draw_image.extent.height));
-
-    _draw_extent.width = @intFromFloat(min_width * _render_scale); // TODO : convert render_scale to int and divide to scale back
-    _draw_extent.height = @intFromFloat(min_height * _render_scale);
-
-    var image_index: u32 = 0;
-    result = c.vkAcquireNextImageKHR(self._device, self._sw._sw, 1000000000, current_frame()._sw_semaphore, null, &image_index);
-    switch(result) {
-        c.VK_SUCCESS => {},
-        c.VK_ERROR_OUT_OF_DATE_KHR => {
-            _rebuild_swapchain = true;
-            return;
-        },
-        else => {
-            log.write("vkAcquireNextImageKHR failed with error {x}\n", .{ result });
+    pub fn draw(self: *renderer_t) void {
+        var result = c.vkWaitForFences(self._device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkWaitForFences failed with error {x}\n", .{ result });
+            _frameNumber += 1;
             return;
         }
-    }
 
-    result = c.vkResetFences(self._device, 1, &current_frame()._render_fence);
-    if (result != c.VK_SUCCESS) {
-        log.write("vkResetFences failed with error {x}\n", .{ result });
-        return;
-    }
+        current_frame().flush(self._vma);
+        current_frame()._frame_descriptors.clear(self._device);
 
-    result = c.vkResetCommandBuffer(current_frame()._main_buffer, 0);
-    if (result != c.VK_SUCCESS) {
-        log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
-        return;
-    }
+        // compute draw extent
+        const min_width: f32 = @floatFromInt(@min(self._sw._extent.width, self._draw_image.extent.width));
+        const min_height: f32 = @floatFromInt(@min(self._sw._extent.height, self._draw_image.extent.height));
 
-    const cmd_buffer: c.VkCommandBuffer = current_frame()._main_buffer;
-    const cmd_buffer_begin_info = c.VkCommandBufferBeginInfo{
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext = null,
-        .pInheritanceInfo = null,
-        .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
+        _draw_extent.width = @intFromFloat(min_width * _render_scale); // TODO : convert render_scale to int and divide to scale back
+        _draw_extent.height = @intFromFloat(min_height * _render_scale);
 
-    result = c.vkBeginCommandBuffer(cmd_buffer, &cmd_buffer_begin_info);
-    if (result != c.VK_SUCCESS) {
-        log.write("vkBeginCommandBuffer failed with error {x}\n", .{ result });
-        return;
-    }
+        var image_index: u32 = 0;
+        result = c.vkAcquireNextImageKHR(self._device, self._sw._sw, 1000000000, current_frame()._sw_semaphore, null, &image_index);
+        switch(result) {
+            c.VK_SUCCESS => {},
+            c.VK_ERROR_OUT_OF_DATE_KHR => {
+                _rebuild_swapchain = true;
+                return;
+            },
+            else => {
+                log.write("vkAcquireNextImageKHR failed with error {x}\n", .{ result });
+                return;
+            }
+        }
 
-    utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
+        result = c.vkResetFences(self._device, 1, &current_frame()._render_fence);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkResetFences failed with error {x}\n", .{ result });
+            return;
+        }
 
-    draw_background(cmd_buffer);
+        result = c.vkResetCommandBuffer(current_frame()._main_buffer, 0);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
+            return;
+        }
 
-    utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    utils.transition_image(cmd_buffer, _depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        const cmd_buffer: c.VkCommandBuffer = current_frame()._main_buffer;
+        const cmd_buffer_begin_info = c.VkCommandBufferBeginInfo{
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = null,
+            .pInheritanceInfo = null,
+            .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
 
-    self.draw_geometry(cmd_buffer);
+        result = c.vkBeginCommandBuffer(cmd_buffer, &cmd_buffer_begin_info);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkBeginCommandBuffer failed with error {x}\n", .{ result });
+            return;
+        }
 
-    utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
+
+        draw_background(cmd_buffer);
+
+        utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        utils.transition_image(cmd_buffer, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+        self.draw_geometry(cmd_buffer);
+
+        utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
-    vk_images.copy_image_to_image(cmd_buffer, self._draw_image.image, self._sw._images[image_index], _draw_extent, self._sw._extent);
+        vk_images.copy_image_to_image(cmd_buffer, self._draw_image.image, self._sw._images[image_index], _draw_extent, self._sw._extent);
 
-    utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-    _gui_context.draw(cmd_buffer, self._sw._image_views[image_index], self._sw._extent);
+        _gui_context.draw(cmd_buffer, self._sw._image_views[image_index], self._sw._extent);
 
-    utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
-    result = c.vkEndCommandBuffer(cmd_buffer);
-    if (result != c.VK_SUCCESS) {
-        log.write("vkEndCommandBuffer failed with error {x}\n", .{ result });
-    }
+        result = c.vkEndCommandBuffer(cmd_buffer);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkEndCommandBuffer failed with error {x}\n", .{ result });
+        }
 
-    const cmd_submit_info = c.VkCommandBufferSubmitInfo {
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-	    .pNext = null,
-	    .commandBuffer = cmd_buffer,
-	    .deviceMask = 0,
-    };
+        const cmd_submit_info = c.VkCommandBufferSubmitInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+	        .pNext = null,
+	        .commandBuffer = cmd_buffer,
+	        .deviceMask = 0,
+        };
 
-    const wait_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, current_frame()._sw_semaphore);
-    const signal_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, current_frame()._render_semaphore);
+        const wait_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, current_frame()._sw_semaphore);
+        const signal_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, current_frame()._render_semaphore);
 
-    const submit_info = c.VkSubmitInfo2 {
-        .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-        .pNext = null,
-        .waitSemaphoreInfoCount = 1,
-        .pWaitSemaphoreInfos = &wait_info,
-        .signalSemaphoreInfoCount = 1,
-        .pSignalSemaphoreInfos = &signal_info,
-        .commandBufferInfoCount = 1,
-        .pCommandBufferInfos = &cmd_submit_info,
-    };
+        const submit_info = c.VkSubmitInfo2 {
+            .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .pNext = null,
+            .waitSemaphoreInfoCount = 1,
+            .pWaitSemaphoreInfos = &wait_info,
+            .signalSemaphoreInfoCount = 1,
+            .pSignalSemaphoreInfos = &signal_info,
+            .commandBufferInfoCount = 1,
+            .pCommandBufferInfos = &cmd_submit_info,
+        };
 
-    result = c.vkQueueSubmit2(self._queues.graphics, 1, &submit_info, current_frame()._render_fence);
-    if (result != c.VK_SUCCESS) {
-        log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
-    }
+        result = c.vkQueueSubmit2(self._queues.graphics, 1, &submit_info, current_frame()._render_fence);
+        if (result != c.VK_SUCCESS) {
+            log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
+        }
 
-    const present_info = c.VkPresentInfoKHR {
-        .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-	    .pNext = null,
-	    .pSwapchains = &self._sw._sw,
-	    .swapchainCount = 1,
+        const present_info = c.VkPresentInfoKHR {
+            .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+	        .pNext = null,
+	        .pSwapchains = &self._sw._sw,
+	        .swapchainCount = 1,
 
-	    .pWaitSemaphores = &current_frame()._render_semaphore,
-	    .waitSemaphoreCount = 1,
+	        .pWaitSemaphores = &current_frame()._render_semaphore,
+	        .waitSemaphoreCount = 1,
 
-	    .pImageIndices = &image_index,
-    };
+	        .pImageIndices = &image_index,
+        };
 	
 
-	result = c.vkQueuePresentKHR(self._queues.graphics, &present_info);
-    switch(result) {
-        c.VK_SUCCESS => {},
-        c.VK_ERROR_OUT_OF_DATE_KHR => {
-            _rebuild_swapchain = true;
-            return;
-        },
-        else => {
-            log.write("vkQueuePresentKHR failed with error {x}\n", .{ result });
+	    result = c.vkQueuePresentKHR(self._queues.graphics, &present_info);
+        switch(result) {
+            c.VK_SUCCESS => {},
+            c.VK_ERROR_OUT_OF_DATE_KHR => {
+                _rebuild_swapchain = true;
+                return;
+            },
+            else => {
+                log.write("vkQueuePresentKHR failed with error {x}\n", .{ result });
+            }
         }
+
+        _frameNumber += 1;
     }
 
-    _frameNumber += 1;
-}
+    pub fn draw_background(cmd: c.VkCommandBuffer) void {
+        const effect = current_effect();
 
-pub fn draw_background(cmd: c.VkCommandBuffer) void {
-    const effect = current_effect();
+        // bind the gradient drawing compute pipeline
+	    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
-    // bind the gradient drawing compute pipeline
-	c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
+	    // bind the descriptor set containing the draw image for the compute pipeline
+	    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &_draw_image_descriptor_set, 0, null);
 
-	// bind the descriptor set containing the draw image for the compute pipeline
-	c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &_draw_image_descriptor_set, 0, null);
+	    c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(effects.ComputePushConstants), &effect.data);
 
-	c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(effects.ComputePushConstants), &effect.data);
+        const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.width)) / 16.0)));
+        const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
 
-    const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.width)) / 16.0)));
-    const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
-
-	c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
-}
+	    c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
+    }
 
     pub fn draw_geometry(self: *renderer_t, cmd: c.VkCommandBuffer) void {
         //begin a render pass  connected to our draw image
@@ -743,7 +742,7 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
             .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = null,
 
-            .imageView = _depth_image.view,
+            .imageView = self._depth_image.view,
             .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
             .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -836,7 +835,7 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
         const scene_uniform_data: *scene.GPUData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
         scene_uniform_data.* = _scene_data;
 
-        const global_descriptor = current_frame()._frame_descriptors.allocate(self._device, _gpu_scene_data_descriptor_layout, null);
+        const global_descriptor = current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
     
         {
             var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
@@ -976,6 +975,24 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
         };
 
         _ = c.vkCreateSampler(self._device, &linear_sampler_image, null, &_default_sampler_linear);
+
+        // metal rough mat
+        self._mat_constants = buffers.AllocatedBuffer.init(self._vma, @sizeOf(material.GLTFMetallic_Roughness.MaterialConstants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        const scene_uniform_data: *material.GLTFMetallic_Roughness.MaterialConstants = @alignCast(@ptrCast(self._mat_constants.info.pMappedData));
+        scene_uniform_data.color_factors = maths.vec4{ 1, 1, 1, 1 };
+        scene_uniform_data.metal_rough_factors = maths.vec4{ 1, 0.5, 0, 0 };
+
+        const material_res = material.GLTFMetallic_Roughness.MaterialResources {
+            .color_image = _white_image,
+            .color_sampler = _default_sampler_linear,
+            .metal_rough_image = _white_image,
+            .metal_rough_sampler = _default_sampler_linear,
+            .data_buffer = self._mat_constants.buffer,
+            .data_buffer_offset = 0,
+        };
+
+        self._default_data = self._metal_rough_material.write_material(self._device, material.MaterialPass.MainColor, &material_res, &_descriptor_pool);
     }
 
     pub fn render_scale() *f32 {
@@ -1023,14 +1040,17 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
         c.vkDestroyImageView(self._device, self._draw_image.view, null);
         c.vmaDestroyImage(self._vma, self._draw_image.image, self._draw_image.allocation);
 
-        c.vkDestroyImageView(self._device, _depth_image.view, null);
-        c.vmaDestroyImage(self._vma, _depth_image.image, _depth_image.allocation);
+        c.vkDestroyImageView(self._device, self._depth_image.view, null);
+        c.vmaDestroyImage(self._vma, self._depth_image.image, self._depth_image.allocation);
+
+        // destroy materials
+        // self._metal_rough_material.deinit(self._device);
 
         // destroy descriptors
         _descriptor_pool.deinit(self._device);
 	    c.vkDestroyDescriptorSetLayout(self._device, _draw_image_descriptor, null);
 
-        c.vkDestroyDescriptorSetLayout(self._device, _gpu_scene_data_descriptor_layout, null);
+        c.vkDestroyDescriptorSetLayout(self._device, self._gpu_scene_data_descriptor_layout, null);
 
         c.vkDestroyDescriptorSetLayout(self._device, _single_image_descriptor_layout, null);
 
@@ -1052,5 +1072,23 @@ pub fn draw_background(cmd: c.VkCommandBuffer) void {
 
         // clear pipelines array
         _background_effects.clearAndFree();
-    }  
+    }
+
+    pub fn max_effect() u32 {
+        return @intCast(_background_effects.items.len);
+    }
+
+    pub fn effect_index() *u32 {
+        return &_current_effect;
+    }
+
+    pub fn current_effect() *effects.ComputeEffect {
+        for (_background_effects.items, 0..) |*e, i| {
+            if (i == _current_effect) {
+                return e;
+            }
+        }
+
+        return @constCast(&_background_effects.getLast());
+    }
 };
