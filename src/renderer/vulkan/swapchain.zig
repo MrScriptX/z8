@@ -19,7 +19,7 @@ pub const swapchain_t = struct {
     _images: []c.VkImage = undefined,
     _image_views: []c.VkImageView = undefined,
 
-    pub fn init(alloc: std.mem.Allocator, device: c.VkDevice, gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR, window_extent: c.VkExtent2D, queue_indices: queue.queue_indices_t) !swapchain_t {
+    pub fn init(alloc: std.mem.Allocator, device: c.VkDevice, gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR, window_extent: c.VkExtent2D, queue_indices: queue.indices_t) !swapchain_t {
         const details = try query_swapchain_support(gpu, surface);
         defer details.deinit();
 
@@ -52,7 +52,7 @@ pub const swapchain_t = struct {
         }
     }
 
-    fn create_swapchain(self: *const swapchain_t, device: c.VkDevice, surface: c.VkSurfaceKHR, details: details_t, queue_indices: queue.queue_indices_t) SWError!c.VkSwapchainKHR {
+    fn create_swapchain(self: *const swapchain_t, device: c.VkDevice, surface: c.VkSurfaceKHR, details: details_t, queue_indices: queue.indices_t) SWError!c.VkSwapchainKHR {
         const present_mode = select_present_mode(details);
     
         var image_count: u32 = details.capabilities.minImageCount + 1;
@@ -79,10 +79,10 @@ pub const swapchain_t = struct {
             .oldSwapchain = @ptrCast(c.VK_NULL_HANDLE),
         };
 
-        if (queue_indices.graphics_family != queue_indices.present_family) {
+        if (queue_indices.graphics != queue_indices.present) {
             const pqueue_family_indices: []const u32 = &.{ 
-                queue_indices.graphics_family,
-                queue_indices.present_family
+                queue_indices.graphics,
+                queue_indices.present
             };
 
             swapchain_info.imageSharingMode = c.VK_SHARING_MODE_CONCURRENT;

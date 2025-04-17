@@ -103,24 +103,24 @@ pub fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !
     return physical_device.?;
 }
 
-pub fn create_device_interface(physical_device: c.VkPhysicalDevice, queues: queue.queue_indices_t) !c.VkDevice {
+pub fn create_device_interface(physical_device: c.VkPhysicalDevice, indices: queue.indices_t) !c.VkDevice {
     var queue_priority: f32 = 1.0;
     
     var queue_create_infos = std.ArrayList(c.VkDeviceQueueCreateInfo).init(std.heap.page_allocator);
 
     const graphic_queue_create_info = c.VkDeviceQueueCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = queues.graphics_family,
+        .queueFamilyIndex = indices.graphics,
         .queueCount = 1,
         .pQueuePriorities = &queue_priority,
     };
 
     try queue_create_infos.append(graphic_queue_create_info);
 
-    if (queues.graphics_family != queues.present_family) {
+    if (indices.graphics != indices.present) {
         const present_qeueu_create_info = c.VkDeviceQueueCreateInfo{
             .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueFamilyIndex = queues.present_family,
+            .queueFamilyIndex = indices.present,
             .queueCount = 1,
             .pQueuePriorities = &queue_priority,
         };
