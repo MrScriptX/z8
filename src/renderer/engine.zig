@@ -1160,9 +1160,9 @@ pub const renderer_t = struct {
 
         _scene_data.viewproj = z.Mat4.mul(proj, view).data;
 
-        _scene_data.ambient_color = z.Vec4.one().data;
-        _scene_data.sunlight_color = z.Vec4.one().data;
-        _scene_data.sunlight_dir = z.Vec4.new(0, 1, 1, 0).data;
+        _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
+        _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
+        _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
     }
 };
 

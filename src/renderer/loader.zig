@@ -65,11 +65,6 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
     var meshes = std.ArrayList(MeshAsset).init(allocator);
 
     for (data.meshes[0..data.meshes_count]) |mesh| {
-        // var asset = MeshAsset. {
-        //     .name = try allocator.dupe(u8, std.mem.span(mesh.name)),
-        //     .surfaces = std.ArrayList(GeoSurface).init(allocator),
-        //     .meshBuffers = undefined,
-        // };
         var asset = MeshAsset.init(allocator, std.mem.span(mesh.name));
 
         vertices.clearAndFree();
@@ -126,7 +121,7 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
                 var v: buffers.Vertex = buffers.Vertex {
                     .position = std.mem.zeroes(c.vec3),
                     .normal = std.mem.zeroes(c.vec3),
-                    .color = std.mem.zeroes(c.vec4),
+                    .color = c.vec4{ 1, 1, 1, 1},
                     .uv_x = 0,
                     .uv_y = 0
                 };
@@ -163,7 +158,7 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
                 v.uv_y = uv[1];
 
                 // override color
-                v.color = z.Vec4.fromVec3(z.Vec3.fromSlice(&v.normal), 1.0).data;
+                // v.color = z.Vec4.fromVec3(z.Vec3.fromSlice(&v.normal), 1.0).data;
 
                 try vertices.append(v);
             }
