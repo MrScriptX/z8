@@ -4,13 +4,7 @@ const Error = error{
     SwapchainInit,
 };
 
-pub const CHashMap = struct {
-    key: []const u8,
-    value: *m.Node,
-};
-
 pub const renderer_t = struct {
-    var _draw_extent = c.VkExtent2D{};
     var _render_scale: f32 = 1.0;
 
     var _descriptor_pool: descriptor.DescriptorAllocator = undefined;
@@ -71,6 +65,7 @@ pub const renderer_t = struct {
     // draw objects
     _draw_image: vk_images.image_t = vk_images.image_t{},
     _depth_image: vk_images.image_t = vk_images.image_t{},
+    _draw_extent: c.VkExtent2D = .{},
 
     // immediate submit structures
     _imm_fence: c.VkFence = undefined,
@@ -584,8 +579,8 @@ pub const renderer_t = struct {
         const min_width: f32 = @floatFromInt(@min(self._sw._extent.width, self._draw_image.extent.width));
         const min_height: f32 = @floatFromInt(@min(self._sw._extent.height, self._draw_image.extent.height));
 
-        _draw_extent.width = @intFromFloat(min_width * _render_scale); // TODO : convert render_scale to int and divide to scale back
-        _draw_extent.height = @intFromFloat(min_height * _render_scale);
+        self._draw_extent.width = @intFromFloat(min_width * _render_scale); // TODO : convert render_scale to int and divide to scale back
+        self._draw_extent.height = @intFromFloat(min_height * _render_scale);
 
         var image_index: u32 = 0;
         result = c.vkAcquireNextImageKHR(self._device, self._sw._sw, 1000000000, self.current_frame()._sw_semaphore, null, &image_index);
@@ -629,7 +624,7 @@ pub const renderer_t = struct {
 
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
-        draw_background(cmd_buffer);
+        self.draw_background(cmd_buffer);
 
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         utils.transition_image(cmd_buffer, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -639,7 +634,7 @@ pub const renderer_t = struct {
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
-        vk_images.copy_image_to_image(cmd_buffer, self._draw_image.image, self._sw._images[image_index], _draw_extent, self._sw._extent);
+        vk_images.copy_image_to_image(cmd_buffer, self._draw_image.image, self._sw._images[image_index], self._draw_extent, self._sw._extent);
 
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -706,7 +701,7 @@ pub const renderer_t = struct {
         self._frameNumber += 1;
     }
 
-    pub fn draw_background(cmd: c.VkCommandBuffer) void {
+    pub fn draw_background(self: *renderer_t, cmd: c.VkCommandBuffer) void {
         const effect = current_effect();
 
         // bind the gradient drawing compute pipeline
@@ -717,8 +712,8 @@ pub const renderer_t = struct {
 
 	    c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(effects.ComputePushConstants), &effect.data);
 
-        const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.width)) / 16.0)));
-        const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(_draw_extent.height)) / 16.0)));
+        const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(self._draw_extent.width)) / 16.0)));
+        const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(self._draw_extent.height)) / 16.0)));
 
 	    c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
     }
@@ -763,7 +758,7 @@ pub const renderer_t = struct {
             .colorAttachmentCount = 1,
             .pDepthAttachment = &depth_attachment,
             .renderArea = .{
-            .extent = _draw_extent,
+            .extent = self._draw_extent,
             .offset = .{
                     .x = 0,
                     .y = 0
@@ -782,8 +777,8 @@ pub const renderer_t = struct {
 	    const viewport = c.VkViewport {
             .x = 0,
 	        .y = 0,
-	        .width = @floatFromInt(_draw_extent.width),
-	        .height = @floatFromInt(_draw_extent.height),
+	        .width = @floatFromInt(self._draw_extent.width),
+	        .height = @floatFromInt(self._draw_extent.height),
 	        .minDepth = 0.0,
 	        .maxDepth = 1.0,
         };
@@ -792,7 +787,7 @@ pub const renderer_t = struct {
 
 	    const scissor = c.VkRect2D {
             .offset = .{ .x = 0, .y = 0 },
-	        .extent = _draw_extent,
+	        .extent = self._draw_extent,
         };
 
 	    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
@@ -1132,7 +1127,7 @@ pub const renderer_t = struct {
         _scene_data.view = view.data;
         
         const deg: f32 = 70.0;
-        var proj = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
+        var proj = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1, 10000.0);
         proj.data[1][1] *= -1.0;
 
         _scene_data.proj = proj.data;
