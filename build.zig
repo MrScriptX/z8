@@ -182,6 +182,44 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    unit_tests.linkSystemLibrary(vk_lib_name);
+
+    if (env_map.get("VK_SDK_PATH")) |path| {
+        unit_tests.addLibraryPath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/lib", .{path}) catch @panic("OOM") });
+        unit_tests.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
+    }
+
+    unit_tests.linkSystemLibrary("SDL3");
+    unit_tests.addLibraryPath(.{ .cwd_relative = "common/SDL3/lib" });
+    unit_tests.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
+
+    unit_tests.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
+
+    unit_tests.addCSourceFile(.{ .file = b.path("src/vk_mem_alloc.cpp"), .flags = &.{ "" } });
+
+    // add imgui
+    unit_tests.addIncludePath(.{ .cwd_relative = "common/imgui-1.91.9b" });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_widgets.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_tables.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_draw.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_impl_sdl3.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_impl_vulkan.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_demo.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_internal.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_sdl3.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_vulkan.cpp"), .flags = &.{ "" } });
+
+    // add cgltf
+    unit_tests.addIncludePath(.{ .cwd_relative = "common/cgltf" });
+    unit_tests.addCSourceFile(.{ .file = b.path("src/lib/gltf.c"), .flags = &.{ "" } });
+
+    unit_tests.root_module.addImport("zalgebra", zalgebra);
+
+    unit_tests.linkLibC();
+    unit_tests.linkLibCpp();
+
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
     // Similar to creating the run step earlier, this exposes a `test` step to

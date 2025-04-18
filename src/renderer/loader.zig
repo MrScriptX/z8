@@ -3,21 +3,47 @@ const c = @import("../clibs.zig");
 const buffers = @import("buffers.zig");
 const log = @import("../utils/log.zig");
 const z = @import("zalgebra");
+const mat = @import("material.zig");
+
+pub const GLTFMaterial = struct {
+    data: mat.MaterialInstance
+};
 
 pub const GeoSurface = struct {
     startIndex: u32,
     count: u32,
+    material: *GLTFMaterial = undefined,
 };
 
 pub const MeshAsset = struct {
+    arena: std.heap.ArenaAllocator,
+    
     name: []const u8,
 
     surfaces: std.ArrayList(GeoSurface),
     meshBuffers: buffers.GPUMeshBuffers,
+
+    pub fn init(allocator: std.mem.Allocator, name: []const u8) MeshAsset {
+        var mesh = MeshAsset {
+            .arena = std.heap.ArenaAllocator.init(allocator),
+            .name = undefined,
+            .surfaces = std.ArrayList(GeoSurface).init(allocator),
+            .meshBuffers = undefined,
+        };
+
+        mesh.name = mesh.arena.allocator().dupe(u8, name) catch @panic("OOM");
+
+        return mesh;
+    }
+
+    pub fn deinit(self: *MeshAsset) void {
+        self.surfaces.deinit();
+        self.arena.deinit();
+    }
 };
 
-pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.VmaAllocator, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue,cmd: c.VkCommandBuffer) ![]MeshAsset {
-    var options = std.mem.zeroes(c.cgltf_options);
+pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.VmaAllocator, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue,cmd: c.VkCommandBuffer) !std.ArrayList(MeshAsset) {
+    var options: c.cgltf_options = .{};
     var data: *c.cgltf_data = undefined;
     const result = c.cgltf_parse_file(&options, path.ptr, @ptrCast(&data));
     if (result != c.cgltf_result_success) {
@@ -30,21 +56,21 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
         std.debug.panic("Failed to load buffers!\n", .{});
     }
 
-    var vertices = std.ArrayList(buffers.Vertex).init(allocator);
+    var vertices = std.ArrayList(buffers.Vertex).init(std.heap.page_allocator);
     defer vertices.deinit();
 
-    var indices = std.ArrayList(u32).init(allocator);
+    var indices = std.ArrayList(u32).init(std.heap.page_allocator);
     defer indices.deinit();
         
     var meshes = std.ArrayList(MeshAsset).init(allocator);
-    // defer meshes.deinit();
 
     for (data.meshes[0..data.meshes_count]) |mesh| {
-        var asset = MeshAsset {
-            .name = std.mem.span(mesh.name),
-            .surfaces = std.ArrayList(GeoSurface).init(allocator),
-            .meshBuffers = undefined,
-        };
+        // var asset = MeshAsset. {
+        //     .name = try allocator.dupe(u8, std.mem.span(mesh.name)),
+        //     .surfaces = std.ArrayList(GeoSurface).init(allocator),
+        //     .meshBuffers = undefined,
+        // };
+        var asset = MeshAsset.init(allocator, std.mem.span(mesh.name));
 
         vertices.clearAndFree();
         indices.clearAndFree();
@@ -149,5 +175,5 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
         try meshes.append(asset);
     }
 
-    return meshes.items;
+    return meshes;
 }

@@ -153,14 +153,18 @@ pub fn create_image(vma: c.VmaAllocator, device: c.VkDevice, size: c.VkExtent3D,
     return image;
 }
 
-pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: [*]const u8, size: c.VkExtent3D, format: c.VkFormat, usage: c.VkImageUsageFlags, mimapped: bool, fence: *c.VkFence, cmd: c.VkCommandBuffer, queue: c.VkQueue) image_t {
+pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const anyopaque, size: c.VkExtent3D, format: c.VkFormat, usage: c.VkImageUsageFlags, mimapped: bool, fence: *c.VkFence, cmd: c.VkCommandBuffer, queue: c.VkQueue) image_t {
     const data_size = size.depth * size.width * size.height * 4;
 
     var upload_buffer = buffers.AllocatedBuffer.init(vma, data_size, c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
     defer upload_buffer.deinit(vma);
 
     const mapped_data: [*]u8 = @alignCast(@ptrCast(upload_buffer.info.pMappedData));
-    @memcpy(mapped_data[0..data_size], data[0..data_size]);
+    const data_ptr: [*]const u8 = @alignCast(@ptrCast(data));
+    @memcpy(mapped_data[0..data_size], data_ptr[0..data_size]);
+
+    // const bytes: *[4]u8 = mapped_data[0..4];
+    // std.debug.print("packed bytes: {d}, {d}, {d}, {d}\n", .{ bytes[0], bytes[1], bytes[2], bytes[3] });
 
     const new_image = create_image(vma, device, size, format, usage | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT | c.VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mimapped);
 

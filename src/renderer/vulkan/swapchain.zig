@@ -208,6 +208,7 @@ pub fn create_images(allocator: std.mem.Allocator, device: c.VkDevice, swapchain
     const images = try allocator.alloc(c.VkImage, image_count.*);
     const result = c.vkGetSwapchainImagesKHR(device, swapchain, image_count, images.ptr);
     if (result != c.VK_SUCCESS) {
+        allocator.free(images);
         return std.debug.panic("Failed to create swapchain images: {}", .{result});
     }
 

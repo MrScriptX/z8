@@ -343,6 +343,11 @@ pub const DescriptorWriter = struct {
         self._buffer_infos.clearRetainingCapacity();
         self._image_infos.clearRetainingCapacity();
         self._writes.clearRetainingCapacity();
+
+        const reset = self._arena.reset(.free_all);
+        if (reset == false) {
+            log.write("Something went wrong with the reset !", .{});
+        }
     }
 
     pub fn update_set(self: *DescriptorWriter, device: c.VkDevice, set: c.VkDescriptorSet) void {

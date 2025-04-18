@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
 const err = @import("../errors.zig");
+const log = @import("../utils/log.zig");
 
 pub const builder_t = struct {
     _shader_stages: std.ArrayList(c.VkPipelineShaderStageCreateInfo),
@@ -96,6 +97,7 @@ pub const builder_t = struct {
         var pipeline: c.VkPipeline = undefined;
         const result = c.vkCreateGraphicsPipelines(device, null, 1, &pipeline_info, null, &pipeline);
         if (result != c.VK_SUCCESS) {
+            log.err("Failed to create pipeline ! Reason {d}", .{ result });
             return null;
         }
 

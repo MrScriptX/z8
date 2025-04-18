@@ -1,8 +1,3 @@
-const std = @import("std");
-const c = @import("clibs.zig");
-const engine = @import("renderer/engine.zig");
-const imgui = @import("renderer/imgui.zig");
-
 pub fn main() !u8 {
     const init = c.SDL_Init(c.SDL_INIT_VIDEO);
     if (!init) {
@@ -21,11 +16,36 @@ pub fn main() !u8 {
     }
     defer c.SDL_DestroyWindow(window);
 
-    var renderer = engine.renderer_t.init(std.heap.page_allocator, window, width, heigh) catch {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
+    var renderer = engine.renderer_t.init(gpa.allocator(), window, width, heigh) catch {
         c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
     defer renderer.deinit();
+
+    std.debug.print("\nin main\n\n", .{});
+
+    std.debug.print("rough mat pipeline address {*}\n", .{renderer._metal_rough_material.opaque_pipeline.pipeline});
+    std.debug.print("opaque pipeline: {*}\n", .{renderer._default_data.pipeline.pipeline});
+
+    for (renderer._loaded_nodes.items) |*node| {
+            std.debug.print("key: {s}\n", .{ node.key });
+            for (node.value.mesh.surfaces.items) |*s| {
+                std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
+                std.debug.print("pass type address {any}\n", .{s.material.data.pass_type});
+                std.debug.print("layout address {*}\n", .{s.material.data.pipeline.layout });
+                std.debug.print("ptr address {*}\n", .{s.material.data.pipeline });
+            }
+        }
+
+    // var it = renderer._loaded_nodes.iterator();
+    // while (it.next()) |node| {
+    //     std.debug.print("key: {s}\n", .{ node.key_ptr.* });
+    //     for (renderer._loaded_nodes.get(node.key_ptr.*).?.mesh.surfaces.items) |*s| {
+    //         std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
+    //     }
+    // }
 
     // main loop
     var quit = false;
@@ -73,4 +93,10 @@ pub fn main() !u8 {
     return 0;
 }
 
-test "simple test" {}
+test "engine test" {
+}
+
+const std = @import("std");
+const c = @import("clibs.zig");
+const engine = @import("renderer/engine.zig");
+const imgui = @import("renderer/imgui.zig");

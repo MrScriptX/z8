@@ -1,0 +1,2 @@
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        std.debug.print("\n======= Leak - {any} ========\n\n", .{gpa.detectLeaks()});

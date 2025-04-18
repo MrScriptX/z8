@@ -5,13 +5,13 @@ pub const RenderObject = struct {
 
     material: *MaterialInstance,
 
-    transform: math.mat4,
+    transform: math.mat4 align(16),
     vertex_buffer_address: c.VkDeviceAddress,
 };
 
 pub const MaterialPipeline = struct {
-    pipeline: c.VkPipeline,
-    layout: c.VkPipelineLayout,
+    pipeline: c.VkPipeline = null,
+    layout: c.VkPipelineLayout = null,
 };
 
 pub const MaterialInstance = struct {
@@ -41,8 +41,8 @@ pub const GLTFMetallic_Roughness = struct {
     writer: descriptor.DescriptorWriter,
 
     pub const MaterialConstants = struct {
-        color_factors: math.vec4 align(4),
-        metal_rough_factors: math.vec4 align(4),
+        color_factors: math.vec4 align(16),
+        metal_rough_factors: math.vec4 align(16),
         extra: [14]math.vec4,
     };
 

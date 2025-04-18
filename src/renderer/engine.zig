@@ -1,27 +1,12 @@
-const std = @import("std");
-const c = @import("../clibs.zig");
-const imgui = @import("imgui.zig");
-const z = @import("zalgebra");
-const err = @import("../errors.zig");
-const vk = @import("vulkan/vulkan.zig");
-const frames = @import("frame.zig");
-const utils = @import("utils.zig");
-const vk_images = @import("vk_images.zig");
-const descriptor = @import("descriptor.zig");
-const effects = @import("compute_effect.zig");
-const pipelines = @import("pipeline.zig");
-const buffers = @import("buffers.zig");
-const loader = @import("loader.zig");
-const scene = @import("scene.zig");
-const maths = @import("../utils/maths.zig");
-const material = @import("material.zig");
-
-const log = @import("../utils/log.zig");
-
 const Error = error{
     Failed,
     VulkanInit,
     SwapchainInit,
+};
+
+pub const CHashMap = struct {
+    key: []const u8,
+    value: *m.Node,
 };
 
 pub const renderer_t = struct {
@@ -48,7 +33,7 @@ pub const renderer_t = struct {
     var _background_effects: std.ArrayList(effects.ComputeEffect) = undefined;
     var _current_effect: u32 = 0;
 
-    var _test_meshes: []loader.MeshAsset = undefined;
+    var _test_meshes: std.ArrayList(loader.MeshAsset) = undefined;
 
     var _gui_context: imgui.GuiContext = undefined;
 
@@ -100,8 +85,16 @@ pub const renderer_t = struct {
 
     _mat_constants: buffers.AllocatedBuffer = undefined,
 
+    _draw_context: m.DrawContext,
+
+    // _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
+    _loaded_nodes: std.ArrayList(CHashMap),
+
     pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32) !renderer_t {
-        var renderer = renderer_t{};
+        var renderer = renderer_t{
+            ._loaded_nodes = std.ArrayList(CHashMap).init(allocator),
+            ._draw_context = m.DrawContext.init(allocator),
+        };
         
         renderer._arena = std.heap.ArenaAllocator.init(allocator);
         _background_effects = std.ArrayList(effects.ComputeEffect).init(allocator);
@@ -140,10 +133,27 @@ pub const renderer_t = struct {
             }
         };
 
-        renderer.init_default_data() catch {
+        renderer.init_default_data(std.heap.page_allocator) catch {
             err.display_error("Failed to initialize data !");
             std.process.exit(1);
         };
+
+        std.debug.print("opaque pipeline: {*}\n", .{renderer._default_data.pipeline.pipeline});
+
+        for (renderer._loaded_nodes.items) |*node| {
+            std.debug.print("key: {s}\n", .{ node.key });
+            for (node.value.mesh.surfaces.items) |*s| {
+                std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
+            }
+        }
+
+        // var it = renderer._loaded_nodes.iterator();
+        // while (it.next()) |node| {
+        //     std.debug.print("key: {s}\n", .{ node.key_ptr.* });
+        //     for (renderer._loaded_nodes.get(node.key_ptr.*).?.mesh.surfaces.items) |*s| {
+        //         std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
+        //     }
+        // }
 
         return renderer;
     }
@@ -151,6 +161,9 @@ pub const renderer_t = struct {
     pub fn deinit(self: *renderer_t) void {
         defer self._arena.deinit();
         defer _background_effects.deinit();
+
+        self._draw_context.deinit();
+        self._loaded_nodes.deinit();
 
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
@@ -168,9 +181,11 @@ pub const renderer_t = struct {
         self._mat_constants.deinit(self._vma);
         self._metal_rough_material.deinit(self._device);
 
-        for (_test_meshes) |*mesh| {
+        for (_test_meshes.items) |*mesh| {
             mesh.meshBuffers.deinit(self._vma);
         }
+
+        _test_meshes.deinit();
 
         rectangle.deinit(self._vma);
 
@@ -346,6 +361,8 @@ pub const renderer_t = struct {
 		    _single_image_descriptor_layout = builder.build(self._device, c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
         }
     }
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
     fn init_pipelines(self: *renderer_t) !void {
         try self.init_background_pipelines();
@@ -559,17 +576,19 @@ pub const renderer_t = struct {
 	    _meshPipeline = pipeline_builder.build_pipeline(self._device);
     }
 
-fn current_frame() *frames.data_t {
-    return &_frames[_frameNumber % frames.FRAME_OVERLAP];
-}
+    fn current_frame() *frames.data_t {
+        return &_frames[_frameNumber % frames.FRAME_OVERLAP];
+    }
 
-fn abs(n: f32) f32 {
-    return @max(-n, n);
-}
+    fn abs(n: f32) f32 {
+        return @max(-n, n);
+    }
 
     var _rebuild_swapchain: bool = false;
 
     pub fn draw(self: *renderer_t) void {
+        self.update_scene();
+
         var result = c.vkWaitForFences(self._device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
             log.write("vkWaitForFences failed with error {x}\n", .{ result });
@@ -846,35 +865,56 @@ fn abs(n: f32) f32 {
         }
 
         // draw meshes
-        const delta_time = calculate_delta_time();
+        
+
+        for (self._draw_context.opaque_surfaces.items) |*obj| {
+            std.debug.print("pipeline address {*}\n", .{obj.material.pipeline.pipeline});
+
+            c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+
+            c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+
+            const push_constants_mesh = buffers.GPUDrawPushConstants {
+                .world_matrix = obj.transform,
+                .vertex_buffer = obj.vertex_buffer_address,
+            };
+
+            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+
+            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+        }
+
+        // const delta_time = calculate_delta_time();    
     
-        var view: z.Mat4 = _last_view;
-        // view = view.translate(z.Vec3.new(0, 0, -150));
+        // var view: z.Mat4 = _last_view;
+        // // view = view.translate(z.Vec3.new(0, 0, -150));
     
-        // Rotate the mesh using delta time
-        const rotation_speed: f32 = 45.0; // Degrees per second
-        const rotation_angle = rotation_speed * (delta_time / 1_000_000_000.0);
-        view = view.rotate(rotation_angle, z.Vec3.new(0, 1, 0));
+        // // Rotate the mesh using delta time
+        // const rotation_speed: f32 = 45.0; // Degrees per second
+        // const rotation_angle = rotation_speed * (delta_time / 1_000_000_000.0);
+        // view = view.rotate(rotation_angle, z.Vec3.new(0, 1, 0));
 
-        _last_view = view;
+        // _last_view = view;
 
-        // camera projection
-        const deg: f32 = 70.0;
-        var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
+        // // camera projection
+        // const deg: f32 = 70.0;
+        // var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
 
-	    // invert the Y direction on projection matrix so that we are more similar
-	    // to opengl and gltf axis
-        projection.data[1][1] *= -1.0;
+	    // // invert the Y direction on projection matrix so that we are more similar
+	    // // to opengl and gltf axis
+        // projection.data[1][1] *= -1.0;
 
-        const push_constants_mesh = buffers.GPUDrawPushConstants {
-            .world_matrix = z.Mat4.mul(projection, view).data,
-            .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
-        };
+        // const push_constants_mesh = buffers.GPUDrawPushConstants {
+        //     .world_matrix = z.Mat4.mul(projection, view).data,
+        //     .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
+        // };
 
-        c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-	    c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+        // c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+	    // c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
 
-	    c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
+	    // c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
 	
 	    c.vkCmdEndRendering(cmd);
     }
@@ -889,8 +929,8 @@ fn abs(n: f32) f32 {
         return delta_time;
     }
 
-    fn init_default_data(self: *renderer_t) !void {
-        var rect_vertices =  std.ArrayList(buffers.Vertex).init(std.heap.page_allocator);
+    fn init_default_data(self: *renderer_t, allocator: std.mem.Allocator) !void {
+        var rect_vertices =  std.ArrayList(buffers.Vertex).init(allocator);
         defer rect_vertices.deinit();
 
         try rect_vertices.append(.{
@@ -925,7 +965,7 @@ fn abs(n: f32) f32 {
             .normal = .{ 0, 0, 0 }
         });
 
-        var rect_indices = std.ArrayList(u32).init(std.heap.page_allocator);
+        var rect_indices = std.ArrayList(u32).init(allocator);
         defer rect_indices.deinit();
 
         try rect_indices.append(0);
@@ -938,19 +978,19 @@ fn abs(n: f32) f32 {
 
 	    rectangle = buffers.GPUMeshBuffers.init(self._vma, self._device, &self._imm_fence, self._queues.graphics, rect_indices.items, rect_vertices.items, self._imm_command_buffer);
 
-        _test_meshes = try loader.load_gltf_meshes(std.heap.page_allocator, "./assets/models/basicmesh.glb", self._vma, self._device, &self._imm_fence, self._queues.graphics, self._imm_command_buffer);
+        _test_meshes = try loader.load_gltf_meshes(allocator, "./assets/models/basicmesh.glb", self._vma, self._device, &self._imm_fence, self._queues.graphics, self._imm_command_buffer);
 
         // initialize textures
-        const white = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
+        const white: u32 align(4) = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
         _white_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
 
-        const grey = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
+        const grey: u32 align(4) = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
         _grey_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
 
-        const black = maths.pack_unorm4x8(.{ 0, 0, 0, 0 });
+        const black: u32 align(4) = maths.pack_unorm4x8(.{ 0, 0, 0, 0 });
         _black_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&black), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
 
-        const magenta = maths.pack_unorm4x8(.{ 1, 0, 1, 1 });
+        const magenta: u32 align(4) = maths.pack_unorm4x8(.{ 1, 0, 1, 1 });
         var pixels: [16 * 16]u32 = [_]u32 { 0 } ** (16 * 16);
         for (0..16) |x| {
             for (0..16) |y| {
@@ -993,6 +1033,53 @@ fn abs(n: f32) f32 {
         };
 
         self._default_data = self._metal_rough_material.write_material(self._device, material.MaterialPass.MainColor, &material_res, &_descriptor_pool);
+
+        std.debug.print("\nbefore insert\n\n", .{});
+
+        std.debug.print("opaque pipeline: {*}\n", .{self._default_data.pipeline.pipeline});
+
+        for (_test_meshes.items) |*mesh| {
+            var new_node: *m.Node = try std.heap.page_allocator.create(m.Node);
+            new_node.children = std.ArrayList(*m.Node).init(std.heap.page_allocator);
+            new_node.mesh = mesh;
+
+            new_node.local_transform = z.Mat4.identity().data;
+            new_node.world_transform =  z.Mat4.identity().data;
+
+            for (new_node.mesh.surfaces.items) |*s| {
+                s.material = self._arena.allocator().create(loader.GLTFMaterial) catch @panic("OOM");
+                s.material.data = material.MaterialInstance{
+                    .pipeline = self._default_data.pipeline,
+                    .material_set = self._default_data.material_set,
+                    .pass_type = self._default_data.pass_type,
+                };
+                std.debug.print("pipeline address {*}\n", .{self._default_data.pipeline.pipeline});
+                std.debug.print("ptr address {*}\n", .{self._default_data.pipeline });
+            }
+
+            // std.debug.print("name {s}, node {*}\n", .{ mesh.name, new_node });
+            self._loaded_nodes.append(.{ .key = mesh.name , .value = new_node }) catch @panic("OOM");
+        }
+
+        std.debug.print("\ncheck data\n\n", .{});
+
+        std.debug.print("rough mat pipeline address {*}\n", .{self._metal_rough_material.opaque_pipeline.pipeline});
+
+        for (self._loaded_nodes.items) |*node| {
+            std.debug.print("key: {s}\n", .{ node.key });
+            for (node.value.mesh.surfaces.items) |*s| {
+                std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
+                std.debug.print("ptr address {*}\n", .{ s.material.data.pipeline });
+            }
+        }
+
+        // var it = self._loaded_nodes.iterator();
+        // while (it.next()) |node| {
+        //     std.debug.print("key: {s}\n", .{ node.key_ptr.* });
+        //     for (self._loaded_nodes.get(node.key_ptr.*).?.mesh.surfaces.items) |*s| {
+        //         std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
+        //     }
+        // }
     }
 
     pub fn render_scale() *f32 {
@@ -1091,4 +1178,76 @@ fn abs(n: f32) f32 {
 
         return @constCast(&_background_effects.getLast());
     }
+
+    pub fn update_scene(self: *renderer_t) void {
+        self._draw_context.opaque_surfaces.clearRetainingCapacity();
+
+        std.debug.print("\nupdate scene\n\n", .{});
+
+        var node: ?*m.Node = null;
+        for (self._loaded_nodes.items) |*n| {
+            std.debug.print("key: {s}\n", .{ n.key });
+            if (std.mem.eql(u8, n.key, "Suzanne")) {
+                node = n.value;
+            }
+
+            for (n.value.mesh.surfaces.items) |*s| {
+                std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
+            }
+        }
+
+        // var it = self._loaded_nodes.iterator();
+        // while (it.next()) |node| {
+        //     std.debug.print("key: {s}, value {*}\n", .{ node.key_ptr.*, node.value_ptr.* });
+        //     for (self._loaded_nodes.get(node.key_ptr.*).?.mesh.surfaces.items) |*s| {
+        //         std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
+        //     }
+        // }
+
+        std.debug.print("\nstop\n\n", .{});
+
+        // const node = self._loaded_nodes.get("Suzanne");
+        if (node == null) {
+            @panic("node is null");
+        }
+
+        const top: maths.mat4 align(16) = z.Mat4.identity().data;
+        node.?.draw(&top, &self._draw_context);
+
+        const view = z.Mat4.translate(z.Mat4.identity(), z.Vec3.new(0, 0, -5));
+        _scene_data.view = view.data;
+        
+        const deg: f32 = 70.0;
+        var proj = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
+        proj.data[1][1] *= -1.0;
+
+        _scene_data.proj = proj.data;
+
+        _scene_data.viewproj = z.Mat4.mul(proj, view).data;
+
+        _scene_data.ambient_color = z.Vec4.one().data;
+        _scene_data.sunlight_color = z.Vec4.one().data;
+        _scene_data.sunlight_dir = z.Vec4.new(0, 1, 1, 0).data;
+    }
 };
+
+const std = @import("std");
+const c = @import("../clibs.zig");
+const imgui = @import("imgui.zig");
+const z = @import("zalgebra");
+const err = @import("../errors.zig");
+const vk = @import("vulkan/vulkan.zig");
+const frames = @import("frame.zig");
+const utils = @import("utils.zig");
+const vk_images = @import("vk_images.zig");
+const descriptor = @import("descriptor.zig");
+const effects = @import("compute_effect.zig");
+const pipelines = @import("pipeline.zig");
+const buffers = @import("buffers.zig");
+const loader = @import("loader.zig");
+const scene = @import("scene.zig");
+const maths = @import("../utils/maths.zig");
+const material = @import("material.zig");
+const m = @import("mesh.zig");
+
+const log = @import("../utils/log.zig");
