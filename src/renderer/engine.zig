@@ -862,36 +862,6 @@ pub const renderer_t = struct {
 
             c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
         }
-
-        // const delta_time = calculate_delta_time();    
-    
-        // var view: z.Mat4 = _last_view;
-        // // view = view.translate(z.Vec3.new(0, 0, -150));
-    
-        // // Rotate the mesh using delta time
-        // const rotation_speed: f32 = 45.0; // Degrees per second
-        // const rotation_angle = rotation_speed * (delta_time / 1_000_000_000.0);
-        // view = view.rotate(rotation_angle, z.Vec3.new(0, 1, 0));
-
-        // _last_view = view;
-
-        // // camera projection
-        // const deg: f32 = 70.0;
-        // var projection = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(_draw_extent.width)) / @as(f32, @floatFromInt(_draw_extent.height)), 0.1, 10000.0);
-
-	    // // invert the Y direction on projection matrix so that we are more similar
-	    // // to opengl and gltf axis
-        // projection.data[1][1] *= -1.0;
-
-        // const push_constants_mesh = buffers.GPUDrawPushConstants {
-        //     .world_matrix = z.Mat4.mul(projection, view).data,
-        //     .vertex_buffer = _test_meshes[2].meshBuffers.vertex_buffer_address,
-        // };
-
-        // c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-	    // c.vkCmdBindIndexBuffer(cmd, _test_meshes[2].meshBuffers.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
-
-	    // c.vkCmdDrawIndexed(cmd, _test_meshes[2].surfaces.items[0].count, 1, _test_meshes[2].surfaces.items[0].startIndex, 0, 0);
 	
 	    c.vkCmdEndRendering(cmd);
     }
