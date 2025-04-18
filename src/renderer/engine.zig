@@ -10,9 +10,6 @@ pub const CHashMap = struct {
 };
 
 pub const renderer_t = struct {
-    var _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined;
-    var _frameNumber: u32 = 0;
-
     var _draw_extent = c.VkExtent2D{};
     var _render_scale: f32 = 1.0;
 
@@ -67,6 +64,10 @@ pub const renderer_t = struct {
     // swapchain
     _sw: vk.sw.swapchain_t = undefined,
 
+    // frames
+    _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined,
+    _frameNumber: u32 = 0,
+
     // draw objects
     _draw_image: vk_images.image_t = vk_images.image_t{},
     _depth_image: vk_images.image_t = vk_images.image_t{},
@@ -90,8 +91,10 @@ pub const renderer_t = struct {
     // _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
     _loaded_nodes: std.ArrayList(CHashMap),
 
-    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32) !renderer_t {
-        var renderer = renderer_t{
+    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32) !*renderer_t {
+        
+        var renderer = try allocator.create(renderer_t);
+        renderer.* = renderer_t{
             ._loaded_nodes = std.ArrayList(CHashMap).init(allocator),
             ._draw_context = m.DrawContext.init(allocator),
         };
@@ -189,7 +192,7 @@ pub const renderer_t = struct {
 
         rectangle.deinit(self._vma);
 
-        for (&_frames) |*frame| {
+        for (&self._frames) |*frame| {
             frame.deinit(self._device, self._vma);
         }
 
@@ -281,12 +284,12 @@ pub const renderer_t = struct {
     }
 
     fn init_commands(self: *renderer_t) !void {
-        _frames = [_]frames.data_t{
+        self._frames = [_]frames.data_t{
             frames.data_t{},
             frames.data_t{},
         };
 
-        for (&_frames) |*frame| {
+        for (&self._frames) |*frame| {
             try frame.init(self._device, self._queue_indices.graphics);
         }
 
@@ -334,7 +337,7 @@ pub const renderer_t = struct {
         writer.update_set(self._device, _draw_image_descriptor_set);
 
 
-        for (&_frames) |*frame| {
+        for (&self._frames) |*frame| {
             const frame_size = [_]descriptor.PoolSizeRatio {
                 descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
                 descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
@@ -576,8 +579,8 @@ pub const renderer_t = struct {
 	    _meshPipeline = pipeline_builder.build_pipeline(self._device);
     }
 
-    fn current_frame() *frames.data_t {
-        return &_frames[_frameNumber % frames.FRAME_OVERLAP];
+    fn current_frame(self: *renderer_t) *frames.data_t {
+        return &self._frames[self._frameNumber % frames.FRAME_OVERLAP];
     }
 
     fn abs(n: f32) f32 {
@@ -589,15 +592,15 @@ pub const renderer_t = struct {
     pub fn draw(self: *renderer_t) void {
         self.update_scene();
 
-        var result = c.vkWaitForFences(self._device, 1, &current_frame()._render_fence, c.VK_TRUE, 1000000000);
+        var result = c.vkWaitForFences(self._device, 1, &self.current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
             log.write("vkWaitForFences failed with error {x}\n", .{ result });
-            _frameNumber += 1;
+            self._frameNumber += 1;
             return;
         }
 
-        current_frame().flush(self._vma);
-        current_frame()._frame_descriptors.clear(self._device);
+        self.current_frame().flush(self._vma);
+        self.current_frame()._frame_descriptors.clear(self._device);
 
         // compute draw extent
         const min_width: f32 = @floatFromInt(@min(self._sw._extent.width, self._draw_image.extent.width));
@@ -607,7 +610,7 @@ pub const renderer_t = struct {
         _draw_extent.height = @intFromFloat(min_height * _render_scale);
 
         var image_index: u32 = 0;
-        result = c.vkAcquireNextImageKHR(self._device, self._sw._sw, 1000000000, current_frame()._sw_semaphore, null, &image_index);
+        result = c.vkAcquireNextImageKHR(self._device, self._sw._sw, 1000000000, self.current_frame()._sw_semaphore, null, &image_index);
         switch(result) {
             c.VK_SUCCESS => {},
             c.VK_ERROR_OUT_OF_DATE_KHR => {
@@ -620,19 +623,19 @@ pub const renderer_t = struct {
             }
         }
 
-        result = c.vkResetFences(self._device, 1, &current_frame()._render_fence);
+        result = c.vkResetFences(self._device, 1, &self.current_frame()._render_fence);
         if (result != c.VK_SUCCESS) {
             log.write("vkResetFences failed with error {x}\n", .{ result });
             return;
         }
 
-        result = c.vkResetCommandBuffer(current_frame()._main_buffer, 0);
+        result = c.vkResetCommandBuffer(self.current_frame()._main_buffer, 0);
         if (result != c.VK_SUCCESS) {
             log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
             return;
         }
 
-        const cmd_buffer: c.VkCommandBuffer = current_frame()._main_buffer;
+        const cmd_buffer: c.VkCommandBuffer = self.current_frame()._main_buffer;
         const cmd_buffer_begin_info = c.VkCommandBufferBeginInfo{
             .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .pNext = null,
@@ -678,8 +681,8 @@ pub const renderer_t = struct {
 	        .deviceMask = 0,
         };
 
-        const wait_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, current_frame()._sw_semaphore);
-        const signal_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, current_frame()._render_semaphore);
+        const wait_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, self.current_frame()._sw_semaphore);
+        const signal_info = utils.semaphore_submit_info(c.VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, self.current_frame()._render_semaphore);
 
         const submit_info = c.VkSubmitInfo2 {
             .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
@@ -692,7 +695,7 @@ pub const renderer_t = struct {
             .pCommandBufferInfos = &cmd_submit_info,
         };
 
-        result = c.vkQueueSubmit2(self._queues.graphics, 1, &submit_info, current_frame()._render_fence);
+        result = c.vkQueueSubmit2(self._queues.graphics, 1, &submit_info, self.current_frame()._render_fence);
         if (result != c.VK_SUCCESS) {
             log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
         }
@@ -703,7 +706,7 @@ pub const renderer_t = struct {
 	        .pSwapchains = &self._sw._sw,
 	        .swapchainCount = 1,
 
-	        .pWaitSemaphores = &current_frame()._render_semaphore,
+	        .pWaitSemaphores = &self.current_frame()._render_semaphore,
 	        .waitSemaphoreCount = 1,
 
 	        .pImageIndices = &image_index,
@@ -722,7 +725,7 @@ pub const renderer_t = struct {
             }
         }
 
-        _frameNumber += 1;
+        self._frameNumber += 1;
     }
 
     pub fn draw_background(cmd: c.VkCommandBuffer) void {
@@ -820,7 +823,7 @@ pub const renderer_t = struct {
 	    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
 
         // bind texture
-        const image_set = current_frame()._frame_descriptors.allocate(self._device, _single_image_descriptor_layout, null);
+        const image_set = self.current_frame()._frame_descriptors.allocate(self._device, _single_image_descriptor_layout, null);
 
         {
             var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
@@ -846,7 +849,7 @@ pub const renderer_t = struct {
         // allocate new uniform buffer for the scene
         const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scene.GPUData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        current_frame()._buffers.append(gpu_scene_data_buffer) catch {
+        self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
             log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
             @panic("OOM");
         };
@@ -854,7 +857,7 @@ pub const renderer_t = struct {
         const scene_uniform_data: *scene.GPUData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
         scene_uniform_data.* = _scene_data;
 
-        const global_descriptor = current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
+        const global_descriptor = self.current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
     
         {
             var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
@@ -1036,6 +1039,7 @@ pub const renderer_t = struct {
 
         std.debug.print("\nbefore insert\n\n", .{});
 
+        std.debug.print("material pipeline: {*}\n", .{self._metal_rough_material.opaque_pipeline.pipeline});
         std.debug.print("opaque pipeline: {*}\n", .{self._default_data.pipeline.pipeline});
 
         for (_test_meshes.items) |*mesh| {
@@ -1141,7 +1145,7 @@ pub const renderer_t = struct {
 
         c.vkDestroyDescriptorSetLayout(self._device, _single_image_descriptor_layout, null);
 
-        for (&_frames) |*frame| {
+        for (&self._frames) |*frame| {
             frame._frame_descriptors.deinit(self._device);
         }
 
@@ -1214,7 +1218,7 @@ pub const renderer_t = struct {
         const top: maths.mat4 align(16) = z.Mat4.identity().data;
         node.?.draw(&top, &self._draw_context);
 
-        const view = z.Mat4.translate(z.Mat4.identity(), z.Vec3.new(0, 0, -5));
+        const view = z.Mat4.translate(z.Mat4.identity(), z.Vec3.new(0, 0, -250));
         _scene_data.view = view.data;
         
         const deg: f32 = 70.0;

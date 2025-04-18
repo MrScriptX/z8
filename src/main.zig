@@ -17,11 +17,13 @@ pub fn main() !u8 {
     defer c.SDL_DestroyWindow(window);
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
 
     var renderer = engine.renderer_t.init(gpa.allocator(), window, width, heigh) catch {
         c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
+    defer gpa.allocator().destroy(renderer);
     defer renderer.deinit();
 
     std.debug.print("\nin main\n\n", .{});
