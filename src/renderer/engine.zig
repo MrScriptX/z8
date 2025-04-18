@@ -1149,7 +1149,16 @@ pub const renderer_t = struct {
         const top: maths.mat4 align(16) = z.Mat4.identity().data;
         node.?.draw(&top, &self._draw_context);
 
-        const view = z.Mat4.translate(z.Mat4.identity(), z.Vec3.new(0, 0, -250));
+        const delta_time = calculate_delta_time(); 
+
+        var view: z.Mat4 = _last_view;
+
+        const rotation_speed: f32 = 45.0; // Degrees per second
+        const rotation_angle = rotation_speed * (delta_time / 1_000_000_000.0);
+        view = view.rotate(rotation_angle, z.Vec3.new(0, 1, 0));
+
+        _last_view = view;
+
         _scene_data.view = view.data;
         
         const deg: f32 = 70.0;
