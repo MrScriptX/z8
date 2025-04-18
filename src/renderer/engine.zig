@@ -88,14 +88,12 @@ pub const renderer_t = struct {
 
     _draw_context: m.DrawContext,
 
-    // _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
-    _loaded_nodes: std.ArrayList(CHashMap),
+    _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
+    // _loaded_nodes: std.ArrayList(CHashMap),
 
-    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32) !*renderer_t {
-        
-        var renderer = try allocator.create(renderer_t);
-        renderer.* = renderer_t{
-            ._loaded_nodes = std.ArrayList(CHashMap).init(allocator),
+    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32) !renderer_t {
+        var renderer = renderer_t{
+            ._loaded_nodes = std.hash_map.StringHashMap(*m.Node).init(allocator),
             ._draw_context = m.DrawContext.init(allocator),
         };
         
@@ -141,23 +139,6 @@ pub const renderer_t = struct {
             std.process.exit(1);
         };
 
-        std.debug.print("opaque pipeline: {*}\n", .{renderer._default_data.pipeline.pipeline});
-
-        for (renderer._loaded_nodes.items) |*node| {
-            std.debug.print("key: {s}\n", .{ node.key });
-            for (node.value.mesh.surfaces.items) |*s| {
-                std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
-            }
-        }
-
-        // var it = renderer._loaded_nodes.iterator();
-        // while (it.next()) |node| {
-        //     std.debug.print("key: {s}\n", .{ node.key_ptr.* });
-        //     for (renderer._loaded_nodes.get(node.key_ptr.*).?.mesh.surfaces.items) |*s| {
-        //         std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
-        //     }
-        // }
-
         return renderer;
     }
 
@@ -182,7 +163,6 @@ pub const renderer_t = struct {
         vk_images.destroy_image(self._device, self._vma, &_error_checker_board_image);
 
         self._mat_constants.deinit(self._vma);
-        self._metal_rough_material.deinit(self._device);
 
         for (_test_meshes.items) |*mesh| {
             mesh.meshBuffers.deinit(self._vma);
@@ -372,10 +352,8 @@ pub const renderer_t = struct {
         try self.init_triangle_pipeline();
         try self.init_mesh_pipeline();
 
-        if (self._metal_rough_material.opaque_pipeline.pipeline == null) { // initialize it only once !
-            self._metal_rough_material = material.GLTFMetallic_Roughness.init(std.heap.page_allocator);
-            try self._metal_rough_material.build_pipeline(self);
-        }
+        self._metal_rough_material = material.GLTFMetallic_Roughness.init(std.heap.page_allocator);
+        try self._metal_rough_material.build_pipeline(self);
     }
 
     fn init_background_pipelines(self: *renderer_t) !void {
@@ -868,11 +846,7 @@ pub const renderer_t = struct {
         }
 
         // draw meshes
-        
-
         for (self._draw_context.opaque_surfaces.items) |*obj| {
-            std.debug.print("pipeline address {*}\n", .{obj.material.pipeline.pipeline});
-
             c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
             c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
             c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
@@ -1026,6 +1000,10 @@ pub const renderer_t = struct {
         scene_uniform_data.color_factors = maths.vec4{ 1, 1, 1, 1 };
         scene_uniform_data.metal_rough_factors = maths.vec4{ 1, 0.5, 0, 0 };
 
+        try self.init_mesh_material();
+    }
+
+    fn init_mesh_material(self: *renderer_t) !void {
         const material_res = material.GLTFMetallic_Roughness.MaterialResources {
             .color_image = _white_image,
             .color_sampler = _default_sampler_linear,
@@ -1036,11 +1014,6 @@ pub const renderer_t = struct {
         };
 
         self._default_data = self._metal_rough_material.write_material(self._device, material.MaterialPass.MainColor, &material_res, &_descriptor_pool);
-
-        std.debug.print("\nbefore insert\n\n", .{});
-
-        std.debug.print("material pipeline: {*}\n", .{self._metal_rough_material.opaque_pipeline.pipeline});
-        std.debug.print("opaque pipeline: {*}\n", .{self._default_data.pipeline.pipeline});
 
         for (_test_meshes.items) |*mesh| {
             var new_node: *m.Node = try std.heap.page_allocator.create(m.Node);
@@ -1057,33 +1030,10 @@ pub const renderer_t = struct {
                     .material_set = self._default_data.material_set,
                     .pass_type = self._default_data.pass_type,
                 };
-                std.debug.print("pipeline address {*}\n", .{self._default_data.pipeline.pipeline});
-                std.debug.print("ptr address {*}\n", .{self._default_data.pipeline });
             }
 
-            // std.debug.print("name {s}, node {*}\n", .{ mesh.name, new_node });
-            self._loaded_nodes.append(.{ .key = mesh.name , .value = new_node }) catch @panic("OOM");
+            self._loaded_nodes.put(mesh.name, new_node) catch @panic("OOM");
         }
-
-        std.debug.print("\ncheck data\n\n", .{});
-
-        std.debug.print("rough mat pipeline address {*}\n", .{self._metal_rough_material.opaque_pipeline.pipeline});
-
-        for (self._loaded_nodes.items) |*node| {
-            std.debug.print("key: {s}\n", .{ node.key });
-            for (node.value.mesh.surfaces.items) |*s| {
-                std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
-                std.debug.print("ptr address {*}\n", .{ s.material.data.pipeline });
-            }
-        }
-
-        // var it = self._loaded_nodes.iterator();
-        // while (it.next()) |node| {
-        //     std.debug.print("key: {s}\n", .{ node.key_ptr.* });
-        //     for (self._loaded_nodes.get(node.key_ptr.*).?.mesh.surfaces.items) |*s| {
-        //         std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
-        //     }
-        // }
     }
 
     pub fn render_scale() *f32 {
@@ -1121,6 +1071,11 @@ pub const renderer_t = struct {
             return;
         };
 
+        self.init_mesh_material() catch {
+            log.write("Failed to init material !", .{});
+            return;
+        };
+
         _rebuild_swapchain = false;
     }
 
@@ -1135,7 +1090,7 @@ pub const renderer_t = struct {
         c.vmaDestroyImage(self._vma, self._depth_image.image, self._depth_image.allocation);
 
         // destroy materials
-        // self._metal_rough_material.deinit(self._device);
+        self._metal_rough_material.deinit(self._device);
 
         // destroy descriptors
         _descriptor_pool.deinit(self._device);
@@ -1186,31 +1141,7 @@ pub const renderer_t = struct {
     pub fn update_scene(self: *renderer_t) void {
         self._draw_context.opaque_surfaces.clearRetainingCapacity();
 
-        std.debug.print("\nupdate scene\n\n", .{});
-
-        var node: ?*m.Node = null;
-        for (self._loaded_nodes.items) |*n| {
-            std.debug.print("key: {s}\n", .{ n.key });
-            if (std.mem.eql(u8, n.key, "Suzanne")) {
-                node = n.value;
-            }
-
-            for (n.value.mesh.surfaces.items) |*s| {
-                std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
-            }
-        }
-
-        // var it = self._loaded_nodes.iterator();
-        // while (it.next()) |node| {
-        //     std.debug.print("key: {s}, value {*}\n", .{ node.key_ptr.*, node.value_ptr.* });
-        //     for (self._loaded_nodes.get(node.key_ptr.*).?.mesh.surfaces.items) |*s| {
-        //         std.debug.print("pipeline address {*}\n", .{s.material.data.pipeline.pipeline});
-        //     }
-        // }
-
-        std.debug.print("\nstop\n\n", .{});
-
-        // const node = self._loaded_nodes.get("Suzanne");
+        const node = self._loaded_nodes.get("Suzanne");
         if (node == null) {
             @panic("node is null");
         }

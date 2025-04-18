@@ -33,8 +33,10 @@ pub const Renderable = struct {
 };
 
 pub const GLTFMetallic_Roughness = struct {
-    opaque_pipeline: MaterialPipeline,
-    transparent_pipeline: MaterialPipeline,
+    gpa: std.heap.ArenaAllocator,
+
+    opaque_pipeline: *MaterialPipeline,
+    transparent_pipeline: *MaterialPipeline,
 
     material_layout: c.VkDescriptorSetLayout,
 
@@ -56,12 +58,16 @@ pub const GLTFMetallic_Roughness = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator) GLTFMetallic_Roughness {
-        const instance = GLTFMetallic_Roughness {
+        var instance = GLTFMetallic_Roughness {
+            .gpa = std.heap.ArenaAllocator.init(allocator),
             .writer = descriptor.DescriptorWriter.init(allocator),
             .opaque_pipeline = undefined,
             .transparent_pipeline = undefined,
             .material_layout = undefined,
         };
+
+        instance.opaque_pipeline = instance.gpa.allocator().create(MaterialPipeline) catch @panic("OOM");
+        instance.transparent_pipeline = instance.gpa.allocator().create(MaterialPipeline) catch @panic("OOM");
 
         return instance;
     }
@@ -74,6 +80,7 @@ pub const GLTFMetallic_Roughness = struct {
 
         c.vkDestroyDescriptorSetLayout(device, self.material_layout, null);
 
+        self.gpa.deinit();
         self.writer.deinit();
     }
 
@@ -148,14 +155,14 @@ pub const GLTFMetallic_Roughness = struct {
         self.transparent_pipeline.pipeline = builder.build_pipeline(renderer._device);
     }
 
-    pub fn clear_resources(device: c.VkDevice) void {
-        _ = device;
+    pub fn clear_resources(_: *GLTFMetallic_Roughness, _: c.VkDevice) void {
+
     }
 
     pub fn write_material(self: *GLTFMetallic_Roughness, device: c.VkDevice, pass: MaterialPass, resources: *const MaterialResources, ds_alloc: *descriptor.DescriptorAllocator) MaterialInstance {
         const mat_data = MaterialInstance {
             .pass_type = pass,
-            .pipeline = if (pass == MaterialPass.Transparent) &self.transparent_pipeline else &self.opaque_pipeline,
+            .pipeline = if (pass == MaterialPass.Transparent) self.transparent_pipeline else self.opaque_pipeline,
             .material_set = ds_alloc.allocate(device, self.material_layout),
         };
 
