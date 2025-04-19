@@ -1121,7 +1121,7 @@ pub const renderer_t = struct {
         const view = self._main_camera.view_matrix();
 
         const deg: f32 = 70.0;
-        var proj = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1, 10000.0);
+        var proj = z.perspective(deg, @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1, 10000.0);
         proj.data[1][1] *= -1.0;
 
         _scene_data.view = view.data;
