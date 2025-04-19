@@ -7,10 +7,6 @@ const Error = error{
 pub const renderer_t = struct {
     var _render_scale: f32 = 1.0;
 
-    var _descriptor_pool: descriptor.DescriptorAllocator = undefined;
-    var _draw_image_descriptor: c.VkDescriptorSetLayout = undefined;
-    var _draw_image_descriptor_set: c.VkDescriptorSet = undefined;
-
     // pipelines
     var _gradiant_pipeline: c.VkPipeline = undefined;
     var _gradiant_pipeline_layout: c.VkPipelineLayout = undefined;
@@ -57,6 +53,7 @@ pub const renderer_t = struct {
 
     // swapchain
     _sw: vk.sw.swapchain_t = undefined,
+    _rebuild_swapchain: bool = false,
 
     // frames
     _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined,
@@ -66,6 +63,9 @@ pub const renderer_t = struct {
     _draw_image: vk_images.image_t = vk_images.image_t{},
     _depth_image: vk_images.image_t = vk_images.image_t{},
     _draw_extent: c.VkExtent2D = .{},
+    _descriptor_pool: descriptor.DescriptorAllocator = undefined,
+    _draw_image_descriptor: c.VkDescriptorSetLayout = undefined,
+    _draw_image_descriptor_set: c.VkDescriptorSet = undefined,
 
     // immediate submit structures
     _imm_fence: c.VkFence = undefined,
@@ -84,7 +84,6 @@ pub const renderer_t = struct {
     _draw_context: m.DrawContext,
 
     _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
-    // _loaded_nodes: std.ArrayList(CHashMap),
 
     pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32) !renderer_t {
         var renderer = renderer_t{
@@ -292,7 +291,7 @@ pub const renderer_t = struct {
             },
         };
 
-	    _descriptor_pool = try descriptor.DescriptorAllocator.init(self._device, 10, &sizes);
+	    self._descriptor_pool = try descriptor.DescriptorAllocator.init(self._device, 10, &sizes);
 
 	    //make the descriptor set layout for our compute draw
 	    {
@@ -300,16 +299,16 @@ pub const renderer_t = struct {
             defer builder.deinit();
 
 		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-		    _draw_image_descriptor = builder.build(self._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+		    self._draw_image_descriptor = builder.build(self._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
 	    }
 
-        _draw_image_descriptor_set = _descriptor_pool.allocate(self._device, _draw_image_descriptor);
+        self._draw_image_descriptor_set = self._descriptor_pool.allocate(self._device, self._draw_image_descriptor);
 
         var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
         defer writer.deinit();
     
         writer.write_image(0, self._draw_image.view, null, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-        writer.update_set(self._device, _draw_image_descriptor_set);
+        writer.update_set(self._device, self._draw_image_descriptor_set);
 
 
         for (&self._frames) |*frame| {
@@ -362,7 +361,7 @@ pub const renderer_t = struct {
             .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 	        .pNext = null,
 
-	        .pSetLayouts = &_draw_image_descriptor,
+	        .pSetLayouts = &self._draw_image_descriptor,
 	        .setLayoutCount = 1,
 
             .pPushConstantRanges = &push_constant,
@@ -560,8 +559,6 @@ pub const renderer_t = struct {
         return @max(-n, n);
     }
 
-    var _rebuild_swapchain: bool = false;
-
     pub fn draw(self: *renderer_t) void {
         self.update_scene();
 
@@ -587,7 +584,7 @@ pub const renderer_t = struct {
         switch(result) {
             c.VK_SUCCESS => {},
             c.VK_ERROR_OUT_OF_DATE_KHR => {
-                _rebuild_swapchain = true;
+                self._rebuild_swapchain = true;
                 return;
             },
             else => {
@@ -690,7 +687,7 @@ pub const renderer_t = struct {
         switch(result) {
             c.VK_SUCCESS => {},
             c.VK_ERROR_OUT_OF_DATE_KHR => {
-                _rebuild_swapchain = true;
+                self._rebuild_swapchain = true;
                 return;
             },
             else => {
@@ -708,7 +705,7 @@ pub const renderer_t = struct {
 	    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	    // bind the descriptor set containing the draw image for the compute pipeline
-	    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &_draw_image_descriptor_set, 0, null);
+	    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &self._draw_image_descriptor_set, 0, null);
 
 	    c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(effects.ComputePushConstants), &effect.data);
 
@@ -978,7 +975,7 @@ pub const renderer_t = struct {
             .data_buffer_offset = 0,
         };
 
-        self._default_data = self._metal_rough_material.write_material(self._device, material.MaterialPass.MainColor, &material_res, &_descriptor_pool);
+        self._default_data = self._metal_rough_material.write_material(self._device, material.MaterialPass.MainColor, &material_res, &self._descriptor_pool);
 
         for (_test_meshes.items) |*mesh| {
             var new_node: *m.Node = try std.heap.page_allocator.create(m.Node);
@@ -1005,8 +1002,8 @@ pub const renderer_t = struct {
         return &_render_scale;
     }
 
-    pub fn should_rebuild_sw() bool {
-        return _rebuild_swapchain;
+    pub fn should_rebuild_sw(self: *renderer_t) bool {
+        return self._rebuild_swapchain;
     }
 
     pub fn rebuild_swapchain(self: *renderer_t, window: ?*c.SDL_Window) void {
@@ -1041,7 +1038,7 @@ pub const renderer_t = struct {
             return;
         };
 
-        _rebuild_swapchain = false;
+        self._rebuild_swapchain = false;
     }
 
     fn destroy_swapchain(self: *renderer_t) void {
@@ -1058,8 +1055,8 @@ pub const renderer_t = struct {
         self._metal_rough_material.deinit(self._device);
 
         // destroy descriptors
-        _descriptor_pool.deinit(self._device);
-	    c.vkDestroyDescriptorSetLayout(self._device, _draw_image_descriptor, null);
+        self._descriptor_pool.deinit(self._device);
+	    c.vkDestroyDescriptorSetLayout(self._device, self._draw_image_descriptor, null);
 
         c.vkDestroyDescriptorSetLayout(self._device, self._gpu_scene_data_descriptor_layout, null);
 

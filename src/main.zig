@@ -37,7 +37,7 @@ pub fn main() !u8 {
             _ = imgui.cImGui_ImplSDL3_ProcessEvent(@ptrCast(&event));
         }
 
-        if (engine.renderer_t.should_rebuild_sw()) {
+        if (renderer.should_rebuild_sw()) {
             renderer.rebuild_swapchain(window);
         }
 
