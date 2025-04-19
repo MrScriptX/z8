@@ -6,7 +6,8 @@ pub const camera_t = struct {
     yaw: f32 = 0,
 
     pub fn view_matrix(self: *camera_t) zalgebra.Mat4 {
-        const camera_translation = zalgebra.Mat4.identity().translate(self.position);
+        const position = zalgebra.Vec3.new(self.position[0], self.position[1], self.position[2]);
+        const camera_translation = zalgebra.Mat4.identity().translate(position);
         const camera_rotation = self.rotation_matrix();
         return zalgebra.Mat4.mul(camera_translation, camera_rotation).inv();
     }

@@ -1114,31 +1114,41 @@ pub const renderer_t = struct {
         const top: maths.mat4 align(16) = z.Mat4.identity().data;
         node.?.draw(&top, &self._draw_context);
 
-        const delta_time = calculate_delta_time(); 
+        // const delta_time = calculate_delta_time(); 
 
         self._main_camera.update();
 
-        var view: z.Mat4 = _last_view;
+        const view = self._main_camera.view_matrix();
 
-        const rotation_speed: f32 = 45.0; // Degrees per second
-        const rotation_angle = rotation_speed * (delta_time / 1_000_000_000.0);
-        view = view.rotate(rotation_angle, z.Vec3.new(0, 1, 0));
-
-        _last_view = view;
-
-        _scene_data.view = view.data;
-        
         const deg: f32 = 70.0;
         var proj = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1, 10000.0);
         proj.data[1][1] *= -1.0;
 
+        _scene_data.view = view.data;
         _scene_data.proj = proj.data;
-
         _scene_data.viewproj = z.Mat4.mul(proj, view).data;
 
-        _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
-        _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
-        _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
+        // var view: z.Mat4 = _last_view;
+
+        // const rotation_speed: f32 = 45.0; // Degrees per second
+        // const rotation_angle = rotation_speed * (delta_time / 1_000_000_000.0);
+        // view = view.rotate(rotation_angle, z.Vec3.new(0, 1, 0));
+
+        // _last_view = view;
+
+        // _scene_data.view = view.data;
+        
+        // const deg: f32 = 70.0;
+        // var proj = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1, 10000.0);
+        // proj.data[1][1] *= -1.0;
+
+        // _scene_data.proj = proj.data;
+
+        // _scene_data.viewproj = z.Mat4.mul(proj, view).data;
+
+        // _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
+        // _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
+        // _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
     }
 };
 

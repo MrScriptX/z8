@@ -19,7 +19,9 @@ pub fn main() !u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer log.write("Memory check - {any}", .{gpa.deinit()});
 
-    var main_camera: camera.camera_t = .{};
+    var main_camera: camera.camera_t = .{
+        .position = .{ 0, 0, 5 }
+    };
 
     var renderer = engine.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
         c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
