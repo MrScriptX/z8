@@ -85,10 +85,13 @@ pub const renderer_t = struct {
 
     _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
 
-    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32) !renderer_t {
+    _main_camera: *camera.camera_t,
+
+    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32, cam: *camera.camera_t) !renderer_t {
         var renderer = renderer_t{
             ._loaded_nodes = std.hash_map.StringHashMap(*m.Node).init(allocator),
             ._draw_context = m.DrawContext.init(allocator),
+            ._main_camera = cam,
         };
         
         renderer._arena = std.heap.ArenaAllocator.init(allocator);
@@ -1113,6 +1116,8 @@ pub const renderer_t = struct {
 
         const delta_time = calculate_delta_time(); 
 
+        self._main_camera.update();
+
         var view: z.Mat4 = _last_view;
 
         const rotation_speed: f32 = 45.0; // Degrees per second
@@ -1155,5 +1160,6 @@ const scene = @import("scene.zig");
 const maths = @import("../utils/maths.zig");
 const material = @import("material.zig");
 const m = @import("mesh.zig");
+const camera = @import("../engine/camera.zig");
 
 const log = @import("../utils/log.zig");

@@ -1,5 +1,6 @@
 pub const mat4 = [4][4]f32;
 pub const vec4 = [4]f32;
+pub const vec3 = @Vector(3, f32);
 
 const unorm4x8 = packed struct(u32) {
     x: u8,
@@ -37,6 +38,21 @@ pub fn mul(mx: mat4, my: mat4) mat4 {
 
     return result;
 }
+
+pub const mat4_t = struct {
+    pub fn mul_vec4(m: mat4, v: @Vector(4, f32)) @Vector(4, f32) {
+        var result: @Vector(4, f32) = undefined;
+
+        for (m, 0..) |row, i| {
+            result[i] = row[0] * v[0] +
+                row[1] * v[1] +
+                row[2] * v[2] +
+                row[3] * v[3];
+        }
+
+        return result;
+    }
+};
 
 test "mat4 mul" {
      const identity: [4][4]f32 = .{

@@ -19,7 +19,9 @@ pub fn main() !u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer log.write("Memory check - {any}", .{gpa.deinit()});
 
-    var renderer = engine.renderer_t.init(gpa.allocator(), window, width, heigh) catch {
+    var main_camera: camera.camera_t = .{};
+
+    var renderer = engine.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
         c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
@@ -33,6 +35,8 @@ pub fn main() !u8 {
             if (event.type == c.SDL_EVENT_QUIT) {
                 quit = true;
             }
+
+            main_camera.process_sdl_event(&event);
 
             _ = imgui.cImGui_ImplSDL3_ProcessEvent(@ptrCast(&event));
         }
@@ -77,5 +81,6 @@ test "engine test" {
 const std = @import("std");
 const c = @import("clibs.zig");
 const engine = @import("renderer/engine.zig");
+const camera = @import("engine/camera.zig");
 const imgui = @import("renderer/imgui.zig");
 const log = @import("utils/log.zig");
