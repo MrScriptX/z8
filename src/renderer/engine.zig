@@ -1112,11 +1112,11 @@ pub const renderer_t = struct {
         }
 
         const top: maths.mat4 align(16) = z.Mat4.identity().data;
-        node.?.draw(&top, &self._draw_context);
+        node.?.draw(&top, &self._draw_context); 
 
-        // const delta_time = calculate_delta_time(); 
+        const delta_time = calculate_delta_time();
 
-        self._main_camera.update();
+        self._main_camera.update(delta_time);
 
         const view = self._main_camera.view_matrix();
 
@@ -1146,9 +1146,9 @@ pub const renderer_t = struct {
 
         // _scene_data.viewproj = z.Mat4.mul(proj, view).data;
 
-        // _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
-        // _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
-        // _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
+        _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
+        _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
+        _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
     }
 };
 
