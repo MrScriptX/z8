@@ -14,7 +14,14 @@ pub const DrawContext = struct {
     }
 };
 
+pub const NodeType = enum {
+    BASE_NODE,
+    MESH_NODE,
+};
+
 pub const Node = struct {
+    _type: NodeType = undefined,
+
     parent: ?*Node = null,
     children: std.ArrayList(*Node),
 
@@ -27,6 +34,7 @@ pub const Node = struct {
         const node = Node {
             .children = std.ArrayList(*Node).init(allocator),
             .mesh = undefined,
+            ._type = NodeType.BASE_NODE
         };
 
         return node;
