@@ -16,8 +16,8 @@ pub fn main() !u8 {
     }
     defer c.SDL_DestroyWindow(window);
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer log.write("Memory check - {any}", .{gpa.deinit()});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
     var main_camera: camera.camera_t = .{
         .position = .{ 0, 0, 5 }
@@ -77,12 +77,51 @@ pub fn main() !u8 {
     return 0;
 }
 
+pub const std_options: std.Options = .{
+    .logFn = log,
+};
+
+pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
+    const allocator = std.heap.page_allocator;
+
+    const message = std.fmt.allocPrint(allocator, format, args) catch {
+        std.debug.print("Failed to allocate logging message\n", .{});
+        return;
+    };
+    defer allocator.free(message);
+
+    const log_msg = std.fmt.allocPrint(allocator, "{any}\t: {s}\n", .{ level, message }) catch {
+        std.debug.print("Failed to allocate final log message\n", .{});
+        return;
+    };
+    defer allocator.free(log_msg);
+
+    if (level == std.log.Level.err) {
+        const success = c.SDL_ShowSimpleMessageBox(c.SDL_MESSAGEBOX_ERROR, "Error", log_msg.ptr, null);
+        if (!success) {
+            std.debug.print("Unable to show message box: {s}\n", .{ c.SDL_GetError() });
+            c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to show message box: %s", c.SDL_GetError());
+        }
+    }
+
+    // TODO : print to log file
+    const stdout = std.io.getStdOut();
+    stdout.writer().print("{s}", .{ log_msg }) catch {
+        std.debug.print("Fail to write to out stream !\n", .{});
+    };
+
+    // if (builtin.mode == .Debug) {
+    //     std.debug.print("{s}\n", .{ log_msg });
+    // }
+}
+
 test "engine test" {
 }
 
 const std = @import("std");
+const builtin = @import("builtin");
 const c = @import("clibs.zig");
 const engine = @import("renderer/engine.zig");
 const camera = @import("engine/camera.zig");
 const imgui = @import("renderer/imgui.zig");
-const log = @import("utils/log.zig");
+// const log = @import("utils/log.zig");
