@@ -127,7 +127,11 @@ pub const renderer_t = struct {
                 imgui.Error.PoolAllocFailed => {
                     err.display_error("Failed to create pool for ImGui !");
                     std.process.exit(1);
-                }
+                },
+                imgui.Error.ImGuiInitFailed => {
+                    err.display_error("Failed to initialize ImGui !");
+                    std.process.exit(1);
+                },
             }
         };
 
@@ -288,10 +292,10 @@ pub const renderer_t = struct {
 
     fn init_descriptors(self: *renderer_t) !void {
         const sizes = [_]descriptor.PoolSizeRatio{
-            descriptor.PoolSizeRatio{
-                ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                ._ratio = 1.0,
-            },
+            descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
+            descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
+            descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 3 },
+            descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
         };
 
 	    self._descriptor_pool = try descriptor.DescriptorAllocator.init(self._device, 10, &sizes);

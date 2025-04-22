@@ -85,7 +85,11 @@ pub const DescriptorAllocator = struct {
         };
 
         var pool: c.VkDescriptorPool = undefined;
-	    _ = c.vkCreateDescriptorPool(device, &pool_info, null, &pool);
+	    const result = c.vkCreateDescriptorPool(device, &pool_info, null, &pool);
+        if (result != c.VK_SUCCESS) {
+            log.err("Failed to create descriptor pool ! Reason {d}", .{result});
+            @panic("Failed to create descriptor pool !");
+        }
 
         return DescriptorAllocator{
             ._pool = pool,

@@ -12,11 +12,14 @@ const lib = @cImport({
 });
 
 pub const Error = error{
-   PoolAllocFailed
+   PoolAllocFailed,
+   ImGuiInitFailed,
 };
 
 pub const GuiContext = struct {
    _pool: c.VkDescriptorPool = undefined,
+
+   context: *lib.ImGuiContext,
 
    pub fn init(window: ?*c.SDL_Window, device: c.VkDevice, instance: c.VkInstance,
       gpu: c.VkPhysicalDevice, queue: c.VkQueue, format: *c.VkFormat) Error!GuiContext {
@@ -48,9 +51,15 @@ pub const GuiContext = struct {
          return Error.PoolAllocFailed;
       }
 
-      _ = lib.ImGui_CreateContext(null);
+      const context = lib.ImGui_CreateContext(null);
+      if (context == null) {
+         return Error.ImGuiInitFailed;
+      }
 
-      _ = lib.cImGui_ImplSDL3_InitForVulkan(@ptrCast(window));
+      const init_sdl3 = lib.cImGui_ImplSDL3_InitForVulkan(@ptrCast(window));
+      if (!init_sdl3) {
+         return Error.ImGuiInitFailed;
+      }
 
       var init_imgui_info = lib.ImGui_ImplVulkan_InitInfo {
          .Instance = @ptrCast(instance),
@@ -71,11 +80,19 @@ pub const GuiContext = struct {
          .MSAASamples = c.VK_SAMPLE_COUNT_1_BIT,
       };
 
-      _ = lib.cImGui_ImplVulkan_Init(&init_imgui_info);
-      _ = lib.cImGui_ImplVulkan_CreateFontsTexture();
+      const init_vulkan = lib.cImGui_ImplVulkan_Init(&init_imgui_info);
+      if (!init_vulkan) {
+         return Error.ImGuiInitFailed;
+      }
+
+      const create_fonts = lib.cImGui_ImplVulkan_CreateFontsTexture();
+      if (!create_fonts) {
+         return Error.ImGuiInitFailed;
+      }
 
       return GuiContext {
-         ._pool = pool
+         ._pool = pool,
+         .context = context.?,
       };
    }
 
