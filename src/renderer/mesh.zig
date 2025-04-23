@@ -45,9 +45,9 @@ pub const Node = struct {
     }
 
     pub fn refresh_transform(self: *Node, parent_matrix: *const math.mat4) void {
-        self.world_transform = parent_matrix * self.local_transform;
+        self.world_transform = math.mul(parent_matrix.*, self.local_transform);// parent_matrix * self.local_transform;
         for (self.children.items) |child| {
-            child.refresh_transform(self.world_transform);
+            child.refresh_transform(&self.world_transform);
         }
     }
 

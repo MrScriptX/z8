@@ -28,15 +28,17 @@ pub const renderer_t = struct {
 
     var _scene_data: scene.GPUData = undefined;
 
-    var _white_image: vk_images.image_t = undefined;
-    var _black_image: vk_images.image_t = undefined;
-    var _grey_image: vk_images.image_t = undefined;
-    var _error_checker_board_image: vk_images.image_t = undefined;
+    pub var _white_image: vk_images.image_t = undefined;
+    pub var _black_image: vk_images.image_t = undefined;
+    pub var _grey_image: vk_images.image_t = undefined;
+    pub var _error_checker_board_image: vk_images.image_t = undefined;
 
-    var _default_sampler_linear: c.VkSampler = undefined;
-    var _default_sampler_nearest: c.VkSampler = undefined;
+    pub var _default_sampler_linear: c.VkSampler = undefined;
+    pub var _default_sampler_nearest: c.VkSampler = undefined;
 
     var _single_image_descriptor_layout: c.VkDescriptorSetLayout = undefined;
+
+    var _loaded_scenes: std.hash_map.StringHashMap(*loader.LoadedGLTF) = undefined;
 
     // memory allocators
     _arena: std.heap.ArenaAllocator = undefined,
@@ -96,6 +98,7 @@ pub const renderer_t = struct {
         
         renderer._arena = std.heap.ArenaAllocator.init(allocator);
         _background_effects = std.ArrayList(effects.ComputeEffect).init(allocator);
+        _loaded_scenes = std.hash_map.StringHashMap(*loader.LoadedGLTF).init(allocator);
 
         renderer.init_vulkan(window) catch {
             err.display_error("Failed to init vulkan API !");
@@ -140,12 +143,15 @@ pub const renderer_t = struct {
             std.process.exit(1);
         };
 
+        _ = try loader.load_gltf(allocator, "", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+
         return renderer;
     }
 
     pub fn deinit(self: *renderer_t) void {
         defer self._arena.deinit();
         defer _background_effects.deinit();
+        defer _loaded_scenes.deinit();
 
         self._draw_context.deinit();
         self._loaded_nodes.deinit();
@@ -982,7 +988,7 @@ pub const renderer_t = struct {
             .data_buffer_offset = 0,
         };
 
-        self._default_data = self._metal_rough_material.write_material(self._device, material.MaterialPass.MainColor, &material_res, &self._descriptor_pool);
+        self._default_data = self._metal_rough_material.write_material_compat(self._device, material.MaterialPass.MainColor, &material_res, &self._descriptor_pool);
 
         for (_test_meshes.items) |*mesh| {
             var new_node: *m.Node = try std.heap.page_allocator.create(m.Node);

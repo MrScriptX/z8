@@ -159,7 +159,24 @@ pub const GLTFMetallic_Roughness = struct {
 
     }
 
-    pub fn write_material(self: *GLTFMetallic_Roughness, device: c.VkDevice, pass: MaterialPass, resources: *const MaterialResources, ds_alloc: *descriptor.DescriptorAllocator) MaterialInstance {
+    pub fn write_material(self: *GLTFMetallic_Roughness, device: c.VkDevice, pass: MaterialPass, resources: *const MaterialResources, ds_alloc: *descriptor.DescriptorAllocator2) MaterialInstance {
+        const mat_data = MaterialInstance {
+            .pass_type = pass,
+            .pipeline = if (pass == MaterialPass.Transparent) self.transparent_pipeline else self.opaque_pipeline,
+            .material_set = ds_alloc.allocate(device, self.material_layout, null),
+        };
+
+        self.writer.clear();
+        self.writer.write_buffer(0, resources.data_buffer, @sizeOf(MaterialConstants), resources.data_buffer_offset, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        self.writer.write_image(1, resources.color_image.view, resources.color_sampler, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        self.writer.write_image(2, resources.metal_rough_image.view, resources.metal_rough_sampler, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+        self.writer.update_set(device, mat_data.material_set);
+
+        return mat_data;
+    }
+
+    pub fn write_material_compat(self: *GLTFMetallic_Roughness, device: c.VkDevice, pass: MaterialPass, resources: *const MaterialResources, ds_alloc: *descriptor.DescriptorAllocator) MaterialInstance {
         const mat_data = MaterialInstance {
             .pass_type = pass,
             .pipeline = if (pass == MaterialPass.Transparent) self.transparent_pipeline else self.opaque_pipeline,
