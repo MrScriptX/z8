@@ -54,8 +54,8 @@ pub const Node = struct {
         }
     }
 
-    pub fn draw(self: *Node, top_matrix: *const math.mat4, ctx: *DrawContext) void {
-        const node_matrix = math.mul(top_matrix.*, self.world_transform);
+    pub fn draw(self: *Node, top_matrix: math.mat4, ctx: *DrawContext) void {
+        const node_matrix = math.mul(top_matrix, self.world_transform);
         for (self.mesh.surfaces.items) |*surface| {
             const render_object = mat.RenderObject {
                 .index_count = surface.count,

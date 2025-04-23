@@ -240,8 +240,11 @@ pub const LoadedGLTF = struct {
         }
     }
 
-    pub fn draw(self: *LoadedGLTF, top_matrix: *const [4][4]f32, ctx: *m.DrawContext) void {
-        for (self.top_nodes.items) |*node| {
+    pub fn draw(self: *LoadedGLTF, top_matrix: [4][4]f32, ctx: *m.DrawContext) void {
+        std.debug.print("context {*}\n", .{ ctx } );
+
+        for (self.top_nodes.items) |node| {
+            std.debug.print("node {*}\n", .{node});
             node.*.draw(top_matrix, ctx);
         }
     }
@@ -525,7 +528,11 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
         try scene.nodes.put(name, new_node);
 
         if (node.has_matrix != 0) {
-            @memcpy(@as(*[16]f32, @ptrCast(&new_node.local_transform)), &node.matrix); // error prone
+           for (0..4) |row| {
+                for (0..4) |col| {
+                    new_node.local_transform[row][col] = node.matrix[row * 4 + col];
+                }
+            }
         }
         else {
             const t = z.Vec3.new(node.translation[0], node.translation[1], node.translation[2]);
@@ -561,6 +568,13 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             node.value_ptr.*.refresh_transform(&z.Mat4.identity().data);
         }
     }
+
+    std.debug.print("loaded result\n\n", .{});
+    for (scene.top_nodes.items) |node| {
+        std.debug.print("node {*}\n", .{node});
+        
+    }
+    std.debug.print("end loading\n\n", .{});
 
     return scene;
 }
