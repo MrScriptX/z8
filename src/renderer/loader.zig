@@ -219,6 +219,17 @@ pub const LoadedGLTF = struct {
         defer self.descriptor_pool.deinit(device);
         defer self.material_data_buffer.deinit(vma);
 
+        var node_it = self.nodes.iterator();
+        while (node_it.next()) |*node| {
+            node.value_ptr.*.deinit();
+        }
+
+        var mesh_it = self.meshes.iterator();
+        while (mesh_it.next()) |*mesh| {
+            mesh.value_ptr.*.meshBuffers.deinit(vma);
+            mesh.value_ptr.*.deinit();
+        }
+
         for (self.samplers.items) |sampler| {
             c.vkDestroySampler(device, sampler, null);
         }

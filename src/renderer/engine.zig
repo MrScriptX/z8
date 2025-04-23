@@ -143,8 +143,10 @@ pub const renderer_t = struct {
             std.process.exit(1);
         };
 
-        var gltf = try loader.load_gltf(allocator, "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
-        defer gltf.deinit(renderer._device, renderer._vma);
+        const gltf = try renderer._arena.allocator().create(loader.LoadedGLTF);
+        gltf.* = try loader.load_gltf(allocator, "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+
+        try _loaded_scenes.put("structure", gltf);
 
         return renderer;
     }
@@ -153,6 +155,11 @@ pub const renderer_t = struct {
         defer self._arena.deinit();
         defer _background_effects.deinit();
         defer _loaded_scenes.deinit();
+       
+        var it = _loaded_scenes.iterator();
+        while (it.next()) |*gltf| {
+            gltf.value_ptr.*.deinit(self._device, self._vma);
+        }
 
         self._draw_context.deinit();
         self._loaded_nodes.deinit();
