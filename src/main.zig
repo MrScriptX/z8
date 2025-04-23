@@ -20,7 +20,7 @@ pub fn main() !u8 {
     defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
     var main_camera: camera.camera_t = .{
-        .position = .{ 0, 0, 5 }
+        .position = .{ 0, 0, 200 }
     };
 
     var renderer = engine.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {

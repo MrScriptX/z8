@@ -146,14 +146,6 @@ pub const renderer_t = struct {
         const gltf = try renderer._arena.allocator().create(loader.LoadedGLTF);
         gltf.* = try loader.load_gltf(allocator, "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
 
-        std.debug.print("main\n", .{});
-
-        for (gltf.top_nodes.items) |node| {
-            std.debug.print("node {*}\n", .{node});
-        }
-
-        std.debug.print("end main\n", .{});
-
         try _loaded_scenes.put("structure", gltf);
 
         return renderer;
@@ -163,7 +155,12 @@ pub const renderer_t = struct {
         defer self._arena.deinit();
         defer _background_effects.deinit();
         defer _loaded_scenes.deinit();
-       
+
+        const result = c.vkDeviceWaitIdle(self._device);
+        if (result != c.VK_SUCCESS) {
+            log.write("Failed to wait for device idle ! Reason {d}.", .{result});
+        }
+
         var it = _loaded_scenes.iterator();
         while (it.next()) |*gltf| {
             gltf.value_ptr.*.deinit(self._device, self._vma);
@@ -171,11 +168,6 @@ pub const renderer_t = struct {
 
         self._draw_context.deinit();
         self._loaded_nodes.deinit();
-
-        const result = c.vkDeviceWaitIdle(self._device);
-        if (result != c.VK_SUCCESS) {
-            log.write("Failed to wait for device idle ! Reason {d}.", .{result});
-        }
 
         c.vkDestroySampler(self._device, _default_sampler_nearest, null);
         c.vkDestroySampler(self._device, _default_sampler_linear, null);

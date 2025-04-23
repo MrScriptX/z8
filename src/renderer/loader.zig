@@ -241,10 +241,7 @@ pub const LoadedGLTF = struct {
     }
 
     pub fn draw(self: *LoadedGLTF, top_matrix: [4][4]f32, ctx: *m.DrawContext) void {
-        std.debug.print("context {*}\n", .{ ctx } );
-
         for (self.top_nodes.items) |node| {
-            std.debug.print("node {*}\n", .{node});
             node.*.draw(top_matrix, ctx);
         }
     }
@@ -325,6 +322,8 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             try scene.images.put(name, it);
         }
         else {
+            std.log.warn("Missing image {s}", .{ std.mem.span(img.name) });
+
             const name = try alloc.dupe(u8, std.mem.span(img.name));
             try images.put(name, &engine.renderer_t._error_checker_board_image);
         }
@@ -568,13 +567,6 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             node.value_ptr.*.refresh_transform(&z.Mat4.identity().data);
         }
     }
-
-    std.debug.print("loaded result\n\n", .{});
-    for (scene.top_nodes.items) |node| {
-        std.debug.print("node {*}\n", .{node});
-        
-    }
-    std.debug.print("end loading\n\n", .{});
 
     return scene;
 }
