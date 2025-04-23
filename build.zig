@@ -127,8 +127,8 @@ pub fn build(b: *std.Build) !void {
     exe.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_vulkan.cpp"), .flags = &.{ "" } });
 
     // add cgltf
-    exe.addIncludePath(.{ .cwd_relative = "common/cgltf" });
-    exe.addCSourceFile(.{ .file = b.path("src/lib/gltf.c"), .flags = &.{ "" } });
+    const gltf = @import("libs/cgltf/build.zig").build(b, target, optimize);
+    exe.root_module.addImport("cgltf", gltf);
 
     // add zalgebra
     const zalgebra = b.addModule("zalgebra", .{
