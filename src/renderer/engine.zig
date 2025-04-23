@@ -143,7 +143,8 @@ pub const renderer_t = struct {
             std.process.exit(1);
         };
 
-        _ = try loader.load_gltf(allocator, "", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+        var gltf = try loader.load_gltf(allocator, "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+        defer gltf.deinit(renderer._device, renderer._vma);
 
         return renderer;
     }

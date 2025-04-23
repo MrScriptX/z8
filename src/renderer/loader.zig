@@ -167,7 +167,7 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
 }
 
 pub const LoadedGLTF = struct {
-    arena: std.heap.ArenaAllocator,
+    arena: std.heap.ArenaAllocator, // use to allocate resources stored in hash maps
 
     meshes: std.hash_map.StringHashMap(*MeshAsset),
     nodes: std.hash_map.StringHashMap(*m.Node),
@@ -176,7 +176,7 @@ pub const LoadedGLTF = struct {
 
     top_nodes: std.ArrayList(*m.Node),
     
-    samplers: std.hash_map.StringHashMap(c.VkSampler),
+    samplers: std.ArrayList(c.VkSampler),
 
     descriptor_pool: descriptors.DescriptorAllocator2,
 
@@ -198,18 +198,30 @@ pub const LoadedGLTF = struct {
             .renderer = renderer,
         };
 
-        gltf.meshes = std.hash_map.StringHashMap(*MeshAsset).init(gltf.arena.allocator());
-        gltf.nodes = std.hash_map.StringHashMap(*m.Node).init(gltf.arena.allocator());
-        gltf.images = std.hash_map.StringHashMap(buffers.AllocatedBuffer).init(gltf.arena.allocator());
-        gltf.materials = std.hash_map.StringHashMap(*GLTFMaterial).init(gltf.arena.allocator());
-        gltf.top_nodes = std.ArrayList(*m.Node).init(gltf.arena.allocator());
-        gltf.samplers = std.hash_map.StringHashMap(c.VkSampler).init(gltf.arena.allocator());
+        gltf.meshes = std.hash_map.StringHashMap(*MeshAsset).init(allocator);
+        gltf.nodes = std.hash_map.StringHashMap(*m.Node).init(allocator);
+        gltf.images = std.hash_map.StringHashMap(buffers.AllocatedBuffer).init(allocator);
+        gltf.materials = std.hash_map.StringHashMap(*GLTFMaterial).init(allocator);
+        gltf.top_nodes = std.ArrayList(*m.Node).init(allocator);
+        gltf.samplers = std.ArrayList(c.VkSampler).init(allocator);
 
         return gltf;
     }
 
-    pub fn deinit(_: *LoadedGLTF) void {
+    pub fn deinit(self: *LoadedGLTF, device: c.VkDevice, vma: c.VmaAllocator) void {
+        defer self.arena.deinit(); // free data in hash maps
+        defer self.samplers.deinit();
+        defer self.nodes.deinit();
+        defer self.meshes.deinit();
+        defer self.images.deinit();
+        defer self.materials.deinit();
+        defer self.top_nodes.deinit();
+        defer self.descriptor_pool.deinit(device);
+        defer self.material_data_buffer.deinit(vma);
 
+        for (self.samplers.items) |sampler| {
+            c.vkDestroySampler(device, sampler, null);
+        }
     }
 
     pub fn draw(self: *LoadedGLTF, top_matrix: *const c.mat4s, ctx: *m.DrawContext) void {
@@ -246,7 +258,8 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     };
 
     scene.descriptor_pool = descriptors.DescriptorAllocator2.init(device, @intCast(data.materials_count), &sizes);
-    
+
+    // load samplers
     for (data.samplers[0..data.samplers_count]) |*sampler| {
         const mag_filter = if (sampler.*.mag_filter != 0) sampler.*.mag_filter else cgltf.cgltf_filter_type_nearest;
         const min_filter = if (sampler.*.min_filter != 0) sampler.*.min_filter else cgltf.cgltf_filter_type_nearest;
@@ -271,14 +284,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             @panic("Failed to create sampler !");
         }
 
-        const name = scene.arena.allocator().dupe(u8, std.mem.span(sampler.*.name)) catch {
-            std.log.err("Failed to copy sampler name !", .{});
-            @panic("OOM");
-        };
-        scene.samplers.put(name, new_sampler) catch {
-            std.log.err("Failed to append new sampler ! OOM !", .{});
-            @panic("OOM");
-        };
+        try scene.samplers.append(new_sampler);
     }
 
     // local allocator
@@ -292,14 +298,8 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     defer images.deinit();
 
     for (data.images[0..data.images_count]) |img| {
-        const name = alloc.dupe(u8, std.mem.span(img.name)) catch {
-            std.log.err("Failed to copy image name !", .{});
-            @panic("OOM");
-        };
-        images.put(name, engine.renderer_t._error_checker_board_image) catch {
-            log.err("Failed to append image ! OOM !", .{});
-            @panic("OOM");
-        };
+        const name = try alloc.dupe(u8, std.mem.span(img.name));
+        try images.put(name, engine.renderer_t._error_checker_board_image);
     }
 
     // buffer to hold material data
@@ -312,7 +312,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     defer materials.deinit();
 
     for (data.materials[0..data.materials_count]) |*material| {
-        var new_mat = allocator.create(GLTFMaterial) catch @panic("OOM");
+        var new_mat = scene.arena.allocator().create(GLTFMaterial) catch @panic("OOM");
         
         const name = scene.arena.allocator().dupe(u8, std.mem.span(material.name)) catch @panic("OOM");
         scene.materials.put(name, new_mat) catch @panic("OOM");
@@ -344,10 +344,10 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
 
         if (material.pbr_metallic_roughness.base_color_texture.texture != null) {
             const img = material.pbr_metallic_roughness.base_color_texture.texture.*.image.*.name;
-            const sampler = material.pbr_metallic_roughness.base_color_texture.texture.*.sampler.*.name;
+            const sampler = @intFromPtr(material.pbr_metallic_roughness.base_color_texture.texture.*.sampler) - @intFromPtr(&data.samplers[0]);
 
             material_ressources.color_image = images.get(std.mem.span(img)) orelse @panic("something went wrong ?");
-            material_ressources.color_sampler = scene.samplers.get(std.mem.span(sampler)) orelse @panic("something went wrong ?");
+            material_ressources.color_sampler = scene.samplers.items[sampler];
         }
 
         new_mat.data = renderer._metal_rough_material.write_material(device, pass_type, &material_ressources, &scene.descriptor_pool);
@@ -365,11 +365,12 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     defer meshes.deinit();
 
     for (data.meshes[0..data.meshes_count]) |mesh| {
-        var asset = MeshAsset.init(scene.arena.allocator(), std.mem.span(mesh.name));
-        meshes.append(&asset) catch @panic("OOM");
+        var asset = try scene.arena.allocator().create(MeshAsset);
+        asset.* = MeshAsset.init(allocator, std.mem.span(mesh.name));
+        meshes.append(asset) catch @panic("OOM");
 
         const name = scene.arena.allocator().dupe(u8, std.mem.span(mesh.name)) catch @panic("OOM");
-        scene.meshes.put(name, &asset) catch @panic("OOM");
+        scene.meshes.put(name, asset) catch @panic("OOM");
 
         // clear the arrays
         vertices.clearAndFree();
@@ -395,7 +396,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             // load vertex positions
             var pos_accessor: *cgltf.accessor = undefined;
             var normal_accessor: *cgltf.accessor = undefined;
-            var uv_accessor: *cgltf.accessor = undefined;
+            var uv_accessor: ?*cgltf.accessor = null;
             var color_accessor: ?*cgltf.accessor = null;
             for (prim.attributes[0..prim.attributes_count]) |att| {
                 if (att.type == cgltf.attribute_type_position) {
@@ -458,11 +459,13 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
                 // override color
                 // v.color = z.Vec4.fromVec3(z.Vec3.fromSlice(&v.normal), 1.0).data;
 
-                var uv: [2]f32 = undefined;
-                _ = cgltf.cgltf_accessor_read_float(uv_accessor, i, &uv, 2);
+                if (uv_accessor != null) {
+                    var uv: [2]cgltf.cgltf_float = undefined;
+                    _ = cgltf.cgltf_accessor_read_float(uv_accessor, i, &uv, 2);
 
-                v.uv_x = uv[0];
-                v.uv_y = uv[1];
+                    v.uv_x = uv[0];
+                    v.uv_y = uv[1];
+                }
 
                 if (prim.material != null) {
                     surface.material = materials.get(std.mem.span(prim.material.*.name)) orelse @panic("material not found");
@@ -479,12 +482,13 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
         }
 
         asset.meshBuffers = buffers.GPUMeshBuffers.init(vma, device, fence, queue, indices.items, vertices.items, cmd);
-        try meshes.append(&asset);
+        try meshes.append(asset);
     }
 
     // load nodes
     for (data.nodes[0..data.nodes_count]) |*node| {
         var new_node = try scene.arena.allocator().create(m.Node);
+        new_node.* = m.Node.init(allocator);
 
         if (node.mesh != null) {
             new_node.mesh = scene.meshes.get(std.mem.span(node.mesh.*.name)) orelse @panic("mesh not found");
@@ -514,10 +518,12 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     for (data.nodes[0..data.nodes_count]) |*node| {
         const scene_node = scene.nodes.get(std.mem.span(node.name)) orelse @panic("node not found");
 
-        for (node.children[0..node.children_count]) |child| {
-            const child_node = scene.nodes.get(std.mem.span(child.*.name)) orelse @panic("child not found");
-            try scene_node.children.append(child_node);
-            child_node.parent = scene_node;
+        if (node.children_count != 0) {
+            for (node.children[0..node.children_count]) |child| {
+                const child_node = scene.nodes.get(std.mem.span(child.*.name)) orelse @panic("child not found");
+                try scene_node.children.append(child_node);
+                child_node.parent = scene_node;
+            }
         }
     }
 
