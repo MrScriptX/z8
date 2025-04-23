@@ -36,16 +36,16 @@ pub const MeshAsset = struct {
 };
 
 pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.VmaAllocator, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer) !std.ArrayList(MeshAsset) {
-    var options: cgltf.cgltf_options = .{};
-    var data: *cgltf.cgltf_data = undefined;
+    var options: cgltf.options = .{};
+    var data: *cgltf.data = undefined;
     const result = cgltf.cgltf_parse_file(&options, path.ptr, @ptrCast(&data));
-    if (result != cgltf.cgltf_result_success) {
+    if (result != cgltf.result_success) {
         std.debug.panic("Failed to parse gltf file", .{});
     }
     defer cgltf.cgltf_free(data);
 
     const success = cgltf.cgltf_load_buffers(&options, data, path.ptr);
-    if (success != cgltf.cgltf_result_success) {
+    if (success != cgltf.result_success) {
         std.debug.panic("Failed to load buffers!\n", .{});
     }
 
@@ -81,27 +81,27 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
             }
 
             // load vertex positions
-            var pos_accessor: *cgltf.cgltf_accessor = undefined;
-            var normal_accessor: *cgltf.cgltf_accessor = undefined;
-            var uv_accessor: *cgltf.cgltf_accessor = undefined;
-            var color_accessor: ?*cgltf.cgltf_accessor = null;
+            var pos_accessor: *cgltf.accessor = undefined;
+            var normal_accessor: *cgltf.accessor = undefined;
+            var uv_accessor: *cgltf.accessor = undefined;
+            var color_accessor: ?*cgltf.accessor = null;
             for (prim.attributes[0..prim.attributes_count]) |att| {
-                if (att.type == cgltf.cgltf_attribute_type_position) {
+                if (att.type == cgltf.attribute_type_position) {
                     pos_accessor = att.data;
                     continue;
                 }
 
-                if (att.type == cgltf.cgltf_attribute_type_normal) {
+                if (att.type == cgltf.attribute_type_normal) {
                     normal_accessor = att.data;
                     continue;
                 }
 
-                if (att.type == cgltf.cgltf_attribute_type_texcoord) {
+                if (att.type == cgltf.attribute_type_texcoord) {
                     uv_accessor = att.data;
                     continue;
                 }
 
-                if (att.type == cgltf.cgltf_attribute_type_color) {
+                if (att.type == cgltf.attribute_type_color) {
                     color_accessor = att.data;
                     continue;
                 }
@@ -119,14 +119,14 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
                     .uv_y = 0
                 };
 
-                var pos: [3]cgltf.cgltf_float = undefined;
+                var pos: [3]f32 = undefined;
                 _ = cgltf.cgltf_accessor_read_float(pos_accessor, i, &pos, 3);
 
                 v.position[0] = pos[0];
                 v.position[1] = pos[1];
                 v.position[2] = pos[2];
 
-                var normal: [3]cgltf.cgltf_float = undefined;
+                var normal: [3]f32 = undefined;
                 _ = cgltf.cgltf_accessor_read_float(normal_accessor, i, &normal, 3);
 
                 v.normal[0] = normal[0];
@@ -134,7 +134,7 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
                 v.normal[2] = normal[2];
 
                 if (color_accessor != null) {
-                    var color: [4]cgltf.cgltf_float = undefined;
+                    var color: [4]f32 = undefined;
                     _ = cgltf.cgltf_accessor_read_float(color_accessor, i, &color, 4);
 
                     v.color[0] = color[0];
@@ -144,7 +144,7 @@ pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.V
                 }
                 
 
-                var uv: [2]cgltf.cgltf_float = undefined;
+                var uv: [2]f32 = undefined;
                 _ = cgltf.cgltf_accessor_read_float(uv_accessor, i, &uv, 2);
 
                 v.uv_x = uv[0];
