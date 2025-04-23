@@ -6,6 +6,7 @@ pub usingnamespace @cImport({
 pub const data = c.cgltf_data;
 pub const options = c.cgltf_options;
 pub const accessor = c.cgltf_accessor;
+pub const image = c.cgltf_image;
 
 // enum
 pub const result_success = c.cgltf_result_success;

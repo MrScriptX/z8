@@ -171,7 +171,7 @@ pub const LoadedGLTF = struct {
 
     meshes: std.hash_map.StringHashMap(*MeshAsset),
     nodes: std.hash_map.StringHashMap(*m.Node),
-    images: std.hash_map.StringHashMap(buffers.AllocatedBuffer),
+    images: std.hash_map.StringHashMap(*vk_images.image_t),
     materials: std.hash_map.StringHashMap(*GLTFMaterial),
 
     top_nodes: std.ArrayList(*m.Node),
@@ -200,7 +200,7 @@ pub const LoadedGLTF = struct {
 
         gltf.meshes = std.hash_map.StringHashMap(*MeshAsset).init(allocator);
         gltf.nodes = std.hash_map.StringHashMap(*m.Node).init(allocator);
-        gltf.images = std.hash_map.StringHashMap(buffers.AllocatedBuffer).init(allocator);
+        gltf.images = std.hash_map.StringHashMap(*vk_images.image_t).init(allocator);
         gltf.materials = std.hash_map.StringHashMap(*GLTFMaterial).init(allocator);
         gltf.top_nodes = std.ArrayList(*m.Node).init(allocator);
         gltf.samplers = std.ArrayList(c.VkSampler).init(allocator);
@@ -228,6 +228,11 @@ pub const LoadedGLTF = struct {
         while (mesh_it.next()) |*mesh| {
             mesh.value_ptr.*.meshBuffers.deinit(vma);
             mesh.value_ptr.*.deinit();
+        }
+
+        var image_it = self.images.iterator();
+        while (image_it.next()) |*image| {
+            vk_images.destroy_image(device, vma, image.value_ptr.*);
         }
 
         for (self.samplers.items) |sampler| {
@@ -305,12 +310,21 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     const alloc = arena.allocator();
 
     // load textures
-    var images = std.hash_map.StringHashMap(vk_images.image_t).init(allocator);
+    var images = std.hash_map.StringHashMap(*vk_images.image_t).init(allocator);
     defer images.deinit();
 
-    for (data.images[0..data.images_count]) |img| {
-        const name = try alloc.dupe(u8, std.mem.span(img.name));
-        try images.put(name, engine.renderer_t._error_checker_board_image);
+    for (data.images[0..data.images_count]) |*img| {
+        const image = load_image(scene.arena.allocator(), img, renderer);
+        if (image) |it| {
+            const name = try scene.arena.allocator().dupe(u8, std.mem.span(img.name));
+
+            try images.put(name, it);
+            try scene.images.put(name, it);
+        }
+        else {
+            const name = try alloc.dupe(u8, std.mem.span(img.name));
+            try images.put(name, &engine.renderer_t._error_checker_board_image);
+        }
     }
 
     // buffer to hold material data
@@ -357,7 +371,8 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             const img = material.pbr_metallic_roughness.base_color_texture.texture.*.image.*.name;
             const sampler = @intFromPtr(material.pbr_metallic_roughness.base_color_texture.texture.*.sampler) - @intFromPtr(&data.samplers[0]);
 
-            material_ressources.color_image = images.get(std.mem.span(img)) orelse @panic("something went wrong ?");
+            const image = images.get(std.mem.span(img)) orelse @panic("something went wrong ?");
+            material_ressources.color_image = image.*;
             material_ressources.color_sampler = scene.samplers.items[sampler];
         }
 
@@ -550,6 +565,62 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     return scene;
 }
 
+pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, renderer: *engine.renderer_t) ?*vk_images.image_t {
+    var new_image: ?*vk_images.image_t = null;
+
+    var width: i32 = 0;
+    var height: i32 = 0;
+    var nr_channels: i32 = 0;
+
+    if (image.uri != null) {
+        if (image.buffer_view != null) {
+            @panic("offsets not supported");
+        }
+
+        const data = stb.stbi_load(std.mem.span(image.uri), &width, &height, &nr_channels, 4);
+        if (data == null) {
+            return null;
+        }
+        defer stb.stbi_image_free(data);
+
+        const image_size = c.VkExtent3D {
+            .width = @intCast(width),
+            .height = @intCast(height),
+            .depth = 1,
+        };
+
+        new_image = allocator.create(vk_images.image_t) catch @panic("OOM");
+
+        new_image.?.* = vk_images.create_image_data(renderer._vma, renderer._device, @ptrCast(data), image_size, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT,
+            false, &renderer._imm_fence, renderer._imm_command_buffer, renderer._queues.graphics);
+    }
+    else if (image.buffer_view != null) {
+        const view = image.buffer_view.?;
+        const buffer = view.*.buffer;
+        
+        const buffer_data = @intFromPtr(buffer.*.data) + view.*.offset;
+
+        const data = stb.stbi_load_from_memory(buffer_data, @intCast(view.*.size), &width, &height, &nr_channels, 4);
+        if (data == null) {
+            return null;
+        }
+        defer stb.stbi_image_free(data);
+
+        const image_size = c.VkExtent3D {
+            .width = @intCast(width),
+            .height = @intCast(height),
+            .depth = 1,
+        };
+
+        new_image = allocator.create(vk_images.image_t) catch @panic("OOM");
+
+        new_image.?.* = vk_images.create_image_data(renderer._vma, renderer._device, @ptrCast(data), image_size, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT,
+            false, &renderer._imm_fence, renderer._imm_command_buffer, renderer._queues.graphics);
+    }
+
+    return new_image;
+}
+
 pub fn extract_filter(filter: u32) c.VkFilter {
     if (filter == cgltf.cgltf_filter_type_nearest or
         filter == cgltf.cgltf_filter_type_nearest_mipmap_nearest or
@@ -589,3 +660,4 @@ const descriptors = @import("descriptor.zig");
 const engine = @import("engine.zig");
 const vk_images = @import("vk_images.zig");
 const cgltf = @import("cgltf");
+const stb = @import("stb");

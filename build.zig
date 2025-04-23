@@ -139,6 +139,10 @@ pub fn build(b: *std.Build) !void {
 
     exe.root_module.addImport("zalgebra", zalgebra);
 
+    // add stb
+    const stb = @import("libs/stb/build.zig").build(b, target, optimize);
+    exe.root_module.addImport("stb", stb);
+
     exe.linkLibC();
     exe.linkLibCpp();
 
