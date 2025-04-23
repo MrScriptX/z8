@@ -240,9 +240,9 @@ pub const LoadedGLTF = struct {
         }
     }
 
-    pub fn draw(self: *LoadedGLTF, top_matrix: *const c.mat4s, ctx: *m.DrawContext) void {
-        for (self.top_nodes) |node| {
-            node.draw(top_matrix, ctx);
+    pub fn draw(self: *LoadedGLTF, top_matrix: *const [4][4]f32, ctx: *m.DrawContext) void {
+        for (self.top_nodes.items) |*node| {
+            node.*.draw(top_matrix, ctx);
         }
     }
 

@@ -1,9 +1,11 @@
 pub const DrawContext = struct {
     opaque_surfaces: std.ArrayList(mat.RenderObject),
+    transparent_surfaces: std.ArrayList(mat.RenderObject),
 
     pub fn init(allocator: std.mem.Allocator) DrawContext {
         const ctx = DrawContext {
             .opaque_surfaces = std.ArrayList(mat.RenderObject).init(allocator),
+            .transparent_surfaces = std.ArrayList(mat.RenderObject).init(allocator),
         };
 
         return ctx;
@@ -11,6 +13,7 @@ pub const DrawContext = struct {
 
     pub fn deinit(self: *DrawContext) void {
         self.opaque_surfaces.deinit();
+        self.transparent_surfaces.deinit();
     }
 };
 

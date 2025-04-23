@@ -1124,13 +1124,16 @@ pub const renderer_t = struct {
     pub fn update_scene(self: *renderer_t) void {
         self._draw_context.opaque_surfaces.clearRetainingCapacity();
 
-        const node = self._loaded_nodes.get("Suzanne");
-        if (node == null) {
-            @panic("node is null");
-        }
-
         const top: maths.mat4 align(16) = z.Mat4.identity().data;
-        node.?.draw(&top, &self._draw_context); 
+        _loaded_scenes.get("structure").?.draw(&top, &self._draw_context);
+
+        // const node = self._loaded_nodes.get("Suzanne");
+        // if (node == null) {
+        //     @panic("node is null");
+        // }
+
+        // const top: maths.mat4 align(16) = z.Mat4.identity().data;
+        // node.?.draw(&top, &self._draw_context); 
 
         const delta_time = calculate_delta_time();
 
