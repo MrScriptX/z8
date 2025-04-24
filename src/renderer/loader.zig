@@ -371,7 +371,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
 
         if (material.pbr_metallic_roughness.base_color_texture.texture != null) {
             const img = material.pbr_metallic_roughness.base_color_texture.texture.*.image.*.name;
-            const sampler = @intFromPtr(material.pbr_metallic_roughness.base_color_texture.texture.*.sampler) - @intFromPtr(&data.samplers[0]);
+            const sampler: usize = @intFromPtr(material.pbr_metallic_roughness.base_color_texture.texture.*.sampler) - @intFromPtr(&data.samplers[0]);
 
             const image = images.get(std.mem.span(img)) orelse @panic("something went wrong ?");
             material_ressources.color_image = image.*;
@@ -395,10 +395,6 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     for (data.meshes[0..data.meshes_count]) |mesh| {
         var asset = try scene.arena.allocator().create(MeshAsset);
         asset.* = MeshAsset.init(allocator, std.mem.span(mesh.name));
-        meshes.append(asset) catch @panic("OOM");
-
-        const name = scene.arena.allocator().dupe(u8, std.mem.span(mesh.name)) catch @panic("OOM");
-        scene.meshes.put(name, asset) catch @panic("OOM");
 
         // clear the arrays
         vertices.clearAndFree();
@@ -511,6 +507,10 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
 
         asset.meshBuffers = buffers.GPUMeshBuffers.init(vma, device, fence, queue, indices.items, vertices.items, cmd);
         try meshes.append(asset);
+
+        // find name
+        const name: []u8 = scene.arena.allocator().dupe(u8, std.mem.span(mesh.name)) catch @panic("OOM");
+        scene.meshes.put(name, asset) catch @panic("OOM");
     }
 
     // load nodes
@@ -523,11 +523,8 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             new_node._type = m.NodeType.MESH_NODE;
         }
 
-        const name = try scene.arena.allocator().dupe(u8, std.mem.span(node.name));
-        try scene.nodes.put(name, new_node);
-
         if (node.has_matrix != 0) {
-           for (0..4) |row| {
+            for (0..4) |row| {
                 for (0..4) |col| {
                     new_node.local_transform[row][col] = node.matrix[row * 4 + col];
                 }
@@ -542,8 +539,14 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             const rm = r.toMat4();
             const sm = z.Mat4.identity().scale(s);
 
-            new_node.local_transform = z.Mat4.mul(tm, rm).mul(sm).data;
+            const tr = z.Mat4.mul(tm, rm);
+            const trs = z.Mat4.mul(tr, sm);
+
+            new_node.local_transform = trs.data;
         }
+
+        const name = try scene.arena.allocator().dupe(u8, std.mem.span(node.name));
+        try scene.nodes.put(name, new_node);
     }
 
     // setup node hiearchy
@@ -560,11 +563,11 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     }
 
     // find top nodes
-    var it = scene.nodes.iterator();
-    while (it.next()) |*node| {
-        if (node.value_ptr.*.parent == null) {
-            try scene.top_nodes.append(node.value_ptr.*);
-            node.value_ptr.*.refresh_transform(&z.Mat4.identity().data);
+    var it = scene.nodes.valueIterator();
+    while (it.next()) |node| {
+        if (node.*.parent == null) {
+            try scene.top_nodes.append(node.*);
+            node.*.refresh_transform(&z.Mat4.identity().data);
         }
     }
 

@@ -28,8 +28,8 @@ pub const Node = struct {
     parent: ?*Node = null,
     children: std.ArrayList(*Node),
 
-    local_transform: math.mat4 = std.mem.zeroes(math.mat4),
-    world_transform: math.mat4 = std.mem.zeroes(math.mat4),
+    local_transform: math.mat4 = z.Mat4.identity().data,
+    world_transform: math.mat4 = z.Mat4.identity().data,
 
     mesh: *loader.MeshAsset,
 
@@ -55,20 +55,25 @@ pub const Node = struct {
     }
 
     pub fn draw(self: *Node, top_matrix: math.mat4, ctx: *DrawContext) void {
-        const node_matrix = math.mul(top_matrix, self.world_transform);
-        for (self.mesh.surfaces.items) |*surface| {
-            const render_object = mat.RenderObject {
-                .index_count = surface.count,
-                .first_index = surface.startIndex,
-                .index_buffer = self.mesh.meshBuffers.index_buffer.buffer,
-                .material = &surface.material.data,
-                .transform = node_matrix,
-                .vertex_buffer_address = self.mesh.meshBuffers.vertex_buffer_address,
-            };
+        if (self._type == NodeType.MESH_NODE) {
+            const node_matrix = math.mul(top_matrix, self.world_transform);
+            for (self.mesh.surfaces.items) |*surface| {
+                const render_object = mat.RenderObject {
+                    .index_count = surface.count,
+                    .first_index = surface.startIndex,
+                    .index_buffer = self.mesh.meshBuffers.index_buffer.buffer,
+                    .material = &surface.material.data,
+                    .transform = node_matrix,
+                    .vertex_buffer_address = self.mesh.meshBuffers.vertex_buffer_address,
+                };
 
-            ctx.opaque_surfaces.append(render_object) catch {
-                @panic("Failed to append render object ! OOM");
-            };
+                if (surface.material.data.pass_type == mat.MaterialPass.Transparent) {
+                    ctx.transparent_surfaces.append(render_object) catch @panic("Failed to append render object ! OOM !");
+                }
+                else {
+                    ctx.opaque_surfaces.append(render_object) catch @panic("Failed to append render object ! OOM");
+                }
+            }
         }
 
         for (self.children.items) |child| {

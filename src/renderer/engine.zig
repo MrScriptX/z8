@@ -875,11 +875,28 @@ pub const renderer_t = struct {
 
             c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
         }
-	
+
+        for (self._draw_context.transparent_surfaces.items) |*obj| {
+            c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+
+            c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+
+            const push_constants_mesh = buffers.GPUDrawPushConstants {
+                .world_matrix = obj.transform,
+                .vertex_buffer = obj.vertex_buffer_address,
+            };
+
+            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+
+            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+        }
+
 	    c.vkCmdEndRendering(cmd);
     }
 
-    var _last_view: z.Mat4 = z.Mat4.identity().translate(z.Vec3.new(0, 0, -150));
+    var _last_view: z.Mat4 = z.Mat4.identity().translate(z.Vec3.new(0, 0, 10));
     var _last_frame_time: u128 = 0;
 
     fn calculate_delta_time() f32 {
@@ -1124,9 +1141,6 @@ pub const renderer_t = struct {
     pub fn update_scene(self: *renderer_t) void {
         self._draw_context.opaque_surfaces.clearRetainingCapacity();
 
-        const top: maths.mat4 align(16) = z.Mat4.identity().data;
-        _loaded_scenes.get("structure").?.draw(top, &self._draw_context);
-
         // const node = self._loaded_nodes.get("Suzanne");
         // if (node == null) {
         //     @panic("node is null");
@@ -1142,7 +1156,7 @@ pub const renderer_t = struct {
         const view = self._main_camera.view_matrix();
 
         const deg: f32 = 70.0;
-        var proj = z.perspective(deg, @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1, 10000.0);
+        var proj = z.perspectiveReversedZ(deg, @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1);
         proj.data[1][1] *= -1.0;
 
         _scene_data.view = view.data;
@@ -1170,6 +1184,9 @@ pub const renderer_t = struct {
         _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
         _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
         _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
+
+        const top: maths.mat4 align(16) = z.Mat4.identity().data;
+        _loaded_scenes.get("structure").?.draw(top, &self._draw_context);
     }
 };
 

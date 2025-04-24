@@ -19,7 +19,7 @@ pub fn main() !u8 {
     _ = c.SDL_SetWindowRelativeMouseMode(window, true);
 
     var main_camera: camera.camera_t = .{
-        .position = .{ 0, 0, 200 },
+        .position = .{ 0, 0, 150 },
         .speed = 50,
     };
 
