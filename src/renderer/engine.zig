@@ -4,6 +4,14 @@ const Error = error{
     SwapchainInit,
 };
 
+pub const stats_t = struct {
+    frame_time: f32 = 0,
+    triangle_count: u32 = 0,
+    drawcall_count: u32 = 0,
+    scene_update_time: f32 = 0,
+    mesh_draw_time: f32 = 0,
+};
+
 pub const renderer_t = struct {
     var _render_scale: f32 = 1.0;
 
@@ -88,12 +96,14 @@ pub const renderer_t = struct {
     _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
 
     _main_camera: *camera.camera_t,
+    stats: stats_t,
 
     pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32, cam: *camera.camera_t) !renderer_t {
         var renderer = renderer_t{
             ._loaded_nodes = std.hash_map.StringHashMap(*m.Node).init(allocator),
             ._draw_context = m.DrawContext.init(allocator),
             ._main_camera = cam,
+            .stats = stats_t{},
         };
         
         renderer._arena = std.heap.ArenaAllocator.init(allocator);
@@ -737,6 +747,11 @@ pub const renderer_t = struct {
     }
 
     pub fn draw_geometry(self: *renderer_t, cmd: c.VkCommandBuffer) void {
+        self.stats.drawcall_count = 0;
+        self.stats.triangle_count = 0;
+
+        const start_time: u128 = @intCast(std.time.nanoTimestamp());
+
         //begin a render pass  connected to our draw image
 	    const color_attachment = c.VkRenderingAttachmentInfo {
             .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -874,6 +889,9 @@ pub const renderer_t = struct {
             c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
 
             c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+
+            self.stats.drawcall_count += 1;
+            self.stats.triangle_count += obj.index_count / 3;
         }
 
         for (self._draw_context.transparent_surfaces.items) |*obj| {
@@ -891,9 +909,15 @@ pub const renderer_t = struct {
             c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
 
             c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+
+            self.stats.drawcall_count += 1;
+            self.stats.triangle_count += obj.index_count / 3;
         }
 
 	    c.vkCmdEndRendering(cmd);
+
+        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
     }
 
     var _last_view: z.Mat4 = z.Mat4.identity().translate(z.Vec3.new(0, 0, 10));
@@ -1140,6 +1164,9 @@ pub const renderer_t = struct {
 
     pub fn update_scene(self: *renderer_t) void {
         self._draw_context.opaque_surfaces.clearRetainingCapacity();
+        self._draw_context.transparent_surfaces.clearRetainingCapacity();
+
+        const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
         // const node = self._loaded_nodes.get("Suzanne");
         // if (node == null) {
@@ -1187,6 +1214,9 @@ pub const renderer_t = struct {
 
         const top: maths.mat4 align(16) = z.Mat4.identity().data;
         _loaded_scenes.get("structure").?.draw(top, &self._draw_context);
+
+        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        self.stats.scene_update_time = @floatFromInt(end_time - start_time);
     }
 };
 

@@ -19,7 +19,7 @@ pub fn main() !u8 {
     _ = c.SDL_SetWindowRelativeMouseMode(window, true);
 
     var main_camera: camera.camera_t = .{
-        .position = .{ 0, 0, 150 },
+        .position = .{ 0, 0, 75 },
         .speed = 50,
     };
 
@@ -35,6 +35,8 @@ pub fn main() !u8 {
     // main loop
     var quit = false;
     while (!quit) {
+        const start_time: u128 = @intCast(std.time.nanoTimestamp());
+
         var event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&event)) {
             if (event.type == c.SDL_EVENT_QUIT) {
@@ -60,26 +62,54 @@ pub fn main() !u8 {
         imgui.cImGui_ImplSDL3_NewFrame();
         imgui.ImGui_NewFrame();
 
-        if (imgui.ImGui_Begin("background", null, 0)) {
-            _ = imgui.ImGui_SliderFloat("Render Scale", @ptrCast(engine.renderer_t.render_scale()), 0.3, 1.0);
+        // stats window
+        {
+            const win_stats = imgui.ImGui_Begin("Stats", null, 0);
+            if (win_stats) {
+                defer imgui.ImGui_End();
 
-			const selected = engine.renderer_t.current_effect();
+                const frame_time: f32 = renderer.stats.frame_time / 1_000_000;
+                imgui.ImGui_Text("frame time : %f ms",  frame_time);
+
+                const draw_time: f32 = renderer.stats.mesh_draw_time / 1_000_000;
+                imgui.ImGui_Text("draw time : %f ms",  draw_time);
+
+                const scene_update_time: f32 = renderer.stats.scene_update_time / 1_000_000;
+                imgui.ImGui_Text("update time : %f ms",  scene_update_time);
+
+                imgui.ImGui_Text("triangles : %i",  renderer.stats.triangle_count);
+                imgui.ImGui_Text("draws : %i",  renderer.stats.drawcall_count);
+            }
+        }
+
+        // background window
+        {
+            const result = imgui.ImGui_Begin("background", null, 0);
+            if (result) {
+                defer imgui.ImGui_End();
+
+                _ = imgui.ImGui_SliderFloat("Render Scale", @ptrCast(engine.renderer_t.render_scale()), 0.3, 1.0);
+
+			    const selected = engine.renderer_t.current_effect();
 		
-            const name = try std.fmt.allocPrint(std.heap.page_allocator, "Selected effect: {s}", .{ selected.name });
-			imgui.ImGui_Text(@ptrCast(&name));
+                const name = try std.fmt.allocPrint(std.heap.page_allocator, "Selected effect: {s}", .{ selected.name });
+			    imgui.ImGui_Text(@ptrCast(&name));
 		
-			_ = imgui.ImGui_SliderInt("Effect Index", @ptrCast(engine.renderer_t.effect_index()), 0, @intCast(engine.renderer_t.max_effect() - 1));
+			    _ = imgui.ImGui_SliderInt("Effect Index", @ptrCast(engine.renderer_t.effect_index()), 0, @intCast(engine.renderer_t.max_effect() - 1));
 		
-			_ = imgui.ImGui_InputFloat4("data1", &selected.data.data1);
-			_ = imgui.ImGui_InputFloat4("data2", &selected.data.data2);
-			_ = imgui.ImGui_InputFloat4("data3", &selected.data.data3);
-			_ = imgui.ImGui_InputFloat4("data4", &selected.data.data4);
-		}
-		imgui.ImGui_End();
+			    _ = imgui.ImGui_InputFloat4("data1", &selected.data.data1);
+			    _ = imgui.ImGui_InputFloat4("data2", &selected.data.data2);
+			    _ = imgui.ImGui_InputFloat4("data3", &selected.data.data3);
+			    _ = imgui.ImGui_InputFloat4("data4", &selected.data.data4);
+		    }
+        }
 
         imgui.ImGui_Render();
 
         renderer.draw();
+
+        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        renderer.stats.frame_time = @floatFromInt(end_time - start_time);
     }
 
     return 0;
