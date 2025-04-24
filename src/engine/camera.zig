@@ -5,6 +5,8 @@ pub const camera_t = struct {
     pitch: f32 = 0,
     yaw: f32 = 0,
 
+    speed: f32 = 0,
+
     pub fn view_matrix(self: *camera_t) za.Mat4 {
         const position = za.Vec3.new(self.position[0], self.position[1], self.position[2]);
         const camera_translation = za.Mat4.identity().translate(position);
@@ -21,19 +23,19 @@ pub const camera_t = struct {
     pub fn process_sdl_event(self: *camera_t, e: *c.SDL_Event) void {
         if (e.type == c.SDL_EVENT_KEY_DOWN) {
             if (e.key.key == c.SDLK_Z) {
-                self.velocity[2] = -1;
+                self.velocity[2] = -1 * self.speed;
             }
 
             if (e.key.key == c.SDLK_S) {
-                self.velocity[2] = 1;
+                self.velocity[2] = 1 * self.speed;
             }
 
             if (e.key.key == c.SDLK_Q) {
-                self.velocity[0] = -1;
+                self.velocity[0] = -1 * self.speed;
             }
 
             if (e.key.key == c.SDLK_D) {
-                self.velocity[0] = 1;
+                self.velocity[0] = 1 * self.speed;
             }
         }
 

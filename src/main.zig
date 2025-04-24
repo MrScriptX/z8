@@ -16,12 +16,15 @@ pub fn main() !u8 {
     }
     defer c.SDL_DestroyWindow(window);
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
+    _ = c.SDL_SetWindowRelativeMouseMode(window, true);
 
     var main_camera: camera.camera_t = .{
-        .position = .{ 0, 0, 200 }
+        .position = .{ 0, 0, 200 },
+        .speed = 50,
     };
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
     var renderer = engine.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
         c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
@@ -36,6 +39,11 @@ pub fn main() !u8 {
         while (c.SDL_PollEvent(&event)) {
             if (event.type == c.SDL_EVENT_QUIT) {
                 quit = true;
+            }
+            else if (event.type == c.SDL_EVENT_KEY_DOWN) {
+                if (event.key.key == c.SDLK_ESCAPE) {
+                    _ = c.SDL_SetWindowRelativeMouseMode(window, false);
+                }
             }
 
             main_camera.process_sdl_event(&event);
