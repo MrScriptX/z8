@@ -6,6 +6,9 @@ pub const camera_t = struct {
     yaw: f32 = 0,
 
     speed: f32 = 0,
+    sensitivity: f32 = 0,
+
+    active: bool = true,
 
     pub fn view_matrix(self: *camera_t) za.Mat4 {
         const position = za.Vec3.new(self.position[0], self.position[1], self.position[2]);
@@ -58,8 +61,8 @@ pub const camera_t = struct {
         }
 
         if (e.type == c.SDL_EVENT_MOUSE_MOTION) {
-            self.yaw += e.motion.xrel / 200.0;
-            self.pitch -= e.motion.yrel / 200.0;
+            self.yaw += e.motion.xrel * self.sensitivity;  // / 200.0;
+            self.pitch -= e.motion.yrel * self.sensitivity; //  / 200.0;
         }
     }
 

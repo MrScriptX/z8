@@ -21,6 +21,7 @@ pub fn main() !u8 {
     var main_camera: camera.camera_t = .{
         .position = .{ 0, 0, 75 },
         .speed = 50,
+        .sensitivity = 0.02,
     };
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
@@ -44,13 +45,19 @@ pub fn main() !u8 {
             }
             else if (event.type == c.SDL_EVENT_KEY_DOWN) {
                 if (event.key.key == c.SDLK_ESCAPE) {
-                    _ = c.SDL_SetWindowRelativeMouseMode(window, false);
+                    const succeed = c.SDL_SetWindowRelativeMouseMode(window, !main_camera.active);
+                    if (succeed) {
+                        main_camera.active = !main_camera.active;
+                    }
                 }
             }
 
-            main_camera.process_sdl_event(&event);
-
-            _ = imgui.cImGui_ImplSDL3_ProcessEvent(@ptrCast(&event));
+            if (main_camera.active) {
+                main_camera.process_sdl_event(&event);
+            }
+            else {
+                _ = imgui.cImGui_ImplSDL3_ProcessEvent(@ptrCast(&event));
+            }
         }
 
         if (renderer.should_rebuild_sw()) {
@@ -80,6 +87,17 @@ pub fn main() !u8 {
                 imgui.ImGui_Text("triangles : %i",  renderer.stats.triangle_count);
                 imgui.ImGui_Text("draws : %i",  renderer.stats.drawcall_count);
             }
+        }
+
+        // player control
+        {
+            const result = imgui.ImGui_Begin("controls", null, 0);
+            if (result) {
+                defer imgui.ImGui_End();
+
+                _ = imgui.ImGui_SliderFloat("speed", @ptrCast(&main_camera.speed), 0, 100);
+                _ = imgui.ImGui_SliderFloat("sensitivity", @ptrCast(&main_camera.sensitivity), 0, 1);
+		    }
         }
 
         // background window
