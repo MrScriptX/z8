@@ -874,12 +874,32 @@ pub const renderer_t = struct {
         }
 
         // draw meshes
-        for (self._draw_context.opaque_surfaces.items) |*obj| {
-            c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
-            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+        var last_pipeline: ?*material.MaterialPipeline = null;
+        var last_material: ?*material.MaterialInstance = null;
+        var last_index_buffer: c.VkBuffer = null;
 
-            c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+        for (self._draw_context.opaque_surfaces.items) |*obj| {
+            if (last_material != obj.material) {
+                last_material = obj.material;
+
+                if (last_pipeline != obj.material.pipeline) {
+                    last_pipeline = obj.material.pipeline;
+
+                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                }
+
+                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+            }
+
+            if (last_index_buffer != obj.index_buffer) {
+                last_index_buffer = obj.index_buffer;
+
+                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+            }
 
             const push_constants_mesh = buffers.GPUDrawPushConstants {
                 .world_matrix = obj.transform,
@@ -895,11 +915,27 @@ pub const renderer_t = struct {
         }
 
         for (self._draw_context.transparent_surfaces.items) |*obj| {
-            c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
-            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+            if (last_material != obj.material) {
+                last_material = obj.material;
 
-            c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+                if (last_pipeline != obj.material.pipeline) {
+                    last_pipeline = obj.material.pipeline;
+
+                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                }
+
+                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+            }
+
+            if (last_index_buffer != obj.index_buffer) {
+                last_index_buffer = obj.index_buffer;
+                
+                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+            }
 
             const push_constants_mesh = buffers.GPUDrawPushConstants {
                 .world_matrix = obj.transform,
