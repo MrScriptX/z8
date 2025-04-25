@@ -38,7 +38,10 @@ pub const scene_t = struct {
 
         if (self.gltf) |obj| {
             obj.deinit(device, vma);
+            self.allocator().destroy(obj);
         }
+
+        self.gltf = null;
 
         self.draw_context.opaque_surfaces.clearAndFree();
         self.draw_context.transparent_surfaces.clearAndFree();

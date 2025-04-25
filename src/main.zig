@@ -79,11 +79,13 @@ pub fn main() !u8 {
         if (renderer.should_rebuild_sw()) {
             renderer.rebuild_swapchain(window);
 
-            monkey_scene.clear(renderer._device, renderer._vma);
+            if (monkey_scene.gltf != null) {
+                monkey_scene.clear(renderer._device, renderer._vma);
+            }
             
-            try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
-            monkey_scene.deactivate_node("Cube");
-            monkey_scene.deactivate_node("Sphere");
+            if (reactor_scene.gltf != null) {
+                reactor_scene.clear(renderer._device, renderer._vma);
+            }
         }
 
         imgui.cImGui_ImplVulkan_NewFrame();
@@ -162,6 +164,12 @@ pub fn main() !u8 {
         imgui.ImGui_Render();
 
         if (current_scene == 0) {
+            if (monkey_scene.gltf == null) {
+                try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+                monkey_scene.deactivate_node("Cube");
+                monkey_scene.deactivate_node("Sphere");
+            }
+
             if (monkey_scene.find_node("Suzanne")) |node| {
                 const current_transform = za.Mat4.fromSlice(&linearize(node.local_transform));
 
@@ -177,6 +185,10 @@ pub fn main() !u8 {
             renderer.draw(&monkey_scene);
         }
         else {
+            if (reactor_scene.gltf == null) {
+                try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+            }
+
             renderer.update_scene(&reactor_scene);
             renderer.draw(&reactor_scene);
         }
