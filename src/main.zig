@@ -47,6 +47,8 @@ pub fn main() !u8 {
     monkey_scene.deactivate_node("Cube");
     monkey_scene.deactivate_node("Sphere");
 
+    var current_scene: i32 = 0;
+
     // main loop
     var quit = false;
     while (!quit) {
@@ -113,6 +115,17 @@ pub fn main() !u8 {
 		    }
         }
 
+        // scenes manager
+        {
+            const result = imgui.ImGui_Begin("Scenes", null, 0);
+            if (result) {
+                defer imgui.ImGui_End();
+
+                const scenes_list = [_][*:0]const u8{ "monkey", "reactor\n" };
+                _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 2);
+		    }
+        }
+
         // background window
         {
             const result = imgui.ImGui_Begin("background", null, 0);
@@ -137,8 +150,14 @@ pub fn main() !u8 {
 
         imgui.ImGui_Render();
 
-        renderer.update_scene(&monkey_scene);
-        renderer.draw(&monkey_scene);
+        if (current_scene == 0) {
+            renderer.update_scene(&monkey_scene);
+            renderer.draw(&monkey_scene);
+        }
+        else {
+            renderer.update_scene(&reactor_scene);
+            renderer.draw(&reactor_scene);
+        }
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         renderer.stats.frame_time = @floatFromInt(end_time - start_time);
