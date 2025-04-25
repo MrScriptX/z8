@@ -81,6 +81,8 @@ pub fn main() !u8 {
             if (reactor_scene.gltf != null) {
                 reactor_scene.clear(renderer._device, renderer._vma);
             }
+
+            render_scene = -1; // force rebuild of scene
         }
 
         imgui.cImGui_ImplVulkan_NewFrame();
