@@ -37,15 +37,9 @@ pub fn main() !u8 {
     var reactor_scene = scene.scene_t.init(gpa.allocator());
     defer reactor_scene.deinit(renderer._device, renderer._vma);
 
-    // try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
-
     // load monkey scene
     var monkey_scene = scene.scene_t.init(gpa.allocator());
     defer monkey_scene.deinit(renderer._device, renderer._vma);
-
-    // try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
-    // monkey_scene.deactivate_node("Cube");
-    // monkey_scene.deactivate_node("Sphere");
 
     var current_scene: i32 = 0;
     var render_scene: i32 = -1;
@@ -188,7 +182,7 @@ pub fn main() !u8 {
 
         if (current_scene == 0) {
             if (monkey_scene.find_node("Suzanne")) |node| {
-                const current_transform = za.Mat4.fromSlice(&linearize(node.local_transform));
+                const current_transform = za.Mat4.fromSlice(&maths.linearize(node.local_transform));
 
                 const rotation_speed: f32 = 45.0; // Degrees per second
                 const rotation_angle = rotation_speed * (renderer.stats.frame_time / 1_000_000_000.0);
@@ -251,18 +245,6 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     // }
 }
 
-fn linearize(mat: [4][4]f32) [16]f32 {
-    var out: [16]f32 = undefined;
-    var idx: usize = 0;
-    for (mat) |row| {
-        for (row) |val| {
-            out[idx] = val;
-            idx += 1;
-        }
-    }
-    return out;
-}
-
 test "engine test" {
 }
 
@@ -274,3 +256,4 @@ const camera = @import("engine/camera.zig");
 const imgui = @import("renderer/imgui.zig");
 const scene = @import("engine/scene.zig");
 const za = @import("zalgebra");
+const maths = @import("utils/maths.zig");

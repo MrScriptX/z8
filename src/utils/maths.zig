@@ -39,6 +39,18 @@ pub fn mul(mx: mat4, my: mat4) mat4 {
     return result;
 }
 
+pub fn linearize(mat: [4][4]f32) [16]f32 {
+    var out: [16]f32 = undefined;
+    var idx: usize = 0;
+    for (mat) |row| {
+        for (row) |val| {
+            out[idx] = val;
+            idx += 1;
+        }
+    }
+    return out;
+}
+
 pub const mat4_t = struct {
     pub fn mul_vec4(m: mat4, v: @Vector(4, f32)) @Vector(4, f32) {
         var result: @Vector(4, f32) = undefined;
