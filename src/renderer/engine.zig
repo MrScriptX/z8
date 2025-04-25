@@ -630,8 +630,10 @@ pub const renderer_t = struct {
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         utils.transition_image(cmd_buffer, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        // self.draw_geometry(cmd_buffer);
-        self.draw_scene(scene, cmd_buffer);
+        switch (scene._type) {
+            scenes.type_e.MESH => self.draw_geometry(cmd_buffer),
+            scenes.type_e.GLTF => self.draw_scene(scene, cmd_buffer),
+        }
 
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -827,174 +829,24 @@ pub const renderer_t = struct {
 	    c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
         // allocate new uniform buffer for the scene
-        const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+        // const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
-            log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
-            @panic("OOM");
-        };
+        // self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
+        //     log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
+        //     @panic("OOM");
+        // };
 
-        const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
-        scene_uniform_data.* = self.scenes.getLast().data;
+        // const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
+        // scene_uniform_data.* = self.scenes.getLast().data;
 
-        const global_descriptor = self.current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
+        // const global_descriptor = self.current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
     
-        {
-            var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
-            defer writer.deinit();
+        // {
+        //     var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+        //     defer writer.deinit();
 
-            writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-            writer.update_set(self._device, global_descriptor);
-        }
-
-        // draw meshes
-        var last_pipeline: ?*material.MaterialPipeline = null;
-        var last_material: ?*material.MaterialInstance = null;
-        var last_index_buffer: c.VkBuffer = null;
-
-        const s = self.scenes.getLast();
-        for (s.draw_context.opaque_surfaces.items) |*obj| {
-            if (last_material != obj.material) {
-                last_material = obj.material;
-
-                if (last_pipeline != obj.material.pipeline) {
-                    last_pipeline = obj.material.pipeline;
-
-                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
-                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-
-                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
-                }
-
-                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
-            }
-
-            if (last_index_buffer != obj.index_buffer) {
-                last_index_buffer = obj.index_buffer;
-
-                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
-            }
-
-            const push_constants_mesh = buffers.GPUDrawPushConstants {
-                .world_matrix = obj.transform,
-                .vertex_buffer = obj.vertex_buffer_address,
-            };
-
-            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-
-            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
-
-            self.stats.drawcall_count += 1;
-            self.stats.triangle_count += obj.index_count / 3;
-        }
-
-        for (s.draw_context.transparent_surfaces.items) |*obj| {
-            if (last_material != obj.material) {
-                last_material = obj.material;
-
-                if (last_pipeline != obj.material.pipeline) {
-                    last_pipeline = obj.material.pipeline;
-
-                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
-                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-
-                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
-                }
-
-                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
-            }
-
-            if (last_index_buffer != obj.index_buffer) {
-                last_index_buffer = obj.index_buffer;
-                
-                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
-            }
-
-            const push_constants_mesh = buffers.GPUDrawPushConstants {
-                .world_matrix = obj.transform,
-                .vertex_buffer = obj.vertex_buffer_address,
-            };
-
-            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-
-            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
-
-            self.stats.drawcall_count += 1;
-            self.stats.triangle_count += obj.index_count / 3;
-        }
-
-        // for (self._draw_context.opaque_surfaces.items) |*obj| {
-        //     if (last_material != obj.material) {
-        //         last_material = obj.material;
-
-        //         if (last_pipeline != obj.material.pipeline) {
-        //             last_pipeline = obj.material.pipeline;
-
-        //             c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
-        //             c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-
-        //             c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-        //             c.vkCmdSetScissor(cmd, 0, 1, &scissor);
-        //         }
-
-        //         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
-        //     }
-
-        //     if (last_index_buffer != obj.index_buffer) {
-        //         last_index_buffer = obj.index_buffer;
-
-        //         c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
-        //     }
-
-        //     const push_constants_mesh = buffers.GPUDrawPushConstants {
-        //         .world_matrix = obj.transform,
-        //         .vertex_buffer = obj.vertex_buffer_address,
-        //     };
-
-        //     c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-
-        //     c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
-
-        //     self.stats.drawcall_count += 1;
-        //     self.stats.triangle_count += obj.index_count / 3;
-        // }
-
-        // for (self._draw_context.transparent_surfaces.items) |*obj| {
-        //     if (last_material != obj.material) {
-        //         last_material = obj.material;
-
-        //         if (last_pipeline != obj.material.pipeline) {
-        //             last_pipeline = obj.material.pipeline;
-
-        //             c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
-        //             c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-
-        //             c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-        //             c.vkCmdSetScissor(cmd, 0, 1, &scissor);
-        //         }
-
-        //         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
-        //     }
-
-        //     if (last_index_buffer != obj.index_buffer) {
-        //         last_index_buffer = obj.index_buffer;
-                
-        //         c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
-        //     }
-
-        //     const push_constants_mesh = buffers.GPUDrawPushConstants {
-        //         .world_matrix = obj.transform,
-        //         .vertex_buffer = obj.vertex_buffer_address,
-        //     };
-
-        //     c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-
-        //     c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
-
-        //     self.stats.drawcall_count += 1;
-        //     self.stats.triangle_count += obj.index_count / 3;
+        //     writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        //     writer.update_set(self._device, global_descriptor);
         // }
 
 	    c.vkCmdEndRendering(cmd);

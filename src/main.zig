@@ -34,12 +34,16 @@ pub fn main() !u8 {
     defer renderer.deinit();
 
     // load reactor scene
-    var reactor_scene = scene.scene_t.init(gpa.allocator());
+    var reactor_scene = scene.scene_t.init(gpa.allocator(), scene.type_e.GLTF);
     defer reactor_scene.deinit(renderer._device, renderer._vma);
 
     // load monkey scene
-    var monkey_scene = scene.scene_t.init(gpa.allocator());
+    var monkey_scene = scene.scene_t.init(gpa.allocator(), scene.type_e.GLTF);
     defer monkey_scene.deinit(renderer._device, renderer._vma);
+
+    // rectangle scene
+    var rectangle_scene = scene.scene_t.init(gpa.allocator(), scene.type_e.MESH);
+    defer rectangle_scene.deinit(renderer._device, renderer._vma);
 
     var current_scene: i32 = 0;
     var render_scene: i32 = -1;
@@ -80,6 +84,10 @@ pub fn main() !u8 {
             
             if (reactor_scene.gltf != null) {
                 reactor_scene.clear(renderer._device, renderer._vma);
+            }
+
+            if (rectangle_scene.voxel != null) {
+                rectangle_scene.clear(renderer._device, renderer._vma);
             }
 
             render_scene = -1; // force rebuild of scene
@@ -131,8 +139,8 @@ pub fn main() !u8 {
             if (result) {
                 defer imgui.ImGui_End();
 
-                const scenes_list = [_][*:0]const u8{ "monkey", "reactor\n" };
-                _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 2);
+                const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "rectangle" };
+                _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 3);
 		    }
         }
 
@@ -164,6 +172,7 @@ pub fn main() !u8 {
             switch (current_scene) {
                 0 => {
                     reactor_scene.clear(renderer._device, renderer._vma);
+                    rectangle_scene.clear(renderer._device, renderer._vma);
 
                     try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
                     monkey_scene.deactivate_node("Cube");
@@ -171,8 +180,15 @@ pub fn main() !u8 {
                 },
                 1 => {
                     monkey_scene.clear(renderer._device, renderer._vma);
+                    rectangle_scene.clear(renderer._device, renderer._vma);
 
                     try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+                },
+                2 => {
+                    monkey_scene.clear(renderer._device, renderer._vma);
+                    reactor_scene.clear(renderer._device, renderer._vma);
+
+                    try rectangle_scene.create_mesh(gpa.allocator(), &renderer);
                 },
                 else => {
                     std.log.warn("Invalid selected scene : {d}", .{ current_scene });
@@ -196,6 +212,10 @@ pub fn main() !u8 {
 
             renderer.update_scene(&monkey_scene);
             renderer.draw(&monkey_scene);
+        }
+        else if (current_scene == 2) {
+            renderer.update_scene(&rectangle_scene);
+            renderer.draw(&rectangle_scene);
         }
         else {
             renderer.update_scene(&reactor_scene);

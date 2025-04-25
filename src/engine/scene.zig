@@ -7,17 +7,25 @@ pub const ShaderData = struct {
     sunlight_color: [4]f32 align(4)
 };
 
+pub const type_e = enum {
+    GLTF,
+    MESH,
+};
+
 pub const scene_t = struct {
     mem: std.heap.ArenaAllocator,
+    _type: type_e,
 
     data: ShaderData = undefined,
     draw_context: mesh.DrawContext,
     gltf: ?*loader.LoadedGLTF = null,
+    voxel: ?vox.Voxel = null,
 
-    pub fn init(alloc: std.mem.Allocator) scene_t {
+    pub fn init(alloc: std.mem.Allocator, t: type_e) scene_t {
         const scene = scene_t {
             .mem = std.heap.ArenaAllocator.init(alloc),
             .draw_context = mesh.DrawContext.init(alloc),
+            ._type = t,
         };
 
         return scene;
@@ -45,11 +53,21 @@ pub const scene_t = struct {
 
         self.draw_context.opaque_surfaces.clearAndFree();
         self.draw_context.transparent_surfaces.clearAndFree();
+
+        if (self.voxel) |*voxel| {
+            voxel.deinit(vma);
+        }
+
+        self.voxel = null;
     }
 
     pub fn load(self: *scene_t, alloc: std.mem.Allocator, file: []const u8, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, r: *renderer.renderer_t) !void {
         self.gltf = try self.allocator().create(loader.LoadedGLTF);
         self.gltf.?.* = try loader.load_gltf(alloc, file, device, fence, queue, cmd, vma, r);
+    }
+
+    pub fn create_mesh(self: *scene_t, alloc: std.mem.Allocator, r: *renderer.renderer_t) !void {
+        self.voxel = try vox.Voxel.init(alloc, r);
     }
 
     pub fn update(self: *scene_t, cam: *const camera.camera_t, extent: c.VkExtent2D) void {
@@ -69,11 +87,25 @@ pub const scene_t = struct {
         self.draw_context.opaque_surfaces.clearRetainingCapacity();
         self.draw_context.transparent_surfaces.clearRetainingCapacity();
 
+        switch (self._type) {
+            type_e.GLTF => {
+                self.update_gltf();
+            },
+            type_e.MESH => {
+                self.update_mesh();
+            }
+        }
+    }
+
+    pub fn update_gltf(self: *scene_t) void {
         const top: [4][4]f32 align(16) = za.Mat4.identity().data;
-        
         if (self.gltf) |obj| {
             obj.draw(top, &self.draw_context);
         }
+    }
+
+    pub fn update_mesh(self: *scene_t) void {
+        _ = self;
     }
 
     pub fn find_node(self: *scene_t, name: []const u8) ?*mesh.Node {
@@ -113,3 +145,4 @@ const c = @import("../clibs.zig");
 const mesh = @import("../renderer/mesh.zig");
 const loader = @import("../renderer/loader.zig");
 const renderer = @import("../renderer/engine.zig");
+const vox = @import("../voxel.zig");

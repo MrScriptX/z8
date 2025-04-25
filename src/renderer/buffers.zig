@@ -75,19 +75,11 @@ pub const GPUMeshBuffers = struct {
         const vertices_ptr: [*]Vertex = @alignCast(@ptrCast(data));
 	    @memcpy(vertices_ptr, vertices);
 
-        // for (0..vertices.len) |i| {
-        //     log.write("vtx[{d}] = ({d}, {d}, {d})\n", .{ i, vertices_ptr[i].position[0], vertices_ptr[i].position[1], vertices_ptr[i].position[2] });
-        // }
-
 	    // copy index buffer
         const base_ptr: [*]u8 = @ptrCast(data);
         const index_ptr_u8 = base_ptr + vertex_buffer_size;
         const index_ptr: [*]u32 = @as([*]u32, @alignCast(@ptrCast(index_ptr_u8)));
 	    @memcpy(index_ptr, indices);
-
-        // for (0..indices.len) |i| {
-        //     log.write("idx[{x}] = {x}\n", .{ i, index_ptr[i] });
-        // }
 
         // submit immediate
         new_surface.submit(device, fence, queue, cmd, vertex_buffer_size, index_buffer_size, &staging);
