@@ -24,6 +24,13 @@ pub const scene_t = struct {
     }
 
     pub fn deinit(self: *scene_t, device: c.VkDevice, vma: c.VmaAllocator) void {
+        self.clear(device, vma);
+
+        self.draw_context.deinit();
+        self.mem.deinit();
+    }
+
+    pub fn clear(self: *scene_t, device: c.VkDevice, vma: c.VmaAllocator) void {
         const result = c.vkDeviceWaitIdle(device);
         if (result != c.VK_SUCCESS) {
             std.log.err("Failed to wait for device idle ! Reason {d}.", .{ result });
@@ -33,9 +40,8 @@ pub const scene_t = struct {
             obj.deinit(device, vma);
         }
 
-        self.draw_context.deinit();
-        
-        self.mem.deinit();
+        self.draw_context.opaque_surfaces.clearAndFree();
+        self.draw_context.transparent_surfaces.clearAndFree();
     }
 
     pub fn load(self: *scene_t, alloc: std.mem.Allocator, file: []const u8, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, r: *renderer.renderer_t) !void {
@@ -65,6 +71,19 @@ pub const scene_t = struct {
         if (self.gltf) |obj| {
             obj.draw(top, &self.draw_context);
         }
+    }
+
+    pub fn find_node(self: *scene_t, name: []const u8) ?*mesh.Node {
+        if (self.gltf) |obj| {
+            for (obj.top_nodes.items) |root| {
+                const node = root.find(name);
+                if (node) |n| {
+                    return n;
+                }
+            }
+        }
+
+        return null;
     }
 
     pub fn deactivate_node(self: *scene_t, name: []const u8) void {

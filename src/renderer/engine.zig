@@ -1440,59 +1440,11 @@ pub const renderer_t = struct {
     }
 
     pub fn update_scene(self: *renderer_t, scene: *scenes.scene_t) void {
-        // self._draw_context.opaque_surfaces.clearRetainingCapacity();
-        // self._draw_context.transparent_surfaces.clearRetainingCapacity();
-
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
-
-        // const node = self._loaded_nodes.get("Suzanne");
-        // if (node == null) {
-        //     @panic("node is null");
-        // }
-
-        // const top: maths.mat4 align(16) = z.Mat4.identity().data;
-        // node.?.draw(&top, &self._draw_context); 
 
         const delta_time = calculate_delta_time();
 
         self._main_camera.update(delta_time);
-
-        // const view = self._main_camera.view_matrix();
-
-        // const deg: f32 = 70.0;
-        // var proj = z.perspectiveReversedZ(deg, @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1);
-        // proj.data[1][1] *= -1.0;
-
-        // _scene_data.view = view.data;
-        // _scene_data.proj = proj.data;
-        // _scene_data.viewproj = z.Mat4.mul(proj, view).data;
-
-        // var view: z.Mat4 = _last_view;
-
-        // const rotation_speed: f32 = 45.0; // Degrees per second
-        // const rotation_angle = rotation_speed * (delta_time / 1_000_000_000.0);
-        // view = view.rotate(rotation_angle, z.Vec3.new(0, 1, 0));
-
-        // _last_view = view;
-
-        // _scene_data.view = view.data;
-        
-        // const deg: f32 = 70.0;
-        // var proj = z.perspective(z.toRadians(deg), @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1, 10000.0);
-        // proj.data[1][1] *= -1.0;
-
-        // _scene_data.proj = proj.data;
-
-        // _scene_data.viewproj = z.Mat4.mul(proj, view).data;
-
-        // _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
-        // _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
-        // _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
-
-        // const top: maths.mat4 align(16) = z.Mat4.identity().data;
-        // _loaded_scenes.get("structure").?.draw(top, &self._draw_context);
-
-        // self.scenes.getLast().update(self._main_camera, self._draw_extent);
 
         scene.update(self._main_camera, self._draw_extent);
 

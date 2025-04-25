@@ -78,6 +78,12 @@ pub fn main() !u8 {
 
         if (renderer.should_rebuild_sw()) {
             renderer.rebuild_swapchain(window);
+
+            monkey_scene.clear(renderer._device, renderer._vma);
+            
+            try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+            monkey_scene.deactivate_node("Cube");
+            monkey_scene.deactivate_node("Sphere");
         }
 
         imgui.cImGui_ImplVulkan_NewFrame();
@@ -112,6 +118,11 @@ pub fn main() !u8 {
 
                 _ = imgui.ImGui_SliderFloat("speed", @ptrCast(&main_camera.speed), 0, 100);
                 _ = imgui.ImGui_SliderFloat("sensitivity", @ptrCast(&main_camera.sensitivity), 0, 1);
+
+                imgui.ImGui_Text("Camera");
+                _ = imgui.ImGui_InputFloat3("position", @ptrCast(&main_camera.position));
+                _ = imgui.ImGui_InputFloat("yaw", &main_camera.yaw);
+                _ = imgui.ImGui_InputFloat("pitch", &main_camera.pitch);
 		    }
         }
 
@@ -151,6 +162,17 @@ pub fn main() !u8 {
         imgui.ImGui_Render();
 
         if (current_scene == 0) {
+            if (monkey_scene.find_node("Suzanne")) |node| {
+                const current_transform = za.Mat4.fromSlice(&linearize(node.local_transform));
+
+                const rotation_speed: f32 = 45.0; // Degrees per second
+                const rotation_angle = rotation_speed * (renderer.stats.frame_time / 1_000_000_000.0);
+                const rot = za.Mat4.identity().rotate(rotation_angle, za.Vec3.new(0, 1, 0)).mul(current_transform).data;
+
+                node.local_transform = rot;
+                node.refresh_transform(&rot);
+            }
+
             renderer.update_scene(&monkey_scene);
             renderer.draw(&monkey_scene);
         }
@@ -204,6 +226,18 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     // }
 }
 
+fn linearize(mat: [4][4]f32) [16]f32 {
+    var out: [16]f32 = undefined;
+    var idx: usize = 0;
+    for (mat) |row| {
+        for (row) |val| {
+            out[idx] = val;
+            idx += 1;
+        }
+    }
+    return out;
+}
+
 test "engine test" {
 }
 
@@ -214,3 +248,4 @@ const engine = @import("renderer/engine.zig");
 const camera = @import("engine/camera.zig");
 const imgui = @import("renderer/imgui.zig");
 const scene = @import("engine/scene.zig");
+const za = @import("zalgebra");
