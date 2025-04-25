@@ -1,5 +1,6 @@
 pub const Voxel = struct {
     mesh: buffers.GPUMeshBuffers,
+    material: mat.MaterialInstance,
 
     pub fn init(alloc: std.mem.Allocator, renderer: *engine.renderer_t) !Voxel {
         var rect_vertices =  std.ArrayList(buffers.Vertex).init(alloc);
@@ -50,6 +51,7 @@ pub const Voxel = struct {
 
         const voxel = Voxel {
             .mesh = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queues.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer),
+            .material = undefined,
         };
 
         return voxel;
@@ -63,4 +65,5 @@ pub const Voxel = struct {
 const std = @import("std");
 const engine = @import("renderer/engine.zig");
 const buffers = @import("renderer/buffers.zig");
+const mat = @import("renderer/material.zig");
 const c = @import("clibs.zig");
