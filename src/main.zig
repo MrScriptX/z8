@@ -37,17 +37,18 @@ pub fn main() !u8 {
     var reactor_scene = scene.scene_t.init(gpa.allocator());
     defer reactor_scene.deinit(renderer._device, renderer._vma);
 
-    try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+    // try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
 
     // load monkey scene
     var monkey_scene = scene.scene_t.init(gpa.allocator());
     defer monkey_scene.deinit(renderer._device, renderer._vma);
 
-    try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
-    monkey_scene.deactivate_node("Cube");
-    monkey_scene.deactivate_node("Sphere");
+    // try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+    // monkey_scene.deactivate_node("Cube");
+    // monkey_scene.deactivate_node("Sphere");
 
     var current_scene: i32 = 0;
+    var render_scene: i32 = -1;
 
     // main loop
     var quit = false;
@@ -163,13 +164,29 @@ pub fn main() !u8 {
 
         imgui.ImGui_Render();
 
-        if (current_scene == 0) {
-            if (monkey_scene.gltf == null) {
-                try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
-                monkey_scene.deactivate_node("Cube");
-                monkey_scene.deactivate_node("Sphere");
+        if (render_scene != current_scene) {
+            switch (current_scene) {
+                0 => {
+                    reactor_scene.clear(renderer._device, renderer._vma);
+
+                    try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+                    monkey_scene.deactivate_node("Cube");
+                    monkey_scene.deactivate_node("Sphere");
+                },
+                1 => {
+                    monkey_scene.clear(renderer._device, renderer._vma);
+
+                    try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+                },
+                else => {
+                    std.log.warn("Invalid selected scene : {d}", .{ current_scene });
+                }
             }
 
+            render_scene = current_scene;
+        }
+
+        if (current_scene == 0) {
             if (monkey_scene.find_node("Suzanne")) |node| {
                 const current_transform = za.Mat4.fromSlice(&linearize(node.local_transform));
 
@@ -185,10 +202,6 @@ pub fn main() !u8 {
             renderer.draw(&monkey_scene);
         }
         else {
-            if (reactor_scene.gltf == null) {
-                try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
-            }
-
             renderer.update_scene(&reactor_scene);
             renderer.draw(&reactor_scene);
         }
