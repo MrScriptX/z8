@@ -34,8 +34,6 @@ pub const renderer_t = struct {
 
     var rectangle: buffers.GPUMeshBuffers = undefined;
 
-    // var _scene_data: scene.ShaderData = undefined;
-
     pub var _white_image: vk_images.image_t = undefined;
     pub var _black_image: vk_images.image_t = undefined;
     pub var _grey_image: vk_images.image_t = undefined;
@@ -91,25 +89,17 @@ pub const renderer_t = struct {
 
     _mat_constants: buffers.AllocatedBuffer = undefined,
 
-    _draw_context: m.DrawContext,
-
-    _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
-
-    _main_camera: *camera.camera_t,
-
+    camera: *cam.camera_t,
     stats: stats_t,
 
-    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32, cam: *camera.camera_t) !renderer_t {
+    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !renderer_t {
         var renderer = renderer_t{
-            ._loaded_nodes = std.hash_map.StringHashMap(*m.Node).init(allocator),
-            ._draw_context = m.DrawContext.init(allocator),
-            ._main_camera = cam,
+            .camera = camera,
             .stats = stats_t{},
         };
         
         renderer._arena = std.heap.ArenaAllocator.init(allocator);
         _background_effects = std.ArrayList(effects.ComputeEffect).init(allocator);
-        _loaded_scenes = std.hash_map.StringHashMap(*loader.LoadedGLTF).init(allocator);
 
         renderer.init_vulkan(window) catch {
             err.display_error("Failed to init vulkan API !");
@@ -160,15 +150,11 @@ pub const renderer_t = struct {
     pub fn deinit(self: *renderer_t) void {
         defer self._arena.deinit();
         defer _background_effects.deinit();
-        defer _loaded_scenes.deinit();
 
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
             log.write("Failed to wait for device idle ! Reason {d}.", .{result});
         }
-
-        self._draw_context.deinit();
-        self._loaded_nodes.deinit();
 
         c.vkDestroySampler(self._device, _default_sampler_nearest, null);
         c.vkDestroySampler(self._device, _default_sampler_linear, null);
@@ -580,8 +566,6 @@ pub const renderer_t = struct {
     }
 
     pub fn draw(self: *renderer_t, scene: *scenes.scene_t) void {
-        // self.update_scene();
-
         var result = c.vkWaitForFences(self._device, 1, &self.current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
             log.write("vkWaitForFences failed with error {x}\n", .{ result });
@@ -1197,16 +1181,6 @@ pub const renderer_t = struct {
         self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
     }
 
-    var _last_view: z.Mat4 = z.Mat4.identity().translate(z.Vec3.new(0, 0, 10));
-    var _last_frame_time: u128 = 0;
-
-    fn calculate_delta_time() f32 {
-        const current_time: u128 = @intCast(std.time.nanoTimestamp()); // casting because we won't have neg value
-        const delta_time: f32 = @floatFromInt(current_time - _last_frame_time);
-        _last_frame_time = current_time;
-        return delta_time;
-    }
-
     fn init_default_data(self: *renderer_t, allocator: std.mem.Allocator) !void {
         var rect_vertices =  std.ArrayList(buffers.Vertex).init(allocator);
         defer rect_vertices.deinit();
@@ -1316,25 +1290,25 @@ pub const renderer_t = struct {
 
         self._default_data = self._metal_rough_material.write_material_compat(self._device, material.MaterialPass.MainColor, &material_res, &self._descriptor_pool);
 
-        for (_test_meshes.items) |*mesh| {
-            var new_node: *m.Node = try std.heap.page_allocator.create(m.Node);
-            new_node.children = std.ArrayList(*m.Node).init(std.heap.page_allocator);
-            new_node.mesh = mesh;
+        // for (_test_meshes.items) |*mesh| {
+        //     var new_node: *m.Node = try std.heap.page_allocator.create(m.Node);
+        //     new_node.children = std.ArrayList(*m.Node).init(std.heap.page_allocator);
+        //     new_node.mesh = mesh;
 
-            new_node.local_transform = z.Mat4.identity().data;
-            new_node.world_transform =  z.Mat4.identity().data;
+        //     new_node.local_transform = z.Mat4.identity().data;
+        //     new_node.world_transform =  z.Mat4.identity().data;
 
-            for (new_node.mesh.surfaces.items) |*s| {
-                s.material = self._arena.allocator().create(loader.GLTFMaterial) catch @panic("OOM");
-                s.material.data = material.MaterialInstance{
-                    .pipeline = self._default_data.pipeline,
-                    .material_set = self._default_data.material_set,
-                    .pass_type = self._default_data.pass_type,
-                };
-            }
+        //     for (new_node.mesh.surfaces.items) |*s| {
+        //         s.material = self._arena.allocator().create(loader.GLTFMaterial) catch @panic("OOM");
+        //         s.material.data = material.MaterialInstance{
+        //             .pipeline = self._default_data.pipeline,
+        //             .material_set = self._default_data.material_set,
+        //             .pass_type = self._default_data.pass_type,
+        //         };
+        //     }
 
-            self._loaded_nodes.put(mesh.name, new_node) catch @panic("OOM");
-        }
+        //     self._loaded_nodes.put(mesh.name, new_node) catch @panic("OOM");
+        // }
     }
 
     pub fn render_scale() *f32 {
@@ -1442,11 +1416,9 @@ pub const renderer_t = struct {
     pub fn update_scene(self: *renderer_t, scene: *scenes.scene_t) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
-        const delta_time = calculate_delta_time();
+        self.camera.update(self.stats.frame_time);
 
-        self._main_camera.update(delta_time);
-
-        scene.update(self._main_camera, self._draw_extent);
+        scene.update(self.camera, self._draw_extent);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         self.stats.scene_update_time = @floatFromInt(end_time - start_time);
@@ -1471,6 +1443,6 @@ const scenes = @import("../engine/scene.zig");
 const maths = @import("../utils/maths.zig");
 const material = @import("material.zig");
 const m = @import("mesh.zig");
-const camera = @import("../engine/camera.zig");
+const cam = @import("../engine/camera.zig");
 
 const log = @import("../utils/log.zig");
