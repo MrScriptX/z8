@@ -30,5 +30,8 @@ The following libraries are included in the project, and don't need to be instal
 ## TODO List
 
 - [ ] Add a configuration file to load and save settings
-- [ ] Make a CVars system using ImGui to change settings at runtime
 - [ ] Split ImGui into a separate module to build more complex UI
+- [ ] Add a scene graph to manage objects in the scene
+- [ ] Make a more generic scene graph
+- [ ] Make a scene manager to load and unload scenes
+- [ ] Make a better material system
