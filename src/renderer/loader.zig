@@ -276,33 +276,66 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     scene.descriptor_pool = descriptors.DescriptorAllocator2.init(device, @intCast(data.materials_count), &sizes);
 
     // load samplers
-    for (data.samplers[0..data.samplers_count]) |*sampler| {
-        const mag_filter = if (sampler.*.mag_filter != 0) sampler.*.mag_filter else cgltf.cgltf_filter_type_nearest;
-        const min_filter = if (sampler.*.min_filter != 0) sampler.*.min_filter else cgltf.cgltf_filter_type_nearest;
+    if (data.samplers != null) {
+        for (data.samplers[0..data.samplers_count]) |*sampler| {
+            const mag_filter = if (sampler.*.mag_filter != 0) sampler.*.mag_filter else cgltf.cgltf_filter_type_nearest;
+            const min_filter = if (sampler.*.min_filter != 0) sampler.*.min_filter else cgltf.cgltf_filter_type_nearest;
 
-        const sampler_create_info = c.VkSamplerCreateInfo {
+            const sampler_create_info = c.VkSamplerCreateInfo {
+                .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                .pNext = null,
+
+                .maxLod = c.VK_LOD_CLAMP_NONE,
+                .minLod = 0,
+
+                .magFilter = extract_filter(mag_filter),
+                .minFilter = extract_filter(min_filter),
+
+                .mipmapMode = extract_mipmap_mode(min_filter),
+            };
+
+            var new_sampler: c.VkSampler = undefined;
+            const create_result = c.vkCreateSampler(device, &sampler_create_info, null, &new_sampler);
+            if (create_result != c.VK_SUCCESS) {
+                std.log.err("Failed to create sampler ! Reason {d}", .{ create_result });
+                @panic("Failed to create sampler !");
+            }
+
+            try scene.samplers.append(new_sampler);
+        }
+    }
+    else {
+        const nearest_sampler_image = c.VkSamplerCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .pNext = null,
-
-            .maxLod = c.VK_LOD_CLAMP_NONE,
-            .minLod = 0,
-
-            .magFilter = extract_filter(mag_filter),
-            .minFilter = extract_filter(min_filter),
-
-            .mipmapMode = extract_mipmap_mode(min_filter),
+            .magFilter = c.VK_FILTER_NEAREST,
+            .minFilter = c.VK_FILTER_NEAREST,
         };
 
-        var new_sampler: c.VkSampler = undefined;
-        const create_result = c.vkCreateSampler(device, &sampler_create_info, null, &new_sampler);
-        if (create_result != c.VK_SUCCESS) {
-            std.log.err("Failed to create sampler ! Reason {d}", .{ create_result });
+        var sampler_nearest: c.VkSampler = undefined;
+        var sampler_create = c.vkCreateSampler(device, &nearest_sampler_image, null, &sampler_nearest);
+        if (sampler_create != c.VK_SUCCESS) {
+            std.log.err("Failed to create sampler ! Reason {d}", .{ result });
             @panic("Failed to create sampler !");
         }
 
-        try scene.samplers.append(new_sampler);
-    }
+        try scene.samplers.append(sampler_nearest);
 
+        const linear_sampler_image = c.VkSamplerCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = c.VK_FILTER_LINEAR,
+            .minFilter = c.VK_FILTER_LINEAR,
+        };
+
+        var sampler_linear: c.VkSampler = undefined;
+        sampler_create = c.vkCreateSampler(device, &linear_sampler_image, null, &sampler_linear);
+        if (sampler_create != c.VK_SUCCESS) {
+            std.log.err("Failed to create sampler ! Reason {d}", .{ result });
+            @panic("Failed to create sampler !");
+        }
+
+        try scene.samplers.append(sampler_linear);
+    }
+    
     // local allocator
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
@@ -313,19 +346,21 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     var images = std.hash_map.StringHashMap(*vk_images.image_t).init(allocator);
     defer images.deinit();
 
-    for (data.images[0..data.images_count]) |*img| {
-        const image = load_image(scene.arena.allocator(), img, renderer);
-        if (image) |it| {
-            const name = try scene.arena.allocator().dupe(u8, std.mem.span(img.name));
+    if (data.images != null) {
+        for (data.images[0..data.images_count]) |*img| {
+            const image = load_image(scene.arena.allocator(), img, renderer);
+            if (image) |it| {
+                const name = try scene.arena.allocator().dupe(u8, std.mem.span(img.name));
 
-            try images.put(name, it);
-            try scene.images.put(name, it);
-        }
-        else {
-            std.log.warn("Missing image {s}", .{ std.mem.span(img.name) });
+                try images.put(name, it);
+                try scene.images.put(name, it);
+            }
+            else {
+                std.log.warn("Missing image {s}", .{ std.mem.span(img.name) });
 
-            const name = try alloc.dupe(u8, std.mem.span(img.name));
-            try images.put(name, &engine.renderer_t._error_checker_board_image);
+                const name = try alloc.dupe(u8, std.mem.span(img.name));
+                try images.put(name, &engine.renderer_t._error_checker_board_image);
+            }
         }
     }
 

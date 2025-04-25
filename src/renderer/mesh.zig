@@ -24,6 +24,7 @@ pub const NodeType = enum {
 
 pub const Node = struct {
     _type: NodeType = undefined,
+    active: bool = true,
 
     parent: ?*Node = null,
     children: std.ArrayList(*Node),
@@ -55,6 +56,10 @@ pub const Node = struct {
     }
 
     pub fn draw(self: *Node, top_matrix: math.mat4, ctx: *DrawContext) void {
+        if (!self.active) {
+            return;
+        }
+
         if (self._type == NodeType.MESH_NODE) {
             const node_matrix = math.mul(top_matrix, self.world_transform);
             for (self.mesh.surfaces.items) |*surface| {
@@ -79,6 +84,21 @@ pub const Node = struct {
         for (self.children.items) |child| {
             child.draw(top_matrix, ctx);
         }
+    }
+
+    pub fn find(self: * Node, name: []const u8) ?*Node {
+        if (std.mem.eql(u8, self.mesh.name, name)) {
+            return self;
+        }
+
+        for (self.children.items) |child| {
+            const node = child.find(name);
+            if (node) |n| {
+                return n;
+            }
+        }
+
+        return null;
     }
 };
 

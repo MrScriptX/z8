@@ -33,11 +33,19 @@ pub fn main() !u8 {
     };
     defer renderer.deinit();
 
-    // TODO : build scene here, then send it to renderer.update_scene and renderer.draw
+    // load reactor scene
     var reactor_scene = scene.scene_t.init(gpa.allocator());
     defer reactor_scene.deinit(renderer._device, renderer._vma);
 
-    try reactor_scene.load(gpa.allocator(), "reactor", "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+    try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+
+    // load monkey scene
+    var monkey_scene = scene.scene_t.init(gpa.allocator());
+    defer monkey_scene.deinit(renderer._device, renderer._vma);
+
+    try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+    monkey_scene.deactivate_node("Cube");
+    monkey_scene.deactivate_node("Sphere");
 
     // main loop
     var quit = false;
@@ -129,8 +137,8 @@ pub fn main() !u8 {
 
         imgui.ImGui_Render();
 
-        renderer.update_scene(&reactor_scene);
-        renderer.draw(&reactor_scene);
+        renderer.update_scene(&monkey_scene);
+        renderer.draw(&monkey_scene);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         renderer.stats.frame_time = @floatFromInt(end_time - start_time);

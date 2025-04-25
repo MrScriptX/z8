@@ -12,13 +12,12 @@ pub const scene_t = struct {
 
     data: ShaderData = undefined,
     draw_context: mesh.DrawContext,
-    meshes: std.hash_map.StringHashMap(*loader.LoadedGLTF),
+    gltf: ?*loader.LoadedGLTF = null,
 
     pub fn init(alloc: std.mem.Allocator) scene_t {
         const scene = scene_t {
             .mem = std.heap.ArenaAllocator.init(alloc),
             .draw_context = mesh.DrawContext.init(alloc),
-            .meshes = std.hash_map.StringHashMap(*loader.LoadedGLTF).init(alloc),
         };
 
         return scene;
@@ -30,22 +29,18 @@ pub const scene_t = struct {
             std.log.err("Failed to wait for device idle ! Reason {d}.", .{ result });
         }
 
-        var it = self.meshes.valueIterator();
-        while (it.next()) |m| {
-            m.*.deinit(device, vma);
+        if (self.gltf) |obj| {
+            obj.deinit(device, vma);
         }
 
         self.draw_context.deinit();
-        self.meshes.deinit();
         
         self.mem.deinit();
     }
 
-    pub fn load(self: *scene_t, alloc: std.mem.Allocator, name: []const u8, file: []const u8, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, r: *renderer.renderer_t) !void {
-        const gltf = try self.allocator().create(loader.LoadedGLTF);
-        gltf.* = try loader.load_gltf(alloc, file, device, fence, queue, cmd, vma, r);
-
-        try self.meshes.put(name, gltf);
+    pub fn load(self: *scene_t, alloc: std.mem.Allocator, file: []const u8, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, r: *renderer.renderer_t) !void {
+        self.gltf = try self.allocator().create(loader.LoadedGLTF);
+        self.gltf.?.* = try loader.load_gltf(alloc, file, device, fence, queue, cmd, vma, r);
     }
 
     pub fn update(self: *scene_t, cam: *const camera.camera_t, extent: c.VkExtent2D) void {
@@ -67,11 +62,21 @@ pub const scene_t = struct {
 
         const top: [4][4]f32 align(16) = za.Mat4.identity().data;
         
-        var it = self.meshes.valueIterator();
-        while (it.next()) |m| {
-            m.*.draw(top, &self.draw_context);
+        if (self.gltf) |obj| {
+            obj.draw(top, &self.draw_context);
         }
-        // self.meshes.get("structure").?.draw(top, &self.draw_context);
+    }
+
+    pub fn deactivate_node(self: *scene_t, name: []const u8) void {
+        if (self.gltf) |obj| {
+            for (obj.top_nodes.items) |root| {
+                const node = root.find(name);
+                if (node) |n| {
+                    n.active = false;
+                    break;
+                }
+            }
+        }
     }
 
     fn allocator(self: *scene_t) std.mem.Allocator {
