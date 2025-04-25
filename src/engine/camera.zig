@@ -10,14 +10,14 @@ pub const camera_t = struct {
 
     active: bool = true,
 
-    pub fn view_matrix(self: *camera_t) za.Mat4 {
+    pub fn view_matrix(self: *const camera_t) za.Mat4 {
         const position = za.Vec3.new(self.position[0], self.position[1], self.position[2]);
         const camera_translation = za.Mat4.identity().translate(position);
         const camera_rotation = self.rotation_matrix();
         return za.Mat4.mul(camera_translation, camera_rotation).inv();
     }
 
-    pub fn rotation_matrix(self: *camera_t) za.Mat4 {
+    pub fn rotation_matrix(self: *const camera_t) za.Mat4 {
         const pitch_rotation = za.Quat.fromAxis(self.pitch, za.Vec3.new(1, 0, 0));
         const yaw_rotation = za.Quat.fromAxis(self.yaw, za.Vec3.new(0, -1, 0));
         return za.Mat4.mul(za.Quat.toMat4(yaw_rotation), za.Quat.toMat4(pitch_rotation));

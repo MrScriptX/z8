@@ -34,7 +34,7 @@ pub const renderer_t = struct {
 
     var rectangle: buffers.GPUMeshBuffers = undefined;
 
-    var _scene_data: scene.GPUData = undefined;
+    // var _scene_data: scene.ShaderData = undefined;
 
     pub var _white_image: vk_images.image_t = undefined;
     pub var _black_image: vk_images.image_t = undefined;
@@ -96,6 +96,7 @@ pub const renderer_t = struct {
     _loaded_nodes: std.hash_map.StringHashMap(*m.Node),
 
     _main_camera: *camera.camera_t,
+
     stats: stats_t,
 
     pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32, cam: *camera.camera_t) !renderer_t {
@@ -153,11 +154,6 @@ pub const renderer_t = struct {
             std.process.exit(1);
         };
 
-        const gltf = try renderer._arena.allocator().create(loader.LoadedGLTF);
-        gltf.* = try loader.load_gltf(allocator, "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
-
-        try _loaded_scenes.put("structure", gltf);
-
         return renderer;
     }
 
@@ -169,11 +165,6 @@ pub const renderer_t = struct {
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
             log.write("Failed to wait for device idle ! Reason {d}.", .{result});
-        }
-
-        var it = _loaded_scenes.iterator();
-        while (it.next()) |*gltf| {
-            gltf.value_ptr.*.deinit(self._device, self._vma);
         }
 
         self._draw_context.deinit();
@@ -369,8 +360,6 @@ pub const renderer_t = struct {
 		    _single_image_descriptor_layout = builder.build(self._device, c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
         }
     }
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
     fn init_pipelines(self: *renderer_t) !void {
         try self.init_background_pipelines();
@@ -590,8 +579,8 @@ pub const renderer_t = struct {
         return @max(-n, n);
     }
 
-    pub fn draw(self: *renderer_t) void {
-        self.update_scene();
+    pub fn draw(self: *renderer_t, scene: *scenes.scene_t) void {
+        // self.update_scene();
 
         var result = c.vkWaitForFences(self._device, 1, &self.current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
@@ -657,7 +646,8 @@ pub const renderer_t = struct {
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         utils.transition_image(cmd_buffer, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        self.draw_geometry(cmd_buffer);
+        // self.draw_geometry(cmd_buffer);
+        self.draw_scene(scene, cmd_buffer);
 
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -853,15 +843,15 @@ pub const renderer_t = struct {
 	    c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
         // allocate new uniform buffer for the scene
-        const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scene.GPUData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+        const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
             log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
             @panic("OOM");
         };
 
-        const scene_uniform_data: *scene.GPUData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
-        scene_uniform_data.* = _scene_data;
+        const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
+        scene_uniform_data.* = self.scenes.getLast().data;
 
         const global_descriptor = self.current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
     
@@ -869,7 +859,7 @@ pub const renderer_t = struct {
             var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
             defer writer.deinit();
 
-            writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scene.GPUData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
             writer.update_set(self._device, global_descriptor);
         }
 
@@ -878,7 +868,8 @@ pub const renderer_t = struct {
         var last_material: ?*material.MaterialInstance = null;
         var last_index_buffer: c.VkBuffer = null;
 
-        for (self._draw_context.opaque_surfaces.items) |*obj| {
+        const s = self.scenes.getLast();
+        for (s.draw_context.opaque_surfaces.items) |*obj| {
             if (last_material != obj.material) {
                 last_material = obj.material;
 
@@ -914,7 +905,257 @@ pub const renderer_t = struct {
             self.stats.triangle_count += obj.index_count / 3;
         }
 
-        for (self._draw_context.transparent_surfaces.items) |*obj| {
+        for (s.draw_context.transparent_surfaces.items) |*obj| {
+            if (last_material != obj.material) {
+                last_material = obj.material;
+
+                if (last_pipeline != obj.material.pipeline) {
+                    last_pipeline = obj.material.pipeline;
+
+                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                }
+
+                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+            }
+
+            if (last_index_buffer != obj.index_buffer) {
+                last_index_buffer = obj.index_buffer;
+                
+                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+            }
+
+            const push_constants_mesh = buffers.GPUDrawPushConstants {
+                .world_matrix = obj.transform,
+                .vertex_buffer = obj.vertex_buffer_address,
+            };
+
+            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+
+            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+
+            self.stats.drawcall_count += 1;
+            self.stats.triangle_count += obj.index_count / 3;
+        }
+
+        // for (self._draw_context.opaque_surfaces.items) |*obj| {
+        //     if (last_material != obj.material) {
+        //         last_material = obj.material;
+
+        //         if (last_pipeline != obj.material.pipeline) {
+        //             last_pipeline = obj.material.pipeline;
+
+        //             c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+        //             c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+        //             c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+        //             c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+        //         }
+
+        //         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+        //     }
+
+        //     if (last_index_buffer != obj.index_buffer) {
+        //         last_index_buffer = obj.index_buffer;
+
+        //         c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+        //     }
+
+        //     const push_constants_mesh = buffers.GPUDrawPushConstants {
+        //         .world_matrix = obj.transform,
+        //         .vertex_buffer = obj.vertex_buffer_address,
+        //     };
+
+        //     c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+
+        //     c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+
+        //     self.stats.drawcall_count += 1;
+        //     self.stats.triangle_count += obj.index_count / 3;
+        // }
+
+        // for (self._draw_context.transparent_surfaces.items) |*obj| {
+        //     if (last_material != obj.material) {
+        //         last_material = obj.material;
+
+        //         if (last_pipeline != obj.material.pipeline) {
+        //             last_pipeline = obj.material.pipeline;
+
+        //             c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+        //             c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+        //             c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+        //             c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+        //         }
+
+        //         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+        //     }
+
+        //     if (last_index_buffer != obj.index_buffer) {
+        //         last_index_buffer = obj.index_buffer;
+                
+        //         c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+        //     }
+
+        //     const push_constants_mesh = buffers.GPUDrawPushConstants {
+        //         .world_matrix = obj.transform,
+        //         .vertex_buffer = obj.vertex_buffer_address,
+        //     };
+
+        //     c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+
+        //     c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+
+        //     self.stats.drawcall_count += 1;
+        //     self.stats.triangle_count += obj.index_count / 3;
+        // }
+
+	    c.vkCmdEndRendering(cmd);
+
+        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
+    }
+
+    fn draw_scene(self: *renderer_t, scene: *scenes.scene_t, cmd: c.VkCommandBuffer) void {
+        self.stats.drawcall_count = 0;
+        self.stats.triangle_count = 0;
+
+        const start_time: u128 = @intCast(std.time.nanoTimestamp());
+
+        //begin a render pass  connected to our draw image
+	    const color_attachment = c.VkRenderingAttachmentInfo {
+            .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = null,
+
+            .imageView = self._draw_image.view,
+            .imageLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+
+            .loadOp = c.VK_ATTACHMENT_LOAD_OP_LOAD,
+            .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+
+            .clearValue = std.mem.zeroes(c.VkClearValue),
+        };
+
+        const depth_attachment = c.VkRenderingAttachmentInfo {
+            .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = null,
+
+            .imageView = self._depth_image.view,
+            .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+
+            .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+
+            .clearValue = .{
+                .depthStencil = .{
+                    .depth = 0.0,
+                    .stencil = 0
+                }
+            }
+        };
+
+        const render_info = c.VkRenderingInfo {
+            .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .pNext = null,
+            .pColorAttachments = &color_attachment,
+            .colorAttachmentCount = 1,
+            .pDepthAttachment = &depth_attachment,
+            .renderArea = .{
+            .extent = self._draw_extent,
+            .offset = .{
+                    .x = 0,
+                    .y = 0
+                }
+            },
+            .flags = 0,
+            .layerCount = 1,
+            .pStencilAttachment = null,
+            .viewMask = 0,
+        };
+
+	    c.vkCmdBeginRendering(cmd, &render_info);
+
+	    //set dynamic viewport and scissor
+	    const viewport = c.VkViewport {
+            .x = 0,
+	        .y = 0,
+	        .width = @floatFromInt(self._draw_extent.width),
+	        .height = @floatFromInt(self._draw_extent.height),
+	        .minDepth = 0.0,
+	        .maxDepth = 1.0,
+        };
+
+	    const scissor = c.VkRect2D {
+            .offset = .{ .x = 0, .y = 0 },
+	        .extent = self._draw_extent,
+        };
+
+        // allocate new uniform buffer for the scene
+        const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
+            log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
+            @panic("OOM");
+        };
+
+        const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
+        scene_uniform_data.* = scene.data;
+
+        const global_descriptor = self.current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
+    
+        {
+            var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+            defer writer.deinit();
+
+            writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            writer.update_set(self._device, global_descriptor);
+        }
+
+        // draw meshes
+        var last_pipeline: ?*material.MaterialPipeline = null;
+        var last_material: ?*material.MaterialInstance = null;
+        var last_index_buffer: c.VkBuffer = null;
+
+        for (scene.draw_context.opaque_surfaces.items) |*obj| {
+            if (last_material != obj.material) {
+                last_material = obj.material;
+
+                if (last_pipeline != obj.material.pipeline) {
+                    last_pipeline = obj.material.pipeline;
+
+                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                }
+
+                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+            }
+
+            if (last_index_buffer != obj.index_buffer) {
+                last_index_buffer = obj.index_buffer;
+
+                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+            }
+
+            const push_constants_mesh = buffers.GPUDrawPushConstants {
+                .world_matrix = obj.transform,
+                .vertex_buffer = obj.vertex_buffer_address,
+            };
+
+            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+
+            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+
+            self.stats.drawcall_count += 1;
+            self.stats.triangle_count += obj.index_count / 3;
+        }
+
+        for (scene.draw_context.transparent_surfaces.items) |*obj| {
             if (last_material != obj.material) {
                 last_material = obj.material;
 
@@ -1198,9 +1439,9 @@ pub const renderer_t = struct {
         return @constCast(&_background_effects.getLast());
     }
 
-    pub fn update_scene(self: *renderer_t) void {
-        self._draw_context.opaque_surfaces.clearRetainingCapacity();
-        self._draw_context.transparent_surfaces.clearRetainingCapacity();
+    pub fn update_scene(self: *renderer_t, scene: *scenes.scene_t) void {
+        // self._draw_context.opaque_surfaces.clearRetainingCapacity();
+        // self._draw_context.transparent_surfaces.clearRetainingCapacity();
 
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
@@ -1216,15 +1457,15 @@ pub const renderer_t = struct {
 
         self._main_camera.update(delta_time);
 
-        const view = self._main_camera.view_matrix();
+        // const view = self._main_camera.view_matrix();
 
-        const deg: f32 = 70.0;
-        var proj = z.perspectiveReversedZ(deg, @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1);
-        proj.data[1][1] *= -1.0;
+        // const deg: f32 = 70.0;
+        // var proj = z.perspectiveReversedZ(deg, @as(f32, @floatFromInt(self._draw_extent.width)) / @as(f32, @floatFromInt(self._draw_extent.height)), 0.1);
+        // proj.data[1][1] *= -1.0;
 
-        _scene_data.view = view.data;
-        _scene_data.proj = proj.data;
-        _scene_data.viewproj = z.Mat4.mul(proj, view).data;
+        // _scene_data.view = view.data;
+        // _scene_data.proj = proj.data;
+        // _scene_data.viewproj = z.Mat4.mul(proj, view).data;
 
         // var view: z.Mat4 = _last_view;
 
@@ -1244,12 +1485,16 @@ pub const renderer_t = struct {
 
         // _scene_data.viewproj = z.Mat4.mul(proj, view).data;
 
-        _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
-        _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
-        _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
+        // _scene_data.ambient_color = maths.vec4 { 0.1, 0.1, 0.1, 0.1 };
+        // _scene_data.sunlight_color = maths.vec4{ 1, 1, 1, 1 };
+        // _scene_data.sunlight_dir = maths.vec4{ 0, 1, 0.5, 1 };
 
-        const top: maths.mat4 align(16) = z.Mat4.identity().data;
-        _loaded_scenes.get("structure").?.draw(top, &self._draw_context);
+        // const top: maths.mat4 align(16) = z.Mat4.identity().data;
+        // _loaded_scenes.get("structure").?.draw(top, &self._draw_context);
+
+        // self.scenes.getLast().update(self._main_camera, self._draw_extent);
+
+        scene.update(self._main_camera, self._draw_extent);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         self.stats.scene_update_time = @floatFromInt(end_time - start_time);
@@ -1270,7 +1515,7 @@ const effects = @import("compute_effect.zig");
 const pipelines = @import("pipeline.zig");
 const buffers = @import("buffers.zig");
 const loader = @import("loader.zig");
-const scene = @import("scene.zig");
+const scenes = @import("../engine/scene.zig");
 const maths = @import("../utils/maths.zig");
 const material = @import("material.zig");
 const m = @import("mesh.zig");

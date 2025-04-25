@@ -1,0 +1,88 @@
+pub const ShaderData = struct {
+    view: [4][4]f32 align(16),
+    proj: [4][4]f32 align(16),
+    viewproj: [4][4]f32 align(16),
+    ambient_color: [4]f32 align(4),
+    sunlight_dir: [4]f32 align(4),
+    sunlight_color: [4]f32 align(4)
+};
+
+pub const scene_t = struct {
+    mem: std.heap.ArenaAllocator,
+
+    data: ShaderData = undefined,
+    draw_context: mesh.DrawContext,
+    meshes: std.hash_map.StringHashMap(*loader.LoadedGLTF),
+
+    pub fn init(alloc: std.mem.Allocator) scene_t {
+        const scene = scene_t {
+            .mem = std.heap.ArenaAllocator.init(alloc),
+            .draw_context = mesh.DrawContext.init(alloc),
+            .meshes = std.hash_map.StringHashMap(*loader.LoadedGLTF).init(alloc),
+        };
+
+        return scene;
+    }
+
+    pub fn deinit(self: *scene_t, device: c.VkDevice, vma: c.VmaAllocator) void {
+        const result = c.vkDeviceWaitIdle(device);
+        if (result != c.VK_SUCCESS) {
+            std.log.err("Failed to wait for device idle ! Reason {d}.", .{ result });
+        }
+
+        var it = self.meshes.valueIterator();
+        while (it.next()) |m| {
+            m.*.deinit(device, vma);
+        }
+
+        self.draw_context.deinit();
+        self.meshes.deinit();
+        
+        self.mem.deinit();
+    }
+
+    pub fn load(self: *scene_t, alloc: std.mem.Allocator, name: []const u8, file: []const u8, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, r: *renderer.renderer_t) !void {
+        const gltf = try self.allocator().create(loader.LoadedGLTF);
+        gltf.* = try loader.load_gltf(alloc, file, device, fence, queue, cmd, vma, r);
+
+        try self.meshes.put(name, gltf);
+    }
+
+    pub fn update(self: *scene_t, cam: *const camera.camera_t, extent: c.VkExtent2D) void {
+        const view = cam.view_matrix();
+        
+        const deg: f32 = 70.0;
+        var proj = za.perspectiveReversedZ(deg, @as(f32, @floatFromInt(extent.width)) / @as(f32, @floatFromInt(extent.height)), 0.1);
+        proj.data[1][1] *= -1.0;
+
+        self.data.view = view.data;
+        self.data.proj = proj.data;
+        self.data.viewproj = za.Mat4.mul(proj, view).data;
+        self.data.ambient_color = [4]f32 { 0.1, 0.1, 0.1, 0.1 };
+        self.data.sunlight_color = [4]f32 { 1, 1, 1, 1 };
+        self.data.sunlight_dir = [4]f32 { 0, 1, 0.5, 1 };
+
+        self.draw_context.opaque_surfaces.clearRetainingCapacity();
+        self.draw_context.transparent_surfaces.clearRetainingCapacity();
+
+        const top: [4][4]f32 align(16) = za.Mat4.identity().data;
+        
+        var it = self.meshes.valueIterator();
+        while (it.next()) |m| {
+            m.*.draw(top, &self.draw_context);
+        }
+        // self.meshes.get("structure").?.draw(top, &self.draw_context);
+    }
+
+    fn allocator(self: *scene_t) std.mem.Allocator {
+        return self.mem.allocator();
+    }
+};
+
+const std = @import("std");
+const za = @import("zalgebra");
+const camera = @import("camera.zig");
+const c = @import("../clibs.zig");
+const mesh = @import("../renderer/mesh.zig");
+const loader = @import("../renderer/loader.zig");
+const renderer = @import("../renderer/engine.zig");

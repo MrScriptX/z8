@@ -33,6 +33,12 @@ pub fn main() !u8 {
     };
     defer renderer.deinit();
 
+    // TODO : build scene here, then send it to renderer.update_scene and renderer.draw
+    var reactor_scene = scene.scene_t.init(gpa.allocator());
+    defer reactor_scene.deinit(renderer._device, renderer._vma);
+
+    try reactor_scene.load(gpa.allocator(), "reactor", "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+
     // main loop
     var quit = false;
     while (!quit) {
@@ -63,7 +69,6 @@ pub fn main() !u8 {
         if (renderer.should_rebuild_sw()) {
             renderer.rebuild_swapchain(window);
         }
-
 
         imgui.cImGui_ImplVulkan_NewFrame();
         imgui.cImGui_ImplSDL3_NewFrame();
@@ -124,7 +129,8 @@ pub fn main() !u8 {
 
         imgui.ImGui_Render();
 
-        renderer.draw();
+        renderer.update_scene(&reactor_scene);
+        renderer.draw(&reactor_scene);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         renderer.stats.frame_time = @floatFromInt(end_time - start_time);
@@ -180,4 +186,4 @@ const c = @import("clibs.zig");
 const engine = @import("renderer/engine.zig");
 const camera = @import("engine/camera.zig");
 const imgui = @import("renderer/imgui.zig");
-// const log = @import("utils/log.zig");
+const scene = @import("engine/scene.zig");
