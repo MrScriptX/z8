@@ -31,8 +31,15 @@ The following libraries are included in the project, and don't need to be instal
 
 - [ ] Add a configuration file to load and save settings
 - [ ] Split ImGui into a separate module to build more complex UI
+- [ ] Reorganize files and folders
+
+### Scenes
+
 - [ ] Add a scene graph to manage objects in the scene
 - [ ] Make a more generic scene graph
 - [ ] Make a scene manager to load and unload scenes
+
+### Materials
+
 - [ ] Make a better material system
-- [ ] Reorganize files and folders
+- [ ] Create a material manager to load and unload materials
