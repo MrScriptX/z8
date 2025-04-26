@@ -634,6 +634,7 @@ pub const renderer_t = struct {
             scenes.type_e.MESH => self.draw_geometry(cmd_buffer),
             scenes.type_e.GLTF => self.draw_scene(scene, cmd_buffer),
         }
+        // self.draw_scene(scene, cmd_buffer);
 
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);

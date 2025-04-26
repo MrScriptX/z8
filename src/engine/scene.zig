@@ -105,7 +105,18 @@ pub const scene_t = struct {
     }
 
     pub fn update_mesh(self: *scene_t) void {
-        _ = self;
+        if (self.voxel) |*voxel| {
+            const render_object = mat.RenderObject {
+                .index_count = voxel.index_count,
+                .first_index = 0,
+                .index_buffer = voxel.mesh.index_buffer.buffer,
+                .material = &voxel.material,
+                .transform = za.Mat4.identity().data,
+                .vertex_buffer_address = voxel.mesh.vertex_buffer_address,
+            };
+
+            self.draw_context.opaque_surfaces.append(render_object) catch @panic("OOM");
+        }
     }
 
     pub fn find_node(self: *scene_t, name: []const u8) ?*mesh.Node {
@@ -146,3 +157,4 @@ const mesh = @import("../renderer/mesh.zig");
 const loader = @import("../renderer/loader.zig");
 const renderer = @import("../renderer/engine.zig");
 const vox = @import("../voxel.zig");
+const mat = @import("../renderer/material.zig");
