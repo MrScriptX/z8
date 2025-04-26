@@ -5,7 +5,7 @@ pub const RenderObject = struct {
 
     material: *MaterialInstance,
 
-    transform: math.mat4 align(16),
+    transform: maths.mat4 align(16),
     vertex_buffer_address: c.VkDeviceAddress,
 };
 
@@ -26,18 +26,5 @@ pub const MaterialPass = enum(u8) {
     Other,
 };
 
-pub const Renderable = struct {
-    pub fn draw() void {
-
-    }
-};
-
-const std = @import("std");
 const c = @import("../clibs.zig");
-const engine = @import("engine.zig");
-const pipeline = @import("pipeline.zig");
-const math = @import("../utils/maths.zig");
-const images = @import("vk_images.zig");
-const descriptor = @import("descriptor.zig");
-const buffers = @import("buffers.zig");
-const log = @import("../utils/log.zig");
+const maths = @import("../utils/maths.zig");

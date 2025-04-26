@@ -105,5 +105,5 @@ pub const Node = struct {
 const std = @import("std");
 const math = @import("../utils/maths.zig");
 const loader = @import("loader.zig");
-const mat = @import("material.zig");
+const mat = @import("../engine/materials.zig");
 const z = @import("zalgebra");

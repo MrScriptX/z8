@@ -157,4 +157,4 @@ const mesh = @import("../renderer/mesh.zig");
 const loader = @import("../renderer/loader.zig");
 const renderer = @import("../renderer/engine.zig");
 const vox = @import("../voxel.zig");
-const mat = @import("../renderer/material.zig");
+const mat = @import("materials.zig");

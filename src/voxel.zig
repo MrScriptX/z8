@@ -69,5 +69,5 @@ pub const Voxel = struct {
 const std = @import("std");
 const engine = @import("renderer/engine.zig");
 const buffers = @import("renderer/buffers.zig");
-const mat = @import("renderer/material.zig");
+const mat = @import("engine/materials.zig");
 const c = @import("clibs.zig");
