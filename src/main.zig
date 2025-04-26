@@ -33,6 +33,10 @@ pub fn main() !u8 {
     };
     defer renderer.deinit();
 
+    var voxel_material = vox.VoxelMaterial.init(gpa.allocator(), renderer._device);
+    try voxel_material.build_pipeline(&renderer);
+    defer voxel_material.deinit(renderer._device);
+
     // load reactor scene
     var reactor_scene = scene.scene_t.init(gpa.allocator(), scene.type_e.GLTF);
     defer reactor_scene.deinit(renderer._device, renderer._vma);
@@ -188,7 +192,7 @@ pub fn main() !u8 {
                     monkey_scene.clear(renderer._device, renderer._vma);
                     reactor_scene.clear(renderer._device, renderer._vma);
 
-                    try rectangle_scene.create_mesh(gpa.allocator(), &renderer);
+                    try rectangle_scene.create_mesh(gpa.allocator(), &voxel_material, &renderer);
                 },
                 else => {
                     std.log.warn("Invalid selected scene : {d}", .{ current_scene });
@@ -279,3 +283,4 @@ const imgui = @import("renderer/imgui.zig");
 const scene = @import("engine/scene.zig");
 const za = @import("zalgebra");
 const maths = @import("utils/maths.zig");
+const vox = @import("voxel.zig");

@@ -132,14 +132,14 @@ pub const DescriptorAllocator2 = struct {
     _ready_pools: std.ArrayList(c.VkDescriptorPool) = undefined,
     _sets_per_pool: u32 = 0,
     
-    pub fn init(device: c.VkDevice, max_sets: u32, pool_ratios: []const PoolSizeRatio) DescriptorAllocator2 {
+    pub fn init(alloc: std.mem.Allocator, device: c.VkDevice, max_sets: u32, pool_ratios: []const PoolSizeRatio) DescriptorAllocator2 {
         var builder = DescriptorAllocator2{
-            ._arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+            ._arena = std.heap.ArenaAllocator.init(alloc),
         };
 
-        builder._ratios = std.ArrayList(PoolSizeRatio).init(builder._arena.allocator());
-        builder._full_pools = std.ArrayList(c.VkDescriptorPool).init(builder._arena.allocator());
-        builder._ready_pools = std.ArrayList(c.VkDescriptorPool).init(builder._arena.allocator());
+        builder._ratios = std.ArrayList(PoolSizeRatio).init(alloc);
+        builder._full_pools = std.ArrayList(c.VkDescriptorPool).init(alloc);
+        builder._ready_pools = std.ArrayList(c.VkDescriptorPool).init(alloc);
 
         for (pool_ratios) |pool_ratio| {
             builder._ratios.append(pool_ratio) catch {
@@ -162,17 +162,17 @@ pub const DescriptorAllocator2 = struct {
     pub fn deinit(self: *DescriptorAllocator2, device: c.VkDevice) void {
         defer self._arena.deinit();
 
-        // defer self._ready_pools.deinit();
+        defer self._ready_pools.deinit();
         for (self._ready_pools.items) |pool| {
             c.vkDestroyDescriptorPool(device, pool, null);
         }
 
-        // defer self._full_pools.deinit();
+        defer self._full_pools.deinit();
         for (self._full_pools.items) |pool| {
             c.vkDestroyDescriptorPool(device, pool, null);
         }
 
-        // self._ratios.deinit();
+        self._ratios.deinit();
     }
 
     pub fn clear(self: *DescriptorAllocator2, device: c.VkDevice) void {

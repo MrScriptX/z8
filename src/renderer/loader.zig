@@ -304,7 +304,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
         .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 1 }
     };
 
-    scene.descriptor_pool = descriptors.DescriptorAllocator2.init(device, @intCast(data.materials_count), &sizes);
+    scene.descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, device, @intCast(data.materials_count), &sizes);
 
     // load samplers
     if (data.samplers != null) {

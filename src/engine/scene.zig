@@ -66,8 +66,8 @@ pub const scene_t = struct {
         self.gltf.?.* = try loader.load_gltf(alloc, file, device, fence, queue, cmd, vma, r);
     }
 
-    pub fn create_mesh(self: *scene_t, alloc: std.mem.Allocator, r: *renderer.renderer_t) !void {
-        self.voxel = try vox.Voxel.init(alloc, r);
+    pub fn create_mesh(self: *scene_t, alloc: std.mem.Allocator, material: *vox.VoxelMaterial, r: *renderer.renderer_t) !void {
+        self.voxel = try vox.Voxel.init(alloc, material, r);
     }
 
     pub fn update(self: *scene_t, cam: *const camera.camera_t, extent: c.VkExtent2D) void {

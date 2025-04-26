@@ -326,7 +326,7 @@ pub const renderer_t = struct {
                 descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 3 },
                 descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
             };
-            frame._frame_descriptors = descriptor.DescriptorAllocator2.init(self._device, 1000, &frame_size);
+            frame._frame_descriptors = descriptor.DescriptorAllocator2.init(std.heap.page_allocator, self._device, 1000, &frame_size);
         }
 
         // make descriptor for gpu scene data
@@ -630,11 +630,11 @@ pub const renderer_t = struct {
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         utils.transition_image(cmd_buffer, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        switch (scene._type) {
-            scenes.type_e.MESH => self.draw_geometry(cmd_buffer),
-            scenes.type_e.GLTF => self.draw_scene(scene, cmd_buffer),
-        }
-        // self.draw_scene(scene, cmd_buffer);
+        // switch (scene._type) {
+        //     scenes.type_e.MESH => self.draw_geometry(cmd_buffer),
+        //     scenes.type_e.GLTF => self.draw_scene(scene, cmd_buffer),
+        // }
+        self.draw_scene(scene, cmd_buffer);
 
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
