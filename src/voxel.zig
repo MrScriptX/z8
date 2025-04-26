@@ -50,6 +50,8 @@ pub const Voxel = struct {
         try rect_indices.append(1);
         try rect_indices.append(3);
 
+        // const mat_instance = renderer.
+
         const voxel = Voxel {
             .mesh = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queues.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer),
             .material = undefined,

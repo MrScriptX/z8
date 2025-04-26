@@ -35,136 +35,167 @@ pub const MeshAsset = struct {
     }
 };
 
-pub fn load_gltf_meshes(allocator: std.mem.Allocator, path: []const u8, vma: c.VmaAllocator, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer) !std.ArrayList(MeshAsset) {
-    var options: cgltf.options = .{};
-    var data: *cgltf.data = undefined;
-    const result = cgltf.cgltf_parse_file(&options, path.ptr, @ptrCast(&data));
-    if (result != cgltf.result_success) {
-        std.debug.panic("Failed to parse gltf file", .{});
+pub const GLTFMetallic_Roughness = struct {
+    gpa: std.heap.ArenaAllocator,
+
+    opaque_pipeline: *mat.MaterialPipeline,
+    transparent_pipeline: *mat.MaterialPipeline,
+
+    material_layout: c.VkDescriptorSetLayout,
+
+    writer: descriptors.DescriptorWriter,
+
+    pub const MaterialConstants = struct {
+        color_factors: maths.vec4 align(16),
+        metal_rough_factors: maths.vec4 align(16),
+        extra: [14]maths.vec4,
+    };
+
+    pub const MaterialResources = struct {
+        color_image: vk_images.image_t,
+        color_sampler: c.VkSampler,
+        metal_rough_image: vk_images.image_t,
+        metal_rough_sampler: c.VkSampler,
+        data_buffer: c.VkBuffer,
+        data_buffer_offset: u32,
+    };
+
+    pub fn init(allocator: std.mem.Allocator) GLTFMetallic_Roughness {
+        var instance = GLTFMetallic_Roughness {
+            .gpa = std.heap.ArenaAllocator.init(allocator),
+            .writer = descriptors.DescriptorWriter.init(allocator),
+            .opaque_pipeline = undefined,
+            .transparent_pipeline = undefined,
+            .material_layout = undefined,
+        };
+
+        instance.opaque_pipeline = instance.gpa.allocator().create(mat.MaterialPipeline) catch @panic("OOM");
+        instance.transparent_pipeline = instance.gpa.allocator().create(mat.MaterialPipeline) catch @panic("OOM");
+
+        return instance;
     }
-    defer cgltf.cgltf_free(data);
 
-    const success = cgltf.cgltf_load_buffers(&options, data, path.ptr);
-    if (success != cgltf.result_success) {
-        std.debug.panic("Failed to load buffers!\n", .{});
+    pub fn deinit(self: *GLTFMetallic_Roughness, device: c.VkDevice) void {
+        c.vkDestroyPipeline(device, self.opaque_pipeline.pipeline, null);
+        c.vkDestroyPipeline(device, self.transparent_pipeline.pipeline, null);
+
+        c.vkDestroyPipelineLayout(device, self.opaque_pipeline.layout, null); // we only have one layout for both pipelines
+
+        c.vkDestroyDescriptorSetLayout(device, self.material_layout, null);
+
+        self.gpa.deinit();
+        self.writer.deinit();
     }
 
-    var vertices = std.ArrayList(buffers.Vertex).init(std.heap.page_allocator);
-    defer vertices.deinit();
+    pub fn build_pipeline(self: *GLTFMetallic_Roughness, renderer: *engine.renderer_t) !void {
+        const frag_shader = try pipeline.load_shader_module(renderer._device, "./zig-out/bin/shaders/mesh.frag.spv");
+        defer c.vkDestroyShaderModule(renderer._device, frag_shader, null);
 
-    var indices = std.ArrayList(u32).init(std.heap.page_allocator);
-    defer indices.deinit();
-        
-    var meshes = std.ArrayList(MeshAsset).init(allocator);
+        const vertex_shader = try pipeline.load_shader_module(renderer._device, "./zig-out/bin/shaders/mesh.vert.spv");
+        defer c.vkDestroyShaderModule(renderer._device, vertex_shader, null);
 
-    for (data.meshes[0..data.meshes_count]) |mesh| {
-        var asset = MeshAsset.init(allocator, std.mem.span(mesh.name));
+        const matrix_range: c.VkPushConstantRange = .{
+            .offset = 0,
+            .size = @sizeOf(buffers.GPUDrawPushConstants),
+            .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
+        };
 
-        vertices.clearAndFree();
-        indices.clearAndFree();
+        var layout_builder = descriptors.DescriptorLayout.init();
+        defer layout_builder.deinit();
 
-        for (mesh.primitives[0..mesh.primitives_count]) |prim| {
-            const indices_count: usize = prim.indices.*.count;
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-            const surface = GeoSurface {
-                .startIndex = @intCast(indices.items.len),
-                .count = @intCast(indices_count),
-            };
+        self.material_layout = layout_builder.build(renderer._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
 
-            try indices.ensureTotalCapacity(indices.items.len + indices_count);
+        const layouts = [_]c.VkDescriptorSetLayout {
+            renderer._gpu_scene_data_descriptor_layout,
+            self.material_layout
+        };
 
-            // load indexes
-            const offset: u32 = @intCast(vertices.items.len);
-            for (0..indices_count) |i| {
-                const idx: u32 = @intCast(cgltf.cgltf_accessor_read_index(prim.indices, @intCast(i)));
-                try indices.append(idx + offset);
-            }
+        const mesh_layout_info = c.VkPipelineLayoutCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = null,
 
-            // load vertex positions
-            var pos_accessor: *cgltf.accessor = undefined;
-            var normal_accessor: *cgltf.accessor = undefined;
-            var uv_accessor: *cgltf.accessor = undefined;
-            var color_accessor: ?*cgltf.accessor = null;
-            for (prim.attributes[0..prim.attributes_count]) |att| {
-                if (att.type == cgltf.attribute_type_position) {
-                    pos_accessor = att.data;
-                    continue;
-                }
+            .setLayoutCount = 2,
+            .pSetLayouts = &layouts,
+            .pPushConstantRanges = &matrix_range,
+            .pushConstantRangeCount = 1,
+        };
 
-                if (att.type == cgltf.attribute_type_normal) {
-                    normal_accessor = att.data;
-                    continue;
-                }
-
-                if (att.type == cgltf.attribute_type_texcoord) {
-                    uv_accessor = att.data;
-                    continue;
-                }
-
-                if (att.type == cgltf.attribute_type_color) {
-                    color_accessor = att.data;
-                    continue;
-                }
-            }
-
-            const count = pos_accessor.count;
-            try vertices.ensureTotalCapacity(vertices.items.len + count);
-
-            for (0..count) |i| {
-                var v: buffers.Vertex = buffers.Vertex {
-                    .position = std.mem.zeroes(c.vec3),
-                    .normal = std.mem.zeroes(c.vec3),
-                    .color = c.vec4{ 1, 1, 1, 1},
-                    .uv_x = 0,
-                    .uv_y = 0
-                };
-
-                var pos: [3]f32 = undefined;
-                _ = cgltf.cgltf_accessor_read_float(pos_accessor, i, &pos, 3);
-
-                v.position[0] = pos[0];
-                v.position[1] = pos[1];
-                v.position[2] = pos[2];
-
-                var normal: [3]f32 = undefined;
-                _ = cgltf.cgltf_accessor_read_float(normal_accessor, i, &normal, 3);
-
-                v.normal[0] = normal[0];
-                v.normal[1] = normal[1];
-                v.normal[2] = normal[2];
-
-                if (color_accessor != null) {
-                    var color: [4]f32 = undefined;
-                    _ = cgltf.cgltf_accessor_read_float(color_accessor, i, &color, 4);
-
-                    v.color[0] = color[0];
-                    v.color[1] = color[1];
-                    v.color[2] = color[2];
-                    v.color[3] = color[3];
-                }
-                
-
-                var uv: [2]f32 = undefined;
-                _ = cgltf.cgltf_accessor_read_float(uv_accessor, i, &uv, 2);
-
-                v.uv_x = uv[0];
-                v.uv_y = uv[1];
-
-                // override color
-                // v.color = z.Vec4.fromVec3(z.Vec3.fromSlice(&v.normal), 1.0).data;
-
-                try vertices.append(v);
-            }
-
-            try asset.surfaces.append(surface);
+        var new_layout: c.VkPipelineLayout = undefined;
+        const result = c.vkCreatePipelineLayout(renderer._device, &mesh_layout_info, null, &new_layout);
+        if (result != c.VK_SUCCESS) {
+            log.write("Failed to create descriptor layout ! Reason {d}", .{ result });
+            @panic("Failed to create descriptor layout");
         }
 
-        asset.meshBuffers = buffers.GPUMeshBuffers.init(vma, device, fence, queue, indices.items, vertices.items, cmd);
-        try meshes.append(asset);
+        self.opaque_pipeline.layout = new_layout;
+        self.transparent_pipeline.layout = new_layout;
+
+        var builder = pipeline.builder_t.init();
+        defer builder.deinit();
+
+        try builder.set_shaders(vertex_shader, frag_shader);
+        builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
+        builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
+        builder.set_multisampling_none();
+        builder.disable_blending();
+        builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+        builder.set_color_attachment_format(renderer._draw_image.format);
+        builder.set_depth_format(renderer._depth_image.format);
+
+        builder._pipeline_layout = new_layout;
+
+        self.opaque_pipeline.pipeline = builder.build_pipeline(renderer._device);
+
+        builder.enable_blending_additive();
+        builder.enable_depthtest(false, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+        self.transparent_pipeline.pipeline = builder.build_pipeline(renderer._device);
     }
 
-    return meshes;
-}
+    pub fn clear_resources(_: *GLTFMetallic_Roughness, _: c.VkDevice) void {
+
+    }
+
+    pub fn write_material(self: *GLTFMetallic_Roughness, device: c.VkDevice, pass: mat.MaterialPass, resources: *const MaterialResources, ds_alloc: *descriptors.DescriptorAllocator2) mat.MaterialInstance {
+        const mat_data = mat.MaterialInstance {
+            .pass_type = pass,
+            .pipeline = if (pass == mat.MaterialPass.Transparent) self.transparent_pipeline else self.opaque_pipeline,
+            .material_set = ds_alloc.allocate(device, self.material_layout, null),
+        };
+
+        self.writer.clear();
+        self.writer.write_buffer(0, resources.data_buffer, @sizeOf(MaterialConstants), resources.data_buffer_offset, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        self.writer.write_image(1, resources.color_image.view, resources.color_sampler, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        self.writer.write_image(2, resources.metal_rough_image.view, resources.metal_rough_sampler, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+        self.writer.update_set(device, mat_data.material_set);
+
+        return mat_data;
+    }
+
+    pub fn write_material_compat(self: *GLTFMetallic_Roughness, device: c.VkDevice, pass: mat.MaterialPass, resources: *const MaterialResources, ds_alloc: *descriptors.DescriptorAllocator) mat.MaterialInstance {
+        const mat_data = mat.MaterialInstance {
+            .pass_type = pass,
+            .pipeline = if (pass == mat.MaterialPass.Transparent) self.transparent_pipeline else self.opaque_pipeline,
+            .material_set = ds_alloc.allocate(device, self.material_layout),
+        };
+
+        self.writer.clear();
+        self.writer.write_buffer(0, resources.data_buffer, @sizeOf(MaterialConstants), resources.data_buffer_offset, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        self.writer.write_image(1, resources.color_image.view, resources.color_sampler, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        self.writer.write_image(2, resources.metal_rough_image.view, resources.metal_rough_sampler, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+        self.writer.update_set(device, mat_data.material_set);
+
+        return mat_data;
+    }
+};
 
 pub const LoadedGLTF = struct {
     arena: std.heap.ArenaAllocator, // use to allocate resources stored in hash maps
@@ -365,10 +396,10 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     }
 
     // buffer to hold material data
-    scene.material_data_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(mat.GLTFMetallic_Roughness.MaterialConstants) * data.materials_count, c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+    scene.material_data_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(GLTFMetallic_Roughness.MaterialConstants) * data.materials_count, c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     var data_index: u32 = 0;
-    const scene_material_const: [*]mat.GLTFMetallic_Roughness.MaterialConstants = @alignCast(@ptrCast(scene.material_data_buffer.info.pMappedData));
+    const scene_material_const: [*]GLTFMetallic_Roughness.MaterialConstants = @alignCast(@ptrCast(scene.material_data_buffer.info.pMappedData));
 
     var materials = std.hash_map.StringHashMap(*GLTFMaterial).init(allocator);
     defer materials.deinit();
@@ -384,7 +415,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             @panic("OOM");
         };
 
-        const constants = mat.GLTFMetallic_Roughness.MaterialConstants {
+        const constants = GLTFMetallic_Roughness.MaterialConstants {
             .color_factors = material.pbr_metallic_roughness.base_color_factor,
             .metal_rough_factors = .{ material.pbr_metallic_roughness.metallic_factor, material.pbr_metallic_roughness.roughness_factor, 0, 0 },
             .extra = std.mem.zeroes([14][4]f32),
@@ -394,14 +425,14 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
  
         const pass_type = if (material.alpha_mode == cgltf.cgltf_alpha_mode_blend) mat.MaterialPass.Transparent else mat.MaterialPass.MainColor;
 
-        var material_ressources = mat.GLTFMetallic_Roughness.MaterialResources {
+        var material_ressources = GLTFMetallic_Roughness.MaterialResources {
             .color_image = engine.renderer_t._white_image,
             .color_sampler = engine.renderer_t._default_sampler_linear,
             .metal_rough_image = engine.renderer_t._white_image,
             .metal_rough_sampler = engine.renderer_t._default_sampler_linear,
 
             .data_buffer = scene.material_data_buffer.buffer,
-            .data_buffer_offset = data_index * @sizeOf(mat.GLTFMetallic_Roughness.MaterialConstants),
+            .data_buffer_offset = data_index * @sizeOf(GLTFMetallic_Roughness.MaterialConstants),
         };
 
         if (material.pbr_metallic_roughness.base_color_texture.texture != null) {
@@ -705,3 +736,5 @@ const engine = @import("engine.zig");
 const vk_images = @import("vk_images.zig");
 const cgltf = @import("cgltf");
 const stb = @import("stb");
+const pipeline = @import("pipeline.zig");
+const maths = @import("../utils/maths.zig");

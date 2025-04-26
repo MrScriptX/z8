@@ -85,7 +85,7 @@ pub const renderer_t = struct {
 
     // data to draw
     _default_data: material.MaterialInstance = undefined,
-    _metal_rough_material: material.GLTFMetallic_Roughness = undefined,
+    _metal_rough_material: loader.GLTFMetallic_Roughness = undefined,
 
     _mat_constants: buffers.AllocatedBuffer = undefined,
 
@@ -352,7 +352,7 @@ pub const renderer_t = struct {
         try self.init_triangle_pipeline();
         try self.init_mesh_pipeline();
 
-        self._metal_rough_material = material.GLTFMetallic_Roughness.init(std.heap.page_allocator);
+        self._metal_rough_material = loader.GLTFMetallic_Roughness.init(std.heap.page_allocator);
         try self._metal_rough_material.build_pipeline(self);
     }
 
@@ -1083,8 +1083,6 @@ pub const renderer_t = struct {
 
 	    rectangle = buffers.GPUMeshBuffers.init(self._vma, self._device, &self._imm_fence, self._queues.graphics, rect_indices.items, rect_vertices.items, self._imm_command_buffer);
 
-        _test_meshes = try loader.load_gltf_meshes(allocator, "./assets/models/basicmesh.glb", self._vma, self._device, &self._imm_fence, self._queues.graphics, self._imm_command_buffer);
-
         // initialize textures
         const white: u32 align(4) = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
         _white_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
@@ -1122,9 +1120,9 @@ pub const renderer_t = struct {
         _ = c.vkCreateSampler(self._device, &linear_sampler_image, null, &_default_sampler_linear);
 
         // metal rough mat
-        self._mat_constants = buffers.AllocatedBuffer.init(self._vma, @sizeOf(material.GLTFMetallic_Roughness.MaterialConstants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+        self._mat_constants = buffers.AllocatedBuffer.init(self._vma, @sizeOf(loader.GLTFMetallic_Roughness.MaterialConstants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        const scene_uniform_data: *material.GLTFMetallic_Roughness.MaterialConstants = @alignCast(@ptrCast(self._mat_constants.info.pMappedData));
+        const scene_uniform_data: *loader.GLTFMetallic_Roughness.MaterialConstants = @alignCast(@ptrCast(self._mat_constants.info.pMappedData));
         scene_uniform_data.color_factors = maths.vec4{ 1, 1, 1, 1 };
         scene_uniform_data.metal_rough_factors = maths.vec4{ 1, 0.5, 0, 0 };
 
@@ -1132,7 +1130,7 @@ pub const renderer_t = struct {
     }
 
     fn init_mesh_material(self: *renderer_t) !void {
-        const material_res = material.GLTFMetallic_Roughness.MaterialResources {
+        const material_res = loader.GLTFMetallic_Roughness.MaterialResources {
             .color_image = _white_image,
             .color_sampler = _default_sampler_linear,
             .metal_rough_image = _white_image,
@@ -1142,26 +1140,6 @@ pub const renderer_t = struct {
         };
 
         self._default_data = self._metal_rough_material.write_material_compat(self._device, material.MaterialPass.MainColor, &material_res, &self._descriptor_pool);
-
-        // for (_test_meshes.items) |*mesh| {
-        //     var new_node: *m.Node = try std.heap.page_allocator.create(m.Node);
-        //     new_node.children = std.ArrayList(*m.Node).init(std.heap.page_allocator);
-        //     new_node.mesh = mesh;
-
-        //     new_node.local_transform = z.Mat4.identity().data;
-        //     new_node.world_transform =  z.Mat4.identity().data;
-
-        //     for (new_node.mesh.surfaces.items) |*s| {
-        //         s.material = self._arena.allocator().create(loader.GLTFMaterial) catch @panic("OOM");
-        //         s.material.data = material.MaterialInstance{
-        //             .pipeline = self._default_data.pipeline,
-        //             .material_set = self._default_data.material_set,
-        //             .pass_type = self._default_data.pass_type,
-        //         };
-        //     }
-
-        //     self._loaded_nodes.put(mesh.name, new_node) catch @panic("OOM");
-        // }
     }
 
     pub fn render_scale() *f32 {
