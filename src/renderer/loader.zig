@@ -43,7 +43,7 @@ pub const GLTFMetallic_Roughness = struct {
 
     material_layout: c.VkDescriptorSetLayout,
 
-    writer: descriptors.DescriptorWriter,
+    writer: descriptors.Writer,
 
     pub const MaterialConstants = struct {
         color_factors: maths.vec4 align(16),
@@ -63,7 +63,7 @@ pub const GLTFMetallic_Roughness = struct {
     pub fn init(allocator: std.mem.Allocator) GLTFMetallic_Roughness {
         var instance = GLTFMetallic_Roughness {
             .gpa = std.heap.ArenaAllocator.init(allocator),
-            .writer = descriptors.DescriptorWriter.init(allocator),
+            .writer = descriptors.Writer.init(allocator),
             .opaque_pipeline = undefined,
             .transparent_pipeline = undefined,
             .material_layout = undefined,

@@ -312,7 +312,7 @@ pub const renderer_t = struct {
 
         self._draw_image_descriptor_set = self._descriptor_pool.allocate(self._device, self._draw_image_descriptor);
 
-        var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+        var writer = descriptor.Writer.init(std.heap.page_allocator);
         defer writer.deinit();
     
         writer.write_image(0, self._draw_image.view, null, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -809,7 +809,7 @@ pub const renderer_t = struct {
         const image_set = self.current_frame()._frame_descriptors.allocate(self._device, _single_image_descriptor_layout, null);
 
         {
-            var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+            var writer = descriptor.Writer.init(std.heap.page_allocator);
             defer writer.deinit();
 
             writer.write_image(0, _error_checker_board_image.view, _default_sampler_nearest, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -944,7 +944,7 @@ pub const renderer_t = struct {
         const global_descriptor = self.current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
     
         {
-            var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
+            var writer = descriptor.Writer.init(std.heap.page_allocator);
             defer writer.deinit();
 
             writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);

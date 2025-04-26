@@ -251,15 +251,15 @@ pub const DescriptorAllocator2 = struct {
     }
 };
 
-pub const DescriptorWriter = struct {
+pub const Writer = struct {
     _arena: std.heap.ArenaAllocator,
 
     _image_infos: std.ArrayList(*c.VkDescriptorImageInfo),
     _buffer_infos: std.ArrayList(*c.VkDescriptorBufferInfo),
     _writes: std.ArrayList(c.VkWriteDescriptorSet),
 
-    pub fn init(allocator: std.mem.Allocator) DescriptorWriter {
-        const writer = DescriptorWriter {
+    pub fn init(allocator: std.mem.Allocator) Writer {
+        const writer = Writer {
             ._arena = std.heap.ArenaAllocator.init(allocator),
             ._image_infos = std.ArrayList(*c.VkDescriptorImageInfo).init(allocator),
             ._buffer_infos = std.ArrayList(*c.VkDescriptorBufferInfo).init(allocator),
@@ -269,7 +269,7 @@ pub const DescriptorWriter = struct {
         return writer;
     }
 
-    pub fn deinit(self: *DescriptorWriter) void {
+    pub fn deinit(self: *Writer) void {
         self._arena.deinit();
 
         self._image_infos.deinit();
@@ -277,7 +277,7 @@ pub const DescriptorWriter = struct {
         self._writes.deinit();
     }
 
-    pub fn write_buffer(self: *DescriptorWriter, binding: u32, buffer: c.VkBuffer, size: usize, offset: usize, dtype: c.VkDescriptorType) void {
+    pub fn write_buffer(self: *Writer, binding: u32, buffer: c.VkBuffer, size: usize, offset: usize, dtype: c.VkDescriptorType) void {
         const allocator = self._arena.allocator();
         const buffer_info = allocator.create(c.VkDescriptorBufferInfo) catch {
             log.err("Failed to allocate memory for VkDescriptorBufferInfo.", .{});
@@ -310,7 +310,7 @@ pub const DescriptorWriter = struct {
         };
     }
 
-    pub fn write_image(self: *DescriptorWriter, binding: u32, image_view: c.VkImageView, sampler: c.VkSampler, layout: c.VkImageLayout, dtype: c.VkDescriptorType) void {
+    pub fn write_image(self: *Writer, binding: u32, image_view: c.VkImageView, sampler: c.VkSampler, layout: c.VkImageLayout, dtype: c.VkDescriptorType) void {
         const allocator = self._arena.allocator();
         const image_info = allocator.create(c.VkDescriptorImageInfo) catch {
             log.err("Failed to allocate memory for VkDescriptorImageInfo.", .{});
@@ -343,7 +343,7 @@ pub const DescriptorWriter = struct {
         };
     }
 
-    pub fn clear(self: *DescriptorWriter) void {
+    pub fn clear(self: *Writer) void {
         self._buffer_infos.clearRetainingCapacity();
         self._image_infos.clearRetainingCapacity();
         self._writes.clearRetainingCapacity();
@@ -354,7 +354,7 @@ pub const DescriptorWriter = struct {
         }
     }
 
-    pub fn update_set(self: *DescriptorWriter, device: c.VkDevice, set: c.VkDescriptorSet) void {
+    pub fn update_set(self: *Writer, device: c.VkDevice, set: c.VkDescriptorSet) void {
         for (self._writes.items) |*write| {
             write.dstSet = set;
         }
