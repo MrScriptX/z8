@@ -1273,7 +1273,7 @@ const loader = @import("loader.zig");
 const scenes = @import("../engine/scene.zig");
 const maths = @import("../utils/maths.zig");
 const material = @import("../engine/materials.zig");
-const m = @import("mesh.zig");
+const m = @import("assets.zig");
 const cam = @import("../engine/camera.zig");
 
 const log = @import("../utils/log.zig");
