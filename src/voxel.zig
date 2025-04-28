@@ -1,5 +1,6 @@
 pub const Voxel = struct {
     mesh: buffers.GPUMeshBuffers,
+    meshes: assets.MeshAsset,
     material: mat.MaterialInstance,
     index_count: u32,
 
@@ -49,6 +50,15 @@ pub const Voxel = struct {
         try rect_indices.append(2);
         try rect_indices.append(1);
         try rect_indices.append(3);
+
+        // var mesh_asset = assets.MeshAsset.init(alloc, "rectangle");
+        // mesh_asset.mesh_buffers = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queue.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer);
+
+        // mesh_asset.surfaces.append(.{
+        //     .startIndex = 0,
+        //     .count = @intCast(rect_indices.items.len),
+        //     .material = undefined
+        // });
 
         const mat_resources = VoxelMaterial.Resources {
             .color_image = engine.renderer_t._white_image,
@@ -219,3 +229,4 @@ const c = @import("clibs.zig");
 const maths = @import("utils/maths.zig");
 const images = @import("renderer/vk_images.zig");
 const pipelines = @import("renderer/pipeline.zig");
+const assets = @import("renderer/assets.zig");
