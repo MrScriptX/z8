@@ -51,14 +51,8 @@ pub const Voxel = struct {
         try rect_indices.append(1);
         try rect_indices.append(3);
 
-        // var mesh_asset = assets.MeshAsset.init(alloc, "rectangle");
-        // mesh_asset.mesh_buffers = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queue.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer);
-
-        // mesh_asset.surfaces.append(.{
-        //     .startIndex = 0,
-        //     .count = @intCast(rect_indices.items.len),
-        //     .material = undefined
-        // });
+        var asset = assets.MeshAsset.init(alloc, "rectangle");
+        asset.mesh_buffers = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queues.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer);
 
         const mat_resources = VoxelMaterial.Resources {
             .color_image = engine.renderer_t._white_image,
@@ -67,11 +61,17 @@ pub const Voxel = struct {
             .data_buffer_offset = 0,
         };
 
-        const mat_instance = material.write_material(renderer._device, mat.MaterialPass.MainColor, &mat_resources, &material.pool);
+        var mat_instance = material.write_material(renderer._device, mat.MaterialPass.MainColor, &mat_resources, &material.pool);
+
+        asset.surfaces.append(.{
+            .startIndex = 0,
+            .count = @intCast(rect_indices.items.len),
+            .material = &mat_instance
+        }) catch @panic("Out of memory !");
 
         const voxel = Voxel {
-            .mesh = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queues.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer),
-            .meshes = undefined,
+            .mesh = asset.mesh_buffers,
+            .meshes = asset,
             .material = mat_instance,
             .index_count = @intCast(rect_indices.items.len),
         };
