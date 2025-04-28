@@ -97,15 +97,15 @@ pub fn main() !u8 {
             render_scene = -1; // force rebuild of scene
         }
 
-        imgui.cImGui_ImplVulkan_NewFrame();
-        imgui.cImGui_ImplSDL3_NewFrame();
-        imgui.ImGui_NewFrame();
+        imgui.ImplVulkan_NewFrame();
+        imgui.ImplSDL3_NewFrame();
+        imgui.NewFrame();
 
         // stats window
         {
-            const win_stats = imgui.ImGui_Begin("Stats", null, 0);
+            const win_stats = imgui.Begin("Stats", null, 0);
             if (win_stats) {
-                defer imgui.ImGui_End();
+                defer imgui.End();
 
                 const frame_time: f32 = renderer.stats.frame_time / 1_000_000;
                 imgui.ImGui_Text("frame time : %f ms",  frame_time);
@@ -123,25 +123,25 @@ pub fn main() !u8 {
 
         // player control
         {
-            const result = imgui.ImGui_Begin("controls", null, 0);
+            const result = imgui.Begin("controls", null, 0);
             if (result) {
-                defer imgui.ImGui_End();
+                defer imgui.End();
 
-                _ = imgui.ImGui_SliderFloat("speed", @ptrCast(&main_camera.speed), 0, 100);
-                _ = imgui.ImGui_SliderFloat("sensitivity", @ptrCast(&main_camera.sensitivity), 0, 1);
+                _ = imgui.SliderFloat("speed", &main_camera.speed, 0, 100);
+                _ = imgui.SliderFloat("sensitivity", &main_camera.sensitivity, 0, 1);
 
                 imgui.ImGui_Text("Camera");
-                _ = imgui.ImGui_InputFloat3("position", @ptrCast(&main_camera.position));
-                _ = imgui.ImGui_InputFloat("yaw", &main_camera.yaw);
-                _ = imgui.ImGui_InputFloat("pitch", &main_camera.pitch);
+                _ = imgui.InputFloat3("position", &main_camera.position);
+                _ = imgui.InputFloat("yaw", &main_camera.yaw);
+                _ = imgui.InputFloat("pitch", &main_camera.pitch);
 		    }
         }
 
         // scenes manager
         {
-            const result = imgui.ImGui_Begin("Scenes", null, 0);
+            const result = imgui.Begin("Scenes", null, 0);
             if (result) {
-                defer imgui.ImGui_End();
+                defer imgui.End();
 
                 const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "rectangle" };
                 _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 3);
@@ -150,27 +150,27 @@ pub fn main() !u8 {
 
         // background window
         {
-            const result = imgui.ImGui_Begin("background", null, 0);
+            const result = imgui.Begin("background", null, 0);
             if (result) {
-                defer imgui.ImGui_End();
+                defer imgui.End();
 
-                _ = imgui.ImGui_SliderFloat("Render Scale", @ptrCast(engine.renderer_t.render_scale()), 0.3, 1.0);
+                _ = imgui.SliderFloat("Render Scale", engine.renderer_t.render_scale(), 0.3, 1.0);
 
 			    const selected = engine.renderer_t.current_effect();
 		
                 const name = try std.fmt.allocPrint(std.heap.page_allocator, "Selected effect: {s}", .{ selected.name });
 			    imgui.ImGui_Text(@ptrCast(&name));
 		
-			    _ = imgui.ImGui_SliderInt("Effect Index", @ptrCast(engine.renderer_t.effect_index()), 0, @intCast(engine.renderer_t.max_effect() - 1));
-		
-			    _ = imgui.ImGui_InputFloat4("data1", &selected.data.data1);
-			    _ = imgui.ImGui_InputFloat4("data2", &selected.data.data2);
-			    _ = imgui.ImGui_InputFloat4("data3", &selected.data.data3);
-			    _ = imgui.ImGui_InputFloat4("data4", &selected.data.data4);
+                _ = imgui.SliderUint("Effect Index", engine.renderer_t.effect_index(), 0, engine.renderer_t.max_effect() - 1);
+
+			    _ = imgui.InputFloat4("data1", &selected.data.data1);
+			    _ = imgui.InputFloat4("data2", &selected.data.data2);
+			    _ = imgui.InputFloat4("data3", &selected.data.data3);
+			    _ = imgui.InputFloat4("data4", &selected.data.data4);
 		    }
         }
 
-        imgui.ImGui_Render();
+        imgui.Render();
 
         if (render_scene != current_scene) {
             switch (current_scene) {
