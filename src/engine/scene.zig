@@ -18,7 +18,7 @@ pub const scene_t = struct {
 
     data: ShaderData = undefined,
     draw_context: mesh.DrawContext,
-    gltf: ?*loader.LoadedGLTF = null,
+    gltf: ?*gltf.LoadedGLTF = null,
     voxel: ?vox.Voxel = null,
 
     pub fn init(alloc: std.mem.Allocator, t: type_e) scene_t {
@@ -62,8 +62,8 @@ pub const scene_t = struct {
     }
 
     pub fn load(self: *scene_t, alloc: std.mem.Allocator, file: []const u8, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, r: *renderer.renderer_t) !void {
-        self.gltf = try self.allocator().create(loader.LoadedGLTF);
-        self.gltf.?.* = try loader.load_gltf(alloc, file, device, fence, queue, cmd, vma, r);
+        self.gltf = try self.allocator().create(gltf.LoadedGLTF);
+        self.gltf.?.* = try gltf.load_gltf(alloc, file, device, fence, queue, cmd, vma, r);
     }
 
     pub fn create_mesh(self: *scene_t, alloc: std.mem.Allocator, material: *vox.VoxelMaterial, r: *renderer.renderer_t) !void {
@@ -154,7 +154,7 @@ const za = @import("zalgebra");
 const camera = @import("camera.zig");
 const c = @import("../clibs.zig");
 const mesh = @import("../renderer/assets.zig");
-const loader = @import("../renderer/loader.zig");
+const gltf = @import("../renderer/gltf.zig");
 const renderer = @import("../renderer/engine.zig");
 const vox = @import("../voxel.zig");
 const mat = @import("materials.zig");
