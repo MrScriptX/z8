@@ -32,7 +32,7 @@ pub const Node = struct {
     local_transform: math.mat4 = z.Mat4.identity().data,
     world_transform: math.mat4 = z.Mat4.identity().data,
 
-    mesh: *loader.MeshAsset,
+    mesh: *MeshAsset,
 
     pub fn init(allocator: std.mem.Allocator) Node {
         const node = Node {
@@ -102,8 +102,43 @@ pub const Node = struct {
     }
 };
 
+pub const GeoSurface = struct {
+    startIndex: u32,
+    count: u32,
+    material: *gltf.GLTFMaterial = undefined,
+};
+
+pub const MeshAsset = struct {
+    arena: std.heap.ArenaAllocator,
+    
+    name: []const u8,
+
+    surfaces: std.ArrayList(GeoSurface),
+    mesh_buffers: buffers.GPUMeshBuffers,
+
+    pub fn init(allocator: std.mem.Allocator, name: []const u8) MeshAsset {
+        var asset = MeshAsset {
+            .arena = std.heap.ArenaAllocator.init(allocator),
+            .name = undefined,
+            .surfaces = std.ArrayList(GeoSurface).init(allocator),
+            .mesh_buffers = undefined,
+        };
+
+        asset.name = asset.arena.allocator().dupe(u8, name) catch @panic("OOM");
+
+        return asset;
+    }
+
+    pub fn deinit(self: *MeshAsset) void {
+        self.surfaces.deinit();
+        self.arena.deinit();
+    }
+};
+
 const std = @import("std");
 const math = @import("../utils/maths.zig");
 const loader = @import("loader.zig");
 const mat = @import("../engine/materials.zig");
 const z = @import("zalgebra");
+const buffers = @import("buffers.zig");
+const gltf = @import("loader.zig");

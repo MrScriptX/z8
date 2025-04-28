@@ -2,39 +2,6 @@ pub const GLTFMaterial = struct {
     data: mat.MaterialInstance
 };
 
-pub const GeoSurface = struct {
-    startIndex: u32,
-    count: u32,
-    material: *GLTFMaterial = undefined,
-};
-
-pub const MeshAsset = struct {
-    arena: std.heap.ArenaAllocator,
-    
-    name: []const u8,
-
-    surfaces: std.ArrayList(GeoSurface),
-    mesh_buffers: buffers.GPUMeshBuffers,
-
-    pub fn init(allocator: std.mem.Allocator, name: []const u8) MeshAsset {
-        var asset = MeshAsset {
-            .arena = std.heap.ArenaAllocator.init(allocator),
-            .name = undefined,
-            .surfaces = std.ArrayList(GeoSurface).init(allocator),
-            .mesh_buffers = undefined,
-        };
-
-        asset.name = asset.arena.allocator().dupe(u8, name) catch @panic("OOM");
-
-        return asset;
-    }
-
-    pub fn deinit(self: *MeshAsset) void {
-        self.surfaces.deinit();
-        self.arena.deinit();
-    }
-};
-
 pub const GLTFMetallic_Roughness = struct {
     gpa: std.heap.ArenaAllocator,
 
@@ -200,7 +167,7 @@ pub const GLTFMetallic_Roughness = struct {
 pub const LoadedGLTF = struct {
     arena: std.heap.ArenaAllocator, // use to allocate resources stored in hash maps
 
-    meshes: std.hash_map.StringHashMap(*MeshAsset),
+    meshes: std.hash_map.StringHashMap(*assets.MeshAsset),
     nodes: std.hash_map.StringHashMap(*m.Node),
     images: std.hash_map.StringHashMap(*vk_images.image_t),
     materials: std.hash_map.StringHashMap(*GLTFMaterial),
@@ -229,7 +196,7 @@ pub const LoadedGLTF = struct {
             .renderer = renderer,
         };
 
-        gltf.meshes = std.hash_map.StringHashMap(*MeshAsset).init(allocator);
+        gltf.meshes = std.hash_map.StringHashMap(*assets.MeshAsset).init(allocator);
         gltf.nodes = std.hash_map.StringHashMap(*m.Node).init(allocator);
         gltf.images = std.hash_map.StringHashMap(*vk_images.image_t).init(allocator);
         gltf.materials = std.hash_map.StringHashMap(*GLTFMaterial).init(allocator);
@@ -455,12 +422,12 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     var indices = std.ArrayList(u32).init(allocator);
     defer indices.deinit();
 
-    var meshes = std.ArrayList(*MeshAsset).init(allocator);
+    var meshes = std.ArrayList(*assets.MeshAsset).init(allocator);
     defer meshes.deinit();
 
     for (data.meshes[0..data.meshes_count]) |mesh| {
-        var asset = try scene.arena.allocator().create(MeshAsset);
-        asset.* = MeshAsset.init(allocator, std.mem.span(mesh.name));
+        var asset = try scene.arena.allocator().create(assets.MeshAsset);
+        asset.* = assets.MeshAsset.init(allocator, std.mem.span(mesh.name));
 
         // clear the arrays
         vertices.clearAndFree();
@@ -469,7 +436,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
         for (mesh.primitives[0..mesh.primitives_count]) |prim| {
             const indices_count: usize = prim.indices.*.count;
 
-            var surface = GeoSurface {
+            var surface = assets.GeoSurface {
                 .startIndex = @intCast(indices.items.len),
                 .count = @intCast(indices_count),
             };
@@ -738,3 +705,4 @@ const cgltf = @import("cgltf");
 const stb = @import("stb");
 const pipeline = @import("pipeline.zig");
 const maths = @import("../utils/maths.zig");
+const assets = @import("assets.zig");

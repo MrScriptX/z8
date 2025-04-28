@@ -28,8 +28,6 @@ pub const renderer_t = struct {
     var _background_effects: std.ArrayList(effects.ComputeEffect) = undefined;
     var _current_effect: u32 = 0;
 
-    var _test_meshes: std.ArrayList(loader.MeshAsset) = undefined;
-
     var _gui_context: imgui.GuiContext = undefined;
 
     var rectangle: buffers.GPUMeshBuffers = undefined;
@@ -165,12 +163,6 @@ pub const renderer_t = struct {
         vk_images.destroy_image(self._device, self._vma, &_error_checker_board_image);
 
         self._mat_constants.deinit(self._vma);
-
-        for (_test_meshes.items) |*mesh| {
-            mesh.mesh_buffers.deinit(self._vma);
-        }
-
-        _test_meshes.deinit();
 
         rectangle.deinit(self._vma);
 
