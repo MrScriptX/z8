@@ -67,12 +67,12 @@ pub const Node = struct {
                     .index_count = surface.count,
                     .first_index = surface.startIndex,
                     .index_buffer = self.mesh.mesh_buffers.index_buffer.buffer,
-                    .material = &surface.material.data,
+                    .material = surface.material,
                     .transform = node_matrix,
                     .vertex_buffer_address = self.mesh.mesh_buffers.vertex_buffer_address,
                 };
 
-                if (surface.material.data.pass_type == mat.MaterialPass.Transparent) {
+                if (surface.material.pass_type == mat.MaterialPass.Transparent) {
                     ctx.transparent_surfaces.append(render_object) catch @panic("Failed to append render object ! OOM !");
                 }
                 else {
@@ -105,7 +105,7 @@ pub const Node = struct {
 pub const GeoSurface = struct {
     startIndex: u32,
     count: u32,
-    material: *gltf.GLTFMaterial = undefined,
+    material: *mat.MaterialInstance = undefined,
 };
 
 pub const MeshAsset = struct {

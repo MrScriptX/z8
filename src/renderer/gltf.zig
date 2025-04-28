@@ -170,7 +170,7 @@ pub const LoadedGLTF = struct {
     meshes: std.hash_map.StringHashMap(*assets.MeshAsset),
     nodes: std.hash_map.StringHashMap(*m.Node),
     images: std.hash_map.StringHashMap(*vk_images.image_t),
-    materials: std.hash_map.StringHashMap(*GLTFMaterial),
+    materials: std.hash_map.StringHashMap(*mat.MaterialInstance),
 
     top_nodes: std.ArrayList(*m.Node),
     
@@ -199,7 +199,7 @@ pub const LoadedGLTF = struct {
         gltf.meshes = std.hash_map.StringHashMap(*assets.MeshAsset).init(allocator);
         gltf.nodes = std.hash_map.StringHashMap(*m.Node).init(allocator);
         gltf.images = std.hash_map.StringHashMap(*vk_images.image_t).init(allocator);
-        gltf.materials = std.hash_map.StringHashMap(*GLTFMaterial).init(allocator);
+        gltf.materials = std.hash_map.StringHashMap(*mat.MaterialInstance).init(allocator);
         gltf.top_nodes = std.ArrayList(*m.Node).init(allocator);
         gltf.samplers = std.ArrayList(c.VkSampler).init(allocator);
 
@@ -368,11 +368,11 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     var data_index: u32 = 0;
     const scene_material_const: [*]GLTFMetallic_Roughness.MaterialConstants = @alignCast(@ptrCast(scene.material_data_buffer.info.pMappedData));
 
-    var materials = std.hash_map.StringHashMap(*GLTFMaterial).init(allocator);
+    var materials = std.hash_map.StringHashMap(*mat.MaterialInstance).init(allocator);
     defer materials.deinit();
 
     for (data.materials[0..data.materials_count]) |*material| {
-        var new_mat = scene.arena.allocator().create(GLTFMaterial) catch @panic("OOM");
+        const new_mat = scene.arena.allocator().create(mat.MaterialInstance) catch @panic("OOM");
         
         const name = scene.arena.allocator().dupe(u8, std.mem.span(material.name)) catch @panic("OOM");
         scene.materials.put(name, new_mat) catch @panic("OOM");
@@ -411,7 +411,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             material_ressources.color_sampler = scene.samplers.items[sampler];
         }
 
-        new_mat.data = renderer._metal_rough_material.write_material(device, pass_type, &material_ressources, &scene.descriptor_pool);
+        new_mat.* = renderer._metal_rough_material.write_material(device, pass_type, &material_ressources, &scene.descriptor_pool);
         data_index += 1;
     }
 
