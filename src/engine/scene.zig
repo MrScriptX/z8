@@ -106,16 +106,18 @@ pub const scene_t = struct {
 
     pub fn update_mesh(self: *scene_t) void {
         if (self.voxel) |*voxel| {
-            const render_object = mat.RenderObject {
-                .index_count = voxel.index_count,
-                .first_index = 0,
-                .index_buffer = voxel.mesh.index_buffer.buffer,
-                .material = &voxel.material,
-                .transform = za.Mat4.identity().data,
-                .vertex_buffer_address = voxel.mesh.vertex_buffer_address,
-            };
+            for (voxel.meshes.surfaces.items) |*surface| {
+                const render_object = mat.RenderObject {
+                    .index_count = surface.count,
+                    .first_index = surface.startIndex,
+                    .index_buffer = voxel.meshes.mesh_buffers.index_buffer.buffer,
+                    .material = surface.material,
+                    .transform = za.Mat4.identity().data,
+                    .vertex_buffer_address = voxel.meshes.mesh_buffers.vertex_buffer_address,
+                };
 
-            self.draw_context.opaque_surfaces.append(render_object) catch @panic("OOM");
+                self.draw_context.opaque_surfaces.append(render_object) catch @panic("OOM");
+            }
         }
     }
 

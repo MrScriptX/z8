@@ -926,7 +926,7 @@ pub const renderer_t = struct {
         const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
-            log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
+            std.log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
             @panic("OOM");
         };
 

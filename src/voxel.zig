@@ -1,8 +1,8 @@
 pub const Voxel = struct {
-    mesh: buffers.GPUMeshBuffers,
+    allocator: std.mem.Allocator,
+
     meshes: assets.MeshAsset,
-    material: mat.MaterialInstance,
-    index_count: u32,
+    material: *mat.MaterialInstance,
 
     pub fn init(alloc: std.mem.Allocator, material: *VoxelMaterial, renderer: *engine.renderer_t) !Voxel {
         var rect_vertices =  std.ArrayList(buffers.Vertex).init(alloc);
@@ -51,9 +51,6 @@ pub const Voxel = struct {
         try rect_indices.append(1);
         try rect_indices.append(3);
 
-        var asset = assets.MeshAsset.init(alloc, "rectangle");
-        asset.mesh_buffers = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queues.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer);
-
         const mat_resources = VoxelMaterial.Resources {
             .color_image = engine.renderer_t._white_image,
             .color_sampler = engine.renderer_t._default_sampler_linear,
@@ -61,26 +58,31 @@ pub const Voxel = struct {
             .data_buffer_offset = 0,
         };
 
-        var mat_instance = material.write_material(renderer._device, mat.MaterialPass.MainColor, &mat_resources, &material.pool);
+        var voxel = Voxel {
+            .allocator = alloc,
+            .meshes = assets.MeshAsset.init(alloc, "rectangle"),
+            .material = undefined,
+        };
 
-        asset.surfaces.append(.{
+        voxel.material = try voxel.allocator.create(mat.MaterialInstance);
+        voxel.material.* = material.write_material(renderer._device, mat.MaterialPass.MainColor, &mat_resources, &material.pool);
+
+        voxel.meshes.surfaces.append(.{
             .startIndex = 0,
             .count = @intCast(rect_indices.items.len),
-            .material = &mat_instance
+            .material = voxel.material
         }) catch @panic("Out of memory !");
 
-        const voxel = Voxel {
-            .mesh = asset.mesh_buffers,
-            .meshes = asset,
-            .material = mat_instance,
-            .index_count = @intCast(rect_indices.items.len),
-        };
+        voxel.meshes.mesh_buffers = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queues.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer);
 
         return voxel;
     }
 
     pub fn deinit(self: *Voxel, vma: c.VmaAllocator) void {
-        self.mesh.deinit(vma);
+        self.meshes.mesh_buffers.deinit(vma);
+        self.meshes.deinit();
+
+        self.allocator.destroy(self.material);
     }
 };
 
