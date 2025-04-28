@@ -167,7 +167,7 @@ pub const renderer_t = struct {
         self._mat_constants.deinit(self._vma);
 
         for (_test_meshes.items) |*mesh| {
-            mesh.meshBuffers.deinit(self._vma);
+            mesh.mesh_buffers.deinit(self._vma);
         }
 
         _test_meshes.deinit();

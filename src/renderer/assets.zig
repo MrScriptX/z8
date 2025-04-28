@@ -66,10 +66,10 @@ pub const Node = struct {
                 const render_object = mat.RenderObject {
                     .index_count = surface.count,
                     .first_index = surface.startIndex,
-                    .index_buffer = self.mesh.meshBuffers.index_buffer.buffer,
+                    .index_buffer = self.mesh.mesh_buffers.index_buffer.buffer,
                     .material = &surface.material.data,
                     .transform = node_matrix,
-                    .vertex_buffer_address = self.mesh.meshBuffers.vertex_buffer_address,
+                    .vertex_buffer_address = self.mesh.mesh_buffers.vertex_buffer_address,
                 };
 
                 if (surface.material.data.pass_type == mat.MaterialPass.Transparent) {

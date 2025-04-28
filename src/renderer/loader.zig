@@ -14,14 +14,14 @@ pub const MeshAsset = struct {
     name: []const u8,
 
     surfaces: std.ArrayList(GeoSurface),
-    meshBuffers: buffers.GPUMeshBuffers,
+    mesh_buffers: buffers.GPUMeshBuffers,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) MeshAsset {
         var asset = MeshAsset {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .name = undefined,
             .surfaces = std.ArrayList(GeoSurface).init(allocator),
-            .meshBuffers = undefined,
+            .mesh_buffers = undefined,
         };
 
         asset.name = asset.arena.allocator().dupe(u8, name) catch @panic("OOM");
@@ -257,7 +257,7 @@ pub const LoadedGLTF = struct {
 
         var mesh_it = self.meshes.iterator();
         while (mesh_it.next()) |*mesh| {
-            mesh.value_ptr.*.meshBuffers.deinit(vma);
+            mesh.value_ptr.*.mesh_buffers.deinit(vma);
             mesh.value_ptr.*.deinit();
         }
 
@@ -571,7 +571,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             try asset.surfaces.append(surface);
         }
 
-        asset.meshBuffers = buffers.GPUMeshBuffers.init(vma, device, fence, queue, indices.items, vertices.items, cmd);
+        asset.mesh_buffers = buffers.GPUMeshBuffers.init(vma, device, fence, queue, indices.items, vertices.items, cmd);
         try meshes.append(asset);
 
         // find name
