@@ -71,6 +71,7 @@ pub const Voxel = struct {
 
         const voxel = Voxel {
             .mesh = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queues.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer),
+            .meshes = undefined,
             .material = mat_instance,
             .index_count = @intCast(rect_indices.items.len),
         };
