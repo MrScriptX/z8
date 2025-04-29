@@ -554,7 +554,7 @@ pub const renderer_t = struct {
     pub fn draw(self: *renderer_t, scene: *scenes.scene_t) void {
         var result = c.vkWaitForFences(self._device, 1, &self.current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
-            log.write("vkWaitForFences failed with error {x}\n", .{ result });
+            std.log.warn("vkWaitForFences failed with error {d}\n", .{ result });
             self._frameNumber += 1;
             return;
         }
@@ -574,11 +574,19 @@ pub const renderer_t = struct {
         switch(result) {
             c.VK_SUCCESS => {},
             c.VK_ERROR_OUT_OF_DATE_KHR => {
+                std.log.info("VK_ERROR_OUT_OF_DATE_KHR - rebuilding swapchain...", .{});
+
+                self._rebuild_swapchain = true;
+                return;
+            },
+            c.VK_SUBOPTIMAL_KHR => {
+                std.log.info("VK_SUBOPTIMAL_KHR - rebuilding swapchain...", .{});
+
                 self._rebuild_swapchain = true;
                 return;
             },
             else => {
-                log.write("vkAcquireNextImageKHR failed with error {x}\n", .{ result });
+                std.log.warn("vkAcquireNextImageKHR failed with error {d}\n", .{ result });
                 return;
             }
         }
@@ -605,7 +613,7 @@ pub const renderer_t = struct {
 
         result = c.vkBeginCommandBuffer(cmd_buffer, &cmd_buffer_begin_info);
         if (result != c.VK_SUCCESS) {
-            log.write("vkBeginCommandBuffer failed with error {x}\n", .{ result });
+            std.log.warn("vkBeginCommandBuffer failed with error {d}\n", .{ result });
             return;
         }
 
@@ -1139,32 +1147,35 @@ pub const renderer_t = struct {
     pub fn rebuild_swapchain(self: *renderer_t, window: ?*c.SDL_Window) void {
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
-            log.write("Failed to wait for device with error {x}", .{ result });
+            std.log.warn("Failed to wait for device with error {d}", .{ result });
         }
 
         self.destroy_swapchain();
 
         var width: i32 = 0;
         var height: i32 = 0;
-        _ = c.SDL_GetWindowSize(window, &width, &height);
+        const succeed = c.SDL_GetWindowSize(window, &width, &height);
+        if (!succeed) {
+            std.log.warn("Failed to get window current size");
+        }
 
         self.init_swapchain(@intCast(width), @intCast(height)) catch {
-            log.write("Failed to build swapchain !", .{});
+            std.log.err("Failed to build swapchain !", .{});
             return;
         };
 
         self.init_descriptors() catch {
-            log.write("Failed to build descriptors !", .{});
+            std.log.err("Failed to build descriptors !", .{});
             return;
         };
 
         self.init_pipelines() catch {
-            log.write("Failed to build pipelines !", .{});
+            std.log.err("Failed to build pipelines !", .{});
             return;
         };
 
         self.init_mesh_material() catch {
-            log.write("Failed to init material !", .{});
+            std.log.err("Failed to init material !", .{});
             return;
         };
 
