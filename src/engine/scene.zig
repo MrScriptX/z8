@@ -19,9 +19,7 @@ pub const scene_t = struct {
     data: ShaderData = undefined,
     draw_context: mesh.DrawContext,
     
-    gltf: ?*gltf.LoadedGLTF = null,
-    path: ?[]const u8 = null,
-    
+    gltf: ?*gltf.LoadedGLTF = null,    
     voxel: ?vox.Voxel = null,
 
     pub fn init(alloc: std.mem.Allocator, t: type_e) scene_t {
@@ -64,12 +62,12 @@ pub const scene_t = struct {
         self.voxel = null;
     }
 
-    pub fn load(self: *scene_t, alloc: std.mem.Allocator, file: []const u8, r: *renderer.renderer_t) !void {
+    pub fn load_gltf(self: *scene_t, alloc: std.mem.Allocator, file: []const u8, r: *renderer.renderer_t) !void {
         self.gltf = try self.allocator().create(gltf.LoadedGLTF);
         self.gltf.?.* = try gltf.load_gltf(alloc, file, r);
     }
 
-    pub fn create_mesh(self: *scene_t, alloc: std.mem.Allocator, material: *vox.VoxelMaterial, r: *renderer.renderer_t) !void {
+    pub fn load_mesh(self: *scene_t, alloc: std.mem.Allocator, material: *vox.VoxelMaterial, r: *renderer.renderer_t) !void {
         self.voxel = try vox.Voxel.init(alloc, material, r);
     }
 
@@ -169,29 +167,27 @@ pub const manager_t = struct {
     }
 
     pub fn deinit(self: *manager_t, device: c.VkDevice, vma: c.VmaAllocator) void {
-        for (self.scenes.items) |*scene| {
-            scene.deinit(device, vma);
+        for (self.scenes.items) |*s| {
+            s.deinit(device, vma);
         }
 
         self.scenes.deinit();
     }
 
-    pub fn create_scene(self: *manager_t, alloc: std.mem.Allocator, t: type_e) *scene_t {
-        const scene = scene_t.init(alloc, t);
-        self.scenes.append(scene);
+    pub fn create_scene(self: *manager_t, alloc: std.mem.Allocator, t: type_e) *const scene_t {
+        const s = scene_t.init(alloc, t);
+        self.scenes.append(s) catch @panic("Out of memory");
 
         return &self.scenes.getLast();
     }
 
-    // pub fn update(self: *manager_t, alloc: std.mem.Allocator) void {
-    //     if (self.render_scene != self.current_scene) {
-    //         for (self.scenes.items, 0..) |*scene, i| {
-    //             if (i == self.current_scene) {
-    //                 scene.load(alloc, "", device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, r: *renderer.renderer_t)
-    //             }
-    //         }
-    //     }
-    // }
+    pub fn scene(self: *manager_t, index: usize) ?*scene_t {
+        for (self.scenes.items, 0..) |*s, i| {
+            if (i == index) return s;
+        }
+
+        return null;
+    }
 };
 
 const std = @import("std");

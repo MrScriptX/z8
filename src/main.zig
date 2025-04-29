@@ -52,7 +52,9 @@ pub fn main() !u8 {
     var scene_manager = scene.manager_t.init(gpa.allocator());
     defer scene_manager.deinit(renderer._device, renderer._vma);
 
-    // const monkey_scene = scene_manager.create_scene(gpa.allocator(), scene.type_e.GLTF);
+    _ = scene_manager.create_scene(gpa.allocator(), scene.type_e.GLTF);
+    _ = scene_manager.create_scene(gpa.allocator(), scene.type_e.GLTF);
+    _ = scene_manager.create_scene(gpa.allocator(), scene.type_e.MESH);
 
 
     var current_scene: i32 = 0;
@@ -85,24 +87,46 @@ pub fn main() !u8 {
             }
         }
 
+        const current = scene_manager.scene(@intCast(current_scene));
+
         if (renderer.should_rebuild_sw()) {
             renderer.rebuild_swapchain(window);
 
-            if (monkey_scene.gltf != null) {
-                monkey_scene.clear(renderer._device, renderer._vma);
-            }
-            
-            if (reactor_scene.gltf != null) {
-                reactor_scene.clear(renderer._device, renderer._vma);
-            }
-
-            if (rectangle_scene.voxel != null) {
-                rectangle_scene.clear(renderer._device, renderer._vma);
+            if (current) |s| {
+                s.clear(renderer._device, renderer._vma);
             }
 
             render_scene = -1; // force rebuild of scene
         }
 
+        // check if scene needs to be rebuilt
+        if (render_scene != current_scene) {
+            const rendered_scene = scene_manager.scene(@intCast(current_scene));
+            if (rendered_scene) |s| {
+                s.clear(renderer._device, renderer._vma);
+            }
+
+            if (current) |s| {
+                if (current_scene == 0) {
+                    try s.load_gltf(gpa.allocator(), "assets/models/basicmesh.glb", &renderer);
+                    s.deactivate_node("Cube");
+                    s.deactivate_node("Sphere");
+                }
+                else if (current_scene == 1) {
+                    try s.load_gltf(gpa.allocator(), "assets/models/structure.glb", &renderer);
+                }
+                else if (current_scene == 2) {
+                    try s.load_mesh(gpa.allocator(), &voxel_material, &renderer);
+                }
+            }
+            else {
+                std.log.err("Invalid scene {d}", .{ current_scene });
+            }
+
+            render_scene = current_scene;
+        }
+
+        // create new frame for ui
         imgui.ImplVulkan_NewFrame();
         imgui.ImplSDL3_NewFrame();
         imgui.NewFrame();
@@ -176,60 +200,25 @@ pub fn main() !u8 {
 		    }
         }
 
+        // render
         imgui.Render();
 
-        if (render_scene != current_scene) {
-            switch (current_scene) {
-                0 => {
-                    reactor_scene.clear(renderer._device, renderer._vma);
-                    rectangle_scene.clear(renderer._device, renderer._vma);
+        if (current) |s| {
+            if (current_scene == 0) {
+                if (s.find_node("Suzanne")) |node| {
+                    const current_transform = za.Mat4.fromSlice(&maths.linearize(node.local_transform));
 
-                    try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", &renderer);
-                    monkey_scene.deactivate_node("Cube");
-                    monkey_scene.deactivate_node("Sphere");
-                },
-                1 => {
-                    monkey_scene.clear(renderer._device, renderer._vma);
-                    rectangle_scene.clear(renderer._device, renderer._vma);
+                    const rotation_speed: f32 = 45.0; // Degrees per second
+                    const rotation_angle = rotation_speed * (renderer.stats.frame_time / 1_000_000_000.0);
+                    const rot = za.Mat4.identity().rotate(rotation_angle, za.Vec3.new(0, 1, 0)).mul(current_transform).data;
 
-                    try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", &renderer);
-                },
-                2 => {
-                    monkey_scene.clear(renderer._device, renderer._vma);
-                    reactor_scene.clear(renderer._device, renderer._vma);
-
-                    try rectangle_scene.create_mesh(gpa.allocator(), &voxel_material, &renderer);
-                },
-                else => {
-                    std.log.warn("Invalid selected scene : {d}", .{ current_scene });
+                    node.local_transform = rot;
+                    node.refresh_transform(&rot);
                 }
             }
 
-            render_scene = current_scene;
-        }
-
-        if (current_scene == 0) {
-            if (monkey_scene.find_node("Suzanne")) |node| {
-                const current_transform = za.Mat4.fromSlice(&maths.linearize(node.local_transform));
-
-                const rotation_speed: f32 = 45.0; // Degrees per second
-                const rotation_angle = rotation_speed * (renderer.stats.frame_time / 1_000_000_000.0);
-                const rot = za.Mat4.identity().rotate(rotation_angle, za.Vec3.new(0, 1, 0)).mul(current_transform).data;
-
-                node.local_transform = rot;
-                node.refresh_transform(&rot);
-            }
-
-            renderer.update_scene(&monkey_scene);
-            renderer.draw(&monkey_scene);
-        }
-        else if (current_scene == 2) {
-            renderer.update_scene(&rectangle_scene);
-            renderer.draw(&rectangle_scene);
-        }
-        else {
-            renderer.update_scene(&reactor_scene);
-            renderer.draw(&reactor_scene);
+            renderer.update_scene(s);
+            renderer.draw(s);
         }
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
