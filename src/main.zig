@@ -241,7 +241,15 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     };
     defer allocator.free(message);
 
-    const log_msg = std.fmt.allocPrint(allocator, "{any}\t: {s}\n", .{ level, message }) catch {
+    var str_level: []const u8 = undefined; 
+    switch (level) {
+        std.log.Level.err => str_level = "ERROR",
+        std.log.Level.warn => str_level = "WARN",
+        std.log.Level.info => str_level = "INFO",
+        std.log.Level.debug => str_level = "DEBUG",
+    }
+
+    const log_msg = std.fmt.allocPrint(allocator, "{s}\t: {s}\n", .{ str_level, message }) catch {
         std.debug.print("Failed to allocate final log message\n", .{});
         return;
     };

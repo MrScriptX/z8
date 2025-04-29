@@ -5,7 +5,15 @@ const queue = @import("queue_family.zig");
 const sw = @import("swapchain.zig");
 const opt = @import("../../options.zig");
 
-pub fn init_instance() !c.VkInstance {
+const Error = error{
+    Failed,
+    VkInstance,
+    VkSurface,
+    EnumDevice,
+    NoDevice,
+};
+
+pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     const app_info = c.VkApplicationInfo{
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = null,
@@ -20,7 +28,7 @@ pub fn init_instance() !c.VkInstance {
     var extension_count: u32 = 0;
     const required_extensions = c.SDL_Vulkan_GetInstanceExtensions(&extension_count);// VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 
-    var extensions = std.ArrayList([*c]const u8).init(std.heap.page_allocator);
+    var extensions = std.ArrayList([*c]const u8).init(allocator);
     for (0..extension_count) |i| {
         try extensions.append(required_extensions[i]);
     }
@@ -29,7 +37,7 @@ pub fn init_instance() !c.VkInstance {
     try extensions.append("VK_EXT_debug_report");
 
     // validation layer
-    var layers = std.ArrayList([*c]const u8).init(std.heap.page_allocator);
+    var layers = std.ArrayList([*c]const u8).init(allocator);
     defer layers.deinit();
 
     try layers.append("VK_LAYER_KHRONOS_validation");
@@ -49,8 +57,8 @@ pub fn init_instance() !c.VkInstance {
     var instance: c.VkInstance = undefined;
     const result = c.vkCreateInstance(&instance_info, null, &instance);
     if (result != c.VK_SUCCESS) {
-        err.display_error("Unable to create Vulkan instance");
-        std.process.exit(1);
+        std.log.err("Unable to create Vulkan instance ! Reason {d}", .{ result });
+        return Error.VkInstance;
     }
 
     return instance;
@@ -60,32 +68,35 @@ pub fn create_surface(window: ?*c.SDL_Window, instance: c.VkInstance) !c.VkSurfa
     var surface: c.VkSurfaceKHR = undefined;
     const result = c.SDL_Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
     if (result == false) {
-        return std.debug.panic("Unable to create Vulkan surface: {s}", .{c.SDL_GetError()});
+        std.log.err("Unable to create Vulkan surface: {s}", .{ c.SDL_GetError() });
+        return Error.VkSurface;
     }
 
     return surface;
 }
 
-pub fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.VkPhysicalDevice {
+pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.VkPhysicalDevice {
     var device_count: u32 = 0;
     const enum_device = c.vkEnumeratePhysicalDevices(instance, &device_count, null);
     if (enum_device != c.VK_SUCCESS) {
-        err.display_error("Failed to enumerate devices");
-        std.process.exit(1);
+        std.log.err("Failed to enumerate devices", .{});
+        return Error.EnumDevice;
     }
 
     if (device_count == 0) {
-        return std.debug.panic("No Vulkan devices found", .{});
+        std.log.err("No Vulkan devices found", .{});
+        return Error.NoDevice;
     }
 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
     const allocator = arena.allocator();
 
     const devices = try allocator.alloc(c.VkPhysicalDevice, device_count);
     const result = c.vkEnumeratePhysicalDevices(instance, &device_count, devices.ptr);
     if (result != c.VK_SUCCESS) {
-        return std.debug.panic("Unable to enumerate Vulkan devices: {}", .{result});
+        std.log.err("Unable to enumerate Vulkan devices: {d}", .{ result });
+        return Error.EnumDevice;
     }
 
     var physical_device: ?c.VkPhysicalDevice = null;
@@ -97,7 +108,8 @@ pub fn select_physical_device(instance: c.VkInstance, surface: c.VkSurfaceKHR) !
     }
 
     if (physical_device == null) {
-        err.display_error("No suitable Vulkan device found");
+        std.log.err("No suitable Vulkan device found", .{});
+        return Error.NoDevice;
     }
 
     return physical_device.?;

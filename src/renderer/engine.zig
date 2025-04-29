@@ -96,23 +96,20 @@ pub const renderer_t = struct {
 
     pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !renderer_t {
         var renderer = renderer_t{
+            ._arena = std.heap.ArenaAllocator.init(allocator),
+
             .camera = camera,
             .stats = stats_t{},
             .submit = submit_t{}
         };
         
-        renderer._arena = std.heap.ArenaAllocator.init(allocator);
         _background_effects = std.ArrayList(effects.ComputeEffect).init(allocator);
 
-        renderer.init_vulkan(window) catch {
-            std.log.err("Failed to init vulkan API !", .{});
-            std.process.exit(1);
-        };
+        std.log.info("Initiliaze vulkan instance...", .{});
+        try renderer.init_vulkan(allocator, window);
 
-        renderer.init_swapchain(width, height) catch {
-            std.log.err("Failed to initialize the swapchain !", .{});
-            std.process.exit(1);
-        };
+        std.log.info("Initiliazing the swapchain, res {d}x{d}...", .{ width, height });
+        try renderer.init_swapchain(width, height);
 
         renderer.init_commands() catch {
             std.log.err("Failed to initialize command buffers !", .{});
@@ -195,10 +192,10 @@ pub const renderer_t = struct {
         c.vkDestroyInstance(self._instance, null);
     }
 
-    fn init_vulkan(self: *renderer_t, window: ?*c.SDL_Window) !void {
-        self._instance = try vk.init.init_instance();
+    fn init_vulkan(self: *renderer_t, allocator: std.mem.Allocator, window: ?*c.SDL_Window) !void {
+        self._instance = try vk.init.init_instance(allocator);
         self._surface = try vk.init.create_surface(window, self._instance);
-        self._gpu = try vk.init.select_physical_device(self._instance, self._surface);
+        self._gpu = try vk.init.select_physical_device(allocator, self._instance, self._surface);
         self._device = try vk.init.create_device_interface(self._gpu, self._queue_indices);
         self._queues = try vk.queue.get_device_queue(self._device, self._queue_indices);
 
