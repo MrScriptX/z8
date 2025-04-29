@@ -32,6 +32,7 @@ The following libraries are included in the project, and don't need to be instal
 - [ ] Add a configuration file to load and save settings
 - [ ] Split ImGui into a separate module to build more complex UI
 - [ ] Reorganize files and folders
+- [x] Destroy and create swapchain semaphores and fences when resizing the window
 
 ### Scenes
 

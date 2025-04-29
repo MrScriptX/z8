@@ -30,7 +30,7 @@ pub const data_t = struct {
 
         c.vkDestroyCommandPool(device, self._cmd_pool, null);
 
-        c.vkDestroySemaphore(device, self._sw_semaphore, null);
+        // c.vkDestroySemaphore(device, self._sw_semaphore, null);
         c.vkDestroySemaphore(device, self._render_semaphore, null);
         c.vkDestroyFence(device, self._render_fence, null);
 
@@ -96,7 +96,7 @@ pub fn create_fence(device: c.VkDevice) !c.VkFence {
     return fence;
 }
 
-fn create_semaphore(device: c.VkDevice) !c.VkSemaphore {
+pub fn create_semaphore(device: c.VkDevice) !c.VkSemaphore {
     const create_semaphore_info = c.VkSemaphoreCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         .pNext = null,

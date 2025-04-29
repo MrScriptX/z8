@@ -1179,6 +1179,10 @@ pub const renderer_t = struct {
             return;
         };
 
+        for (&self._frames) |*frame| {
+            frame._sw_semaphore = try frames.create_semaphore(self._device);
+        }
+
         self._rebuild_swapchain = false;
     }
 
@@ -1205,6 +1209,7 @@ pub const renderer_t = struct {
 
         for (&self._frames) |*frame| {
             frame._frame_descriptors.deinit(self._device);
+            c.vkDestroySemaphore(self._device, frame._sw_semaphore, null);
         }
 
         // destroy pipelines
