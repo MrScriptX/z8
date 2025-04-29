@@ -1156,7 +1156,7 @@ pub const renderer_t = struct {
         var height: i32 = 0;
         const succeed = c.SDL_GetWindowSize(window, &width, &height);
         if (!succeed) {
-            std.log.warn("Failed to get window current size");
+            std.log.warn("Failed to get window current size", .{});
         }
 
         self.init_swapchain(@intCast(width), @intCast(height)) catch {
