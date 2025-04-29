@@ -182,7 +182,7 @@ pub const LoadedGLTF = struct {
 
     renderer: *engine.renderer_t,
 
-    pub fn init(allocator: std.mem.Allocator, renderer: *engine.renderer_t) LoadedGLTF {
+    pub fn init(allocator: std.mem.Allocator, r: *engine.renderer_t) LoadedGLTF {
         var gltf = LoadedGLTF {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .meshes = undefined,
@@ -193,7 +193,7 @@ pub const LoadedGLTF = struct {
             .samplers = undefined,
             .descriptor_pool = undefined,
             .material_data_buffer = undefined,
-            .renderer = renderer,
+            .renderer = r,
         };
 
         gltf.meshes = std.hash_map.StringHashMap(*assets.MeshAsset).init(allocator);
@@ -249,8 +249,8 @@ pub const LoadedGLTF = struct {
     }
 };
 
-pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, renderer: *engine.renderer_t) !LoadedGLTF {
-    var scene = LoadedGLTF.init(allocator, renderer);
+pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *engine.renderer_t) !LoadedGLTF {
+    var scene = LoadedGLTF.init(allocator, r);
 
     var options: cgltf.options = .{};
     var data: *cgltf.data = undefined;
@@ -271,7 +271,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
         .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 1 }
     };
 
-    scene.descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, device, @intCast(data.materials_count), &sizes);
+    scene.descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, @intCast(data.materials_count), &sizes);
 
     // load samplers
     if (data.samplers != null) {
@@ -293,7 +293,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             };
 
             var new_sampler: c.VkSampler = undefined;
-            const create_result = c.vkCreateSampler(device, &sampler_create_info, null, &new_sampler);
+            const create_result = c.vkCreateSampler(r._device, &sampler_create_info, null, &new_sampler);
             if (create_result != c.VK_SUCCESS) {
                 std.log.err("Failed to create sampler ! Reason {d}", .{ create_result });
                 @panic("Failed to create sampler !");
@@ -310,7 +310,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
         };
 
         var sampler_nearest: c.VkSampler = undefined;
-        var sampler_create = c.vkCreateSampler(device, &nearest_sampler_image, null, &sampler_nearest);
+        var sampler_create = c.vkCreateSampler(r._device, &nearest_sampler_image, null, &sampler_nearest);
         if (sampler_create != c.VK_SUCCESS) {
             std.log.err("Failed to create sampler ! Reason {d}", .{ result });
             @panic("Failed to create sampler !");
@@ -325,7 +325,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
         };
 
         var sampler_linear: c.VkSampler = undefined;
-        sampler_create = c.vkCreateSampler(device, &linear_sampler_image, null, &sampler_linear);
+        sampler_create = c.vkCreateSampler(r._device, &linear_sampler_image, null, &sampler_linear);
         if (sampler_create != c.VK_SUCCESS) {
             std.log.err("Failed to create sampler ! Reason {d}", .{ result });
             @panic("Failed to create sampler !");
@@ -346,7 +346,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
 
     if (data.images != null) {
         for (data.images[0..data.images_count]) |*img| {
-            const image = load_image(scene.arena.allocator(), img, renderer);
+            const image = load_image(scene.arena.allocator(), img, r);
             if (image) |it| {
                 const name = try scene.arena.allocator().dupe(u8, std.mem.span(img.name));
 
@@ -363,7 +363,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     }
 
     // buffer to hold material data
-    scene.material_data_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(GLTFMetallic_Roughness.MaterialConstants) * data.materials_count, c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+    scene.material_data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(GLTFMetallic_Roughness.MaterialConstants) * data.materials_count, c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     var data_index: u32 = 0;
     const scene_material_const: [*]GLTFMetallic_Roughness.MaterialConstants = @alignCast(@ptrCast(scene.material_data_buffer.info.pMappedData));
@@ -411,7 +411,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             material_ressources.color_sampler = scene.samplers.items[sampler];
         }
 
-        new_mat.* = renderer._metal_rough_material.write_material(device, pass_type, &material_ressources, &scene.descriptor_pool);
+        new_mat.* = r._metal_rough_material.write_material(r._device, pass_type, &material_ressources, &scene.descriptor_pool);
         data_index += 1;
     }
 
@@ -538,7 +538,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
             try asset.surfaces.append(surface);
         }
 
-        asset.mesh_buffers = buffers.GPUMeshBuffers.init(vma, device, fence, queue, indices.items, vertices.items, cmd);
+        asset.mesh_buffers = buffers.GPUMeshBuffers.init(r._vma, indices.items, vertices.items, r);
         try meshes.append(asset);
 
         // find name
@@ -565,11 +565,11 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
         }
         else {
             const t = z.Vec3.new(node.translation[0], node.translation[1], node.translation[2]);
-            const r = z.Quat.new(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]);
+            const rot = z.Quat.new(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]);
             const s = z.Vec3.new(node.scale[0], node.scale[1], node.scale[2]);
 
             const tm = z.Mat4.identity().translate(t);
-            const rm = r.toMat4();
+            const rm = rot.toMat4();
             const sm = z.Mat4.identity().scale(s);
 
             const tr = z.Mat4.mul(tm, rm);
@@ -607,7 +607,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, device: c.VkDev
     return scene;
 }
 
-pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, renderer: *engine.renderer_t) ?*vk_images.image_t {
+pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, r: *engine.renderer_t) ?*vk_images.image_t {
     var new_image: ?*vk_images.image_t = null;
 
     var width: i32 = 0;
@@ -633,8 +633,8 @@ pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, renderer: *
 
         new_image = allocator.create(vk_images.image_t) catch @panic("OOM");
 
-        new_image.?.* = vk_images.create_image_data(renderer._vma, renderer._device, @ptrCast(data), image_size, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT,
-            false, &renderer._imm_fence, renderer._imm_command_buffer, renderer._queues.graphics);
+        new_image.?.* = vk_images.create_image_data(r._vma, r._device, @ptrCast(data), image_size, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT,
+            false, &r.submit.fence, r.submit.cmd, r._queues.graphics);
     }
     else if (image.buffer_view != null) {
         const view = image.buffer_view.?;
@@ -656,8 +656,8 @@ pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, renderer: *
 
         new_image = allocator.create(vk_images.image_t) catch @panic("OOM");
 
-        new_image.?.* = vk_images.create_image_data(renderer._vma, renderer._device, @ptrCast(data), image_size, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT,
-            false, &renderer._imm_fence, renderer._imm_command_buffer, renderer._queues.graphics);
+        new_image.?.* = vk_images.create_image_data(r._vma, r._device, @ptrCast(data), image_size, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT,
+            false, &r.submit.fence, r.submit.cmd, r._queues.graphics);
     }
 
     return new_image;

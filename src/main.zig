@@ -49,6 +49,12 @@ pub fn main() !u8 {
     var rectangle_scene = scene.scene_t.init(gpa.allocator(), scene.type_e.MESH);
     defer rectangle_scene.deinit(renderer._device, renderer._vma);
 
+    var scene_manager = scene.manager_t.init(gpa.allocator());
+    defer scene_manager.deinit(renderer._device, renderer._vma);
+
+    // const monkey_scene = scene_manager.create_scene(gpa.allocator(), scene.type_e.GLTF);
+
+
     var current_scene: i32 = 0;
     var render_scene: i32 = -1;
 
@@ -178,7 +184,7 @@ pub fn main() !u8 {
                     reactor_scene.clear(renderer._device, renderer._vma);
                     rectangle_scene.clear(renderer._device, renderer._vma);
 
-                    try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+                    try monkey_scene.load(gpa.allocator(), "assets/models/basicmesh.glb", &renderer);
                     monkey_scene.deactivate_node("Cube");
                     monkey_scene.deactivate_node("Sphere");
                 },
@@ -186,7 +192,7 @@ pub fn main() !u8 {
                     monkey_scene.clear(renderer._device, renderer._vma);
                     rectangle_scene.clear(renderer._device, renderer._vma);
 
-                    try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", renderer._device, &renderer._imm_fence, renderer._queues.graphics, renderer._imm_command_buffer, renderer._vma, &renderer);
+                    try reactor_scene.load(gpa.allocator(), "assets/models/structure.glb", &renderer);
                 },
                 2 => {
                     monkey_scene.clear(renderer._device, renderer._vma);

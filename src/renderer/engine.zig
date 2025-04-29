@@ -12,6 +12,12 @@ pub const stats_t = struct {
     mesh_draw_time: f32 = 0,
 };
 
+const submit_t = struct {
+    fence: c.VkFence = undefined,
+    cmd: c.VkCommandBuffer = undefined,
+    pool: c.VkCommandPool = undefined,
+};
+
 pub const renderer_t = struct {
     var _render_scale: f32 = 1.0;
 
@@ -74,9 +80,7 @@ pub const renderer_t = struct {
     _draw_image_descriptor_set: c.VkDescriptorSet = undefined,
 
     // immediate submit structures
-    _imm_fence: c.VkFence = undefined,
-    _imm_command_buffer: c.VkCommandBuffer = undefined,
-    _imm_command_pool: c.VkCommandPool = undefined,
+    submit: submit_t,
 
     // scene
     _gpu_scene_data_descriptor_layout: c.VkDescriptorSetLayout = undefined,
@@ -94,51 +98,52 @@ pub const renderer_t = struct {
         var renderer = renderer_t{
             .camera = camera,
             .stats = stats_t{},
+            .submit = submit_t{}
         };
         
         renderer._arena = std.heap.ArenaAllocator.init(allocator);
         _background_effects = std.ArrayList(effects.ComputeEffect).init(allocator);
 
         renderer.init_vulkan(window) catch {
-            err.display_error("Failed to init vulkan API !");
+            std.log.err("Failed to init vulkan API !", .{});
             std.process.exit(1);
         };
 
         renderer.init_swapchain(width, height) catch {
-            err.display_error("Failed to initialize the swapchain !");
+            std.log.err("Failed to initialize the swapchain !", .{});
             std.process.exit(1);
         };
 
         renderer.init_commands() catch {
-            err.display_error("Failed to initialize command buffers !");
+            std.log.err("Failed to initialize command buffers !", .{});
             std.process.exit(1);
         };
 
         renderer.init_descriptors() catch {
-            err.display_error("Failed to initialize descriptors !");
+            std.log.err("Failed to initialize descriptors !", .{});
             std.process.exit(1);
         };
 
         renderer.init_pipelines() catch {
-            err.display_error("Failed to initialize pipelines !");
+            std.log.err("Failed to initialize pipelines !", .{});
             std.process.exit(1);
         };
 
         _gui_context = imgui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
             switch (e) {
                 imgui.Error.PoolAllocFailed => {
-                    err.display_error("Failed to create pool for ImGui !");
+                    std.log.err("Failed to create pool for ImGui !", .{});
                     std.process.exit(1);
                 },
                 imgui.Error.ImGuiInitFailed => {
-                    err.display_error("Failed to initialize ImGui !");
+                    std.log.err("Failed to initialize ImGui !", .{});
                     std.process.exit(1);
                 },
             }
         };
 
         renderer.init_default_data(std.heap.page_allocator) catch {
-            err.display_error("Failed to initialize data !");
+            std.log.err("Failed to initialize data !", .{});
             std.process.exit(1);
         };
 
@@ -173,8 +178,8 @@ pub const renderer_t = struct {
         // destroy imgui context
         _gui_context.deinit(self._device);
 
-        c.vkDestroyFence(self._device, self._imm_fence, null);
-        c.vkDestroyCommandPool(self._device, self._imm_command_pool, null);
+        c.vkDestroyFence(self._device, self.submit.fence, null);
+        c.vkDestroyCommandPool(self._device, self.submit.pool, null);
 
         self.destroy_swapchain();
 
@@ -267,20 +272,9 @@ pub const renderer_t = struct {
             try frame.init(self._device, self._queue_indices.graphics);
         }
 
-        self._imm_command_pool = frames.create_command_pool(self._device, self._queue_indices.graphics) catch {
-            err.display_error("Failed to create immediate command pool !\n");
-            std.process.exit(1);
-        };
-
-        self._imm_command_buffer = frames.create_command_buffer(1,self._device, self._imm_command_pool) catch {
-            err.display_error("Failed to allocate immediate command buffers !");
-            std.process.exit(1);
-        };
-
-        self._imm_fence = frames.create_fence(self._device) catch {
-            err.display_error("Failed to create fence !");
-            std.process.exit(1);
-        };
+        self.submit.pool = try frames.create_command_pool(self._device, self._queue_indices.graphics);
+        self.submit.cmd = try frames.create_command_buffer(1,self._device, self.submit.pool);
+        self.submit.fence = try frames.create_fence(self._device);
     }
 
     fn init_descriptors(self: *renderer_t) !void {
@@ -1073,17 +1067,17 @@ pub const renderer_t = struct {
         try rect_indices.append(1);
         try rect_indices.append(3);
 
-	    rectangle = buffers.GPUMeshBuffers.init(self._vma, self._device, &self._imm_fence, self._queues.graphics, rect_indices.items, rect_vertices.items, self._imm_command_buffer);
+	    rectangle = buffers.GPUMeshBuffers.init(self._vma, rect_indices.items, rect_vertices.items, self);
 
         // initialize textures
         const white: u32 align(4) = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
-        _white_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
+        _white_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
         const grey: u32 align(4) = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
-        _grey_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
+        _grey_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
         const black: u32 align(4) = maths.pack_unorm4x8(.{ 0, 0, 0, 0 });
-        _black_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&black), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
+        _black_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&black), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
         const magenta: u32 align(4) = maths.pack_unorm4x8(.{ 1, 0, 1, 1 });
         var pixels: [16 * 16]u32 = [_]u32 { 0 } ** (16 * 16);
@@ -1093,7 +1087,7 @@ pub const renderer_t = struct {
             }
         }
 
-        _error_checker_board_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self._imm_fence, self._imm_command_buffer, self._queues.graphics);
+        _error_checker_board_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
         const nearest_sampler_image = c.VkSamplerCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,

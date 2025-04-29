@@ -1,6 +1,3 @@
-const c = @import("../clibs.zig");
-const log = @import("../utils/log.zig");
-
 pub const AllocatedBuffer = struct {
     buffer: c.VkBuffer = undefined,
     allocation: c.VmaAllocation = undefined,
@@ -46,7 +43,7 @@ pub const GPUMeshBuffers = struct {
     vertex_buffer: AllocatedBuffer,
     vertex_buffer_address: c.VkDeviceAddress,
 
-    pub fn init(vma: c.VmaAllocator, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, indices: []u32, vertices: []Vertex, cmd: c.VkCommandBuffer) GPUMeshBuffers {
+    pub fn init(vma: c.VmaAllocator, indices: []u32, vertices: []Vertex, r: *const engine.renderer_t) GPUMeshBuffers {
         const vertex_buffer_size = vertices.len * @sizeOf(Vertex);
         
         var new_surface = GPUMeshBuffers{
@@ -61,13 +58,13 @@ pub const GPUMeshBuffers = struct {
             .pNext = null,
             .buffer = new_surface.vertex_buffer.buffer,
         };
-	    new_surface.vertex_buffer_address = c.vkGetBufferDeviceAddress(device, &device_adress_info);
+	    new_surface.vertex_buffer_address = c.vkGetBufferDeviceAddress(r._device, &device_adress_info);
 
         const index_buffer_size = indices.len * @sizeOf(u32);
-        new_surface.index_buffer = AllocatedBuffer.init(vma, index_buffer_size, c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT | c.VK_BUFFER_USAGE_TRANSFER_DST_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY);
+        new_surface.index_buffer = AllocatedBuffer.init(r._vma, index_buffer_size, c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT | c.VK_BUFFER_USAGE_TRANSFER_DST_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY);
 
-        var staging = AllocatedBuffer.init(vma, vertex_buffer_size + index_buffer_size, c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT, c.VMA_MEMORY_USAGE_CPU_ONLY);
-        defer staging.deinit(vma);
+        var staging = AllocatedBuffer.init(r._vma, vertex_buffer_size + index_buffer_size, c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT, c.VMA_MEMORY_USAGE_CPU_ONLY);
+        defer staging.deinit(r._vma);
 
 	    const data = staging.info.pMappedData;
 
@@ -82,7 +79,7 @@ pub const GPUMeshBuffers = struct {
 	    @memcpy(index_ptr, indices);
 
         // submit immediate
-        new_surface.submit(device, fence, queue, cmd, vertex_buffer_size, index_buffer_size, &staging);
+        new_surface.submit(vertex_buffer_size, index_buffer_size, &staging, r);
 
         return new_surface;
     }
@@ -92,13 +89,13 @@ pub const GPUMeshBuffers = struct {
         self.vertex_buffer.deinit(vma);
     }
 
-    fn submit(self: *GPUMeshBuffers, device: c.VkDevice, fence: *c.VkFence, queue: c.VkQueue, cmd: c.VkCommandBuffer, vertex_buffer_size: usize, index_buffer_size: usize, buffer: *AllocatedBuffer) void {
-        var result = c.vkResetFences(device, 1, fence);
+    fn submit(self: *GPUMeshBuffers, vertex_buffer_size: usize, index_buffer_size: usize, buffer: *AllocatedBuffer, r: *const engine.renderer_t) void {
+        var result = c.vkResetFences(r._device, 1, &r.submit.fence);
         if (result != c.VK_SUCCESS) {
             log.write("vkResetFences failed with error {x}\n", .{ result });
         }
 
-        result = c.vkResetCommandBuffer(cmd, 0);
+        result = c.vkResetCommandBuffer(r.submit.cmd, 0);
         if (result != c.VK_SUCCESS) {
             log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
         }
@@ -109,7 +106,7 @@ pub const GPUMeshBuffers = struct {
             .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
 
-        result = c.vkBeginCommandBuffer(cmd, &begin_info);
+        result = c.vkBeginCommandBuffer(r.submit.cmd, &begin_info);
         if (result != c.VK_SUCCESS) {
             log.write("vkBeginCommandBuffer failed with error {x}\n", .{ result });
         }
@@ -120,7 +117,7 @@ pub const GPUMeshBuffers = struct {
 		    .size = vertex_buffer_size,
         };
 
-		c.vkCmdCopyBuffer(cmd, buffer.buffer, self.vertex_buffer.buffer, 1, &vertex_copy);
+		c.vkCmdCopyBuffer(r.submit.cmd, buffer.buffer, self.vertex_buffer.buffer, 1, &vertex_copy);
 
 		const index_copy = c.VkBufferCopy{ 
             .dstOffset = 0,
@@ -128,9 +125,9 @@ pub const GPUMeshBuffers = struct {
 		    .size = index_buffer_size,
         };
 
-		c.vkCmdCopyBuffer(cmd, buffer.buffer, self.index_buffer.buffer, 1, &index_copy);
+		c.vkCmdCopyBuffer(r.submit.cmd, buffer.buffer, self.index_buffer.buffer, 1, &index_copy);
 
-        result = c.vkEndCommandBuffer(cmd);
+        result = c.vkEndCommandBuffer(r.submit.cmd);
         if (result != c.VK_SUCCESS) {
             log.write("vkEndCommandBuffer failed with error {x}\n", .{ result });
         }
@@ -138,7 +135,7 @@ pub const GPUMeshBuffers = struct {
         const cmd_submit_info = c.VkCommandBufferSubmitInfo {
             .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
             .pNext = null,
-            .commandBuffer = cmd,
+            .commandBuffer = r.submit.cmd,
             .deviceMask = 0
         };
 
@@ -157,12 +154,12 @@ pub const GPUMeshBuffers = struct {
             .waitSemaphoreInfoCount = 0,
         };
 
-        result = c.vkQueueSubmit2(queue, 1, &submit_info, fence.*); // TODO : run it on other queue
+        result = c.vkQueueSubmit2(r._queues.graphics, 1, &submit_info, r.submit.fence); // TODO : run it on other queue for multithreading
         if (result != c.VK_SUCCESS) {
             log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
         }
 
-        result = c.vkWaitForFences(device, 1, fence, c.VK_TRUE, 9999999999);
+        result = c.vkWaitForFences(r._device, 1, &r.submit.fence, c.VK_TRUE, 9999999999);
         if (result != c.VK_SUCCESS) {
             log.write("vkWaitForFences failed with error {x}\n", .{ result });
         }
@@ -173,3 +170,7 @@ pub const GPUDrawPushConstants = struct {
     world_matrix: [4][4]f32 align(16) = undefined,
     vertex_buffer: c.VkDeviceAddress = undefined
 };
+
+const c = @import("../clibs.zig");
+const log = @import("../utils/log.zig");
+const engine = @import("../renderer/engine.zig");

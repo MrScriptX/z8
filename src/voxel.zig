@@ -73,7 +73,7 @@ pub const Voxel = struct {
             .material = voxel.material
         }) catch @panic("Out of memory !");
 
-        voxel.meshes.mesh_buffers = buffers.GPUMeshBuffers.init(renderer._vma, renderer._device, &renderer._imm_fence, renderer._queues.graphics, rect_indices.items, rect_vertices.items, renderer._imm_command_buffer);
+        voxel.meshes.mesh_buffers = buffers.GPUMeshBuffers.init(renderer._vma, rect_indices.items, rect_vertices.items, renderer);
 
         return voxel;
     }
