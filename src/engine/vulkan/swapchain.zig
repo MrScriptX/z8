@@ -20,7 +20,7 @@ pub const swapchain_t = struct {
     _image_views: []c.VkImageView = undefined,
 
     pub fn init(alloc: std.mem.Allocator, device: c.VkDevice, gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR, window_extent: c.VkExtent2D, queue_indices: queue.indices_t) !swapchain_t {
-        const details = try query_swapchain_support(gpu, surface);
+        const details = try query_swapchain_support(alloc, gpu, surface);
         defer details.deinit();
 
         // create swapchain
@@ -106,9 +106,9 @@ pub const details_t = struct {
     present_modes: []c.VkPresentModeKHR = undefined,
     arena: std.heap.ArenaAllocator = undefined,
 
-    pub fn init() details_t {
+    pub fn init(alloc: std.mem.Allocator) details_t {
         const details = details_t {
-            .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+            .arena = std.heap.ArenaAllocator.init(alloc),
         };
 
         return details;
@@ -165,8 +165,8 @@ fn select_extent(capabilities: c.VkSurfaceCapabilitiesKHR, current_extent: c.VkE
     return actual_extent;
 }
 
-pub fn query_swapchain_support(gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) SWError!details_t {
-    var details: details_t = details_t.init();
+pub fn query_swapchain_support(alloc: std.mem.Allocator, gpu: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) SWError!details_t {
+    var details: details_t = details_t.init(alloc);
 
     var result = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &details.capabilities);
     if (result != c.VK_SUCCESS) {

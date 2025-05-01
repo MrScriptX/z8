@@ -224,7 +224,7 @@ fn check_device(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, device: c.VkP
 
     var swapchain_supported: bool = false;
     if (extensions_supported) {
-        const swapchain_details = try query_swapchain_support(device, surface);
+        const swapchain_details = try query_swapchain_support(alloc, device, surface);
         defer swapchain_details.deinit();
 
         swapchain_supported = swapchain_details.formats.len != 0 and swapchain_details.present_modes.len != 0;
@@ -286,8 +286,8 @@ fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysica
     return match_extensions == required_extensions.len;
 }
 
-fn query_swapchain_support(device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !sw.details_t {
-    var sw_details = sw.details_t.init();
+fn query_swapchain_support(alloc: std.mem.Allocator, device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !sw.details_t {
+    var sw_details = sw.details_t.init(alloc);
 
     const capabilities = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities);
     if (capabilities != c.VK_SUCCESS) {

@@ -275,7 +275,7 @@ pub const renderer_t = struct {
         }
 
         self.submit.pool = try frames.create_command_pool(self._device, self._queue_indices.graphics);
-        self.submit.cmd = try frames.create_command_buffer(1,self._device, self.submit.pool);
+        self.submit.cmd = try frames.create_command_buffer(1, self._device, self.submit.pool);
         self.submit.fence = try frames.create_fence(self._device);
     }
 
