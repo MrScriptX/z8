@@ -196,8 +196,8 @@ pub const renderer_t = struct {
         self._instance = try vk.init.init_instance(allocator);
         self._surface = try vk.init.create_surface(window, self._instance);
         self._gpu = try vk.init.select_physical_device(allocator, self._instance, self._surface);
-        self._device = try vk.init.create_device_interface(self._gpu, self._queue_indices);
-        self._queues = try vk.queue.get_device_queue(self._device, self._queue_indices);
+        self._device = try vk.init.create_device_interface(allocator, self._gpu, self._queue_indices);
+        self._queues = try vk.init.get_device_queue(self._device, self._queue_indices);
 
         const allocator_info = c.VmaAllocatorCreateInfo {
             .physicalDevice = self._gpu,
@@ -206,7 +206,12 @@ pub const renderer_t = struct {
             .vulkanApiVersion = c.VK_API_VERSION_1_3,
             .flags = c.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
         };
-        _ = c.vmaCreateAllocator(&allocator_info, &self._vma);
+    
+        const result = c.vmaCreateAllocator(&allocator_info, &self._vma);
+        if (result != c.VK_SUCCESS) {
+            std.log.err("Failed to create allocator ! Reason {d}", .{ result });
+            return Error.VulkanInit;
+        }
     }
 
     fn init_swapchain(self: *renderer_t, width: u32, height: u32) !void {
