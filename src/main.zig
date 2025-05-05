@@ -18,7 +18,7 @@ pub fn main() !u8 {
 
     _ = c.SDL_SetWindowRelativeMouseMode(window, true);
 
-    var main_camera: camera.camera_t = .{
+    var main_camera: engine.camera.camera_t = .{
         .position = .{ 0, 0, 75 },
         .speed = 50,
         .sensitivity = 0.02,
@@ -27,7 +27,7 @@ pub fn main() !u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
     defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
-    var renderer = engine.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
+    var renderer = engine.renderer.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
         c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
@@ -37,12 +37,12 @@ pub fn main() !u8 {
     try voxel_material.build_pipeline(&renderer);
     defer voxel_material.deinit(renderer._device);
 
-    var scene_manager = scene.manager_t.init(gpa.allocator());
+    var scene_manager = engine.scene.manager_t.init(gpa.allocator());
     defer scene_manager.deinit(renderer._device, renderer._vma);
 
-    _ = scene_manager.create_scene(gpa.allocator(), scene.type_e.GLTF);
-    _ = scene_manager.create_scene(gpa.allocator(), scene.type_e.GLTF);
-    _ = scene_manager.create_scene(gpa.allocator(), scene.type_e.MESH);
+    _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
+    _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
+    _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.MESH);
 
 
     var current_scene: i32 = 0;
@@ -172,14 +172,14 @@ pub fn main() !u8 {
             if (result) {
                 defer imgui.End();
 
-                _ = imgui.SliderFloat("Render Scale", engine.renderer_t.render_scale(), 0.3, 1.0);
+                _ = imgui.SliderFloat("Render Scale", engine.renderer.renderer_t.render_scale(), 0.3, 1.0);
 
-			    const selected = engine.renderer_t.current_effect();
+			    const selected = engine.renderer.renderer_t.current_effect();
 		
                 const name = try std.fmt.allocPrint(std.heap.page_allocator, "Selected effect: {s}", .{ selected.name });
 			    imgui.ImGui_Text(@ptrCast(&name));
 		
-                _ = imgui.SliderUint("Effect Index", engine.renderer_t.effect_index(), 0, engine.renderer_t.max_effect() - 1);
+                _ = imgui.SliderUint("Effect Index", engine.renderer.renderer_t.effect_index(), 0, engine.renderer.renderer_t.max_effect() - 1);
 
 			    _ = imgui.InputFloat4("data1", &selected.data.data1);
 			    _ = imgui.InputFloat4("data2", &selected.data.data2);
@@ -268,10 +268,8 @@ test "engine test" {
 const std = @import("std");
 const builtin = @import("builtin");
 const c = @import("clibs.zig");
-const engine = @import("renderer/engine.zig");
-const camera = @import("engine/camera.zig");
+const engine = @import("engine/engine.zig");
 const imgui = @import("imgui");
-const scene = @import("engine/scene.zig");
 const za = @import("zalgebra");
 const maths = @import("utils/maths.zig");
 const vox = @import("voxel.zig");

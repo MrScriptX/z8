@@ -1252,10 +1252,9 @@ pub const renderer_t = struct {
 
 const std = @import("std");
 const c = @import("../clibs.zig");
-const gui = @import("../engine/gui.zig");
+const gui = @import("gui.zig");
 const z = @import("zalgebra");
-const err = @import("../errors.zig");
-const vk = @import("../engine/vulkan/vulkan.zig");
+const vk = @import("vulkan/vulkan.zig");
 const frames = @import("frame.zig");
 const utils = @import("utils.zig");
 const vk_images = @import("vk_images.zig");
@@ -1264,10 +1263,10 @@ const effects = @import("compute_effect.zig");
 const pipelines = @import("pipeline.zig");
 const buffers = @import("buffers.zig");
 const loader = @import("gltf.zig");
-const scenes = @import("../engine/scene.zig");
+const scenes = @import("scene.zig");
 const maths = @import("../utils/maths.zig");
-const material = @import("../engine/materials.zig");
+const material = @import("materials.zig");
 const m = @import("assets.zig");
-const cam = @import("../engine/camera.zig");
+const cam = @import("camera.zig");
 
 const log = @import("../utils/log.zig");

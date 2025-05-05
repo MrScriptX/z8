@@ -28,4 +28,4 @@ pub const MaterialPass = enum(u8) {
 
 const c = @import("../clibs.zig");
 const maths = @import("../utils/maths.zig");
-const images = @import("../renderer/vk_images.zig");
+const images = @import("vk_images.zig");

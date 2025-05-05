@@ -1,8 +1,3 @@
-const std = @import("std");
-const c = @import("../clibs.zig");
-const err = @import("../errors.zig");
-const log = @import("../utils/log.zig");
-
 pub const builder_t = struct {
     _shader_stages: std.ArrayList(c.VkPipelineShaderStageCreateInfo),
 
@@ -260,3 +255,8 @@ pub fn load_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModul
 
     return shader_module;
 }
+
+const std = @import("std");
+const c = @import("../clibs.zig");
+const err = @import("../errors.zig");
+const log = @import("../utils/log.zig");

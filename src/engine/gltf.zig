@@ -54,12 +54,12 @@ pub const GLTFMetallic_Roughness = struct {
         self.writer.deinit();
     }
 
-    pub fn build_pipeline(self: *GLTFMetallic_Roughness, renderer: *engine.renderer_t) !void {
-        const frag_shader = try pipeline.load_shader_module(renderer._device, "./zig-out/bin/shaders/mesh.frag.spv");
-        defer c.vkDestroyShaderModule(renderer._device, frag_shader, null);
+    pub fn build_pipeline(self: *GLTFMetallic_Roughness, r: *renderer.renderer_t) !void {
+        const frag_shader = try pipeline.load_shader_module(r._device, "./zig-out/bin/shaders/mesh.frag.spv");
+        defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
-        const vertex_shader = try pipeline.load_shader_module(renderer._device, "./zig-out/bin/shaders/mesh.vert.spv");
-        defer c.vkDestroyShaderModule(renderer._device, vertex_shader, null);
+        const vertex_shader = try pipeline.load_shader_module(r._device, "./zig-out/bin/shaders/mesh.vert.spv");
+        defer c.vkDestroyShaderModule(r._device, vertex_shader, null);
 
         const matrix_range: c.VkPushConstantRange = .{
             .offset = 0,
@@ -74,10 +74,10 @@ pub const GLTFMetallic_Roughness = struct {
         try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-        self.material_layout = layout_builder.build(renderer._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
+        self.material_layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
 
         const layouts = [_]c.VkDescriptorSetLayout {
-            renderer._gpu_scene_data_descriptor_layout,
+            r._gpu_scene_data_descriptor_layout,
             self.material_layout
         };
 
@@ -92,9 +92,9 @@ pub const GLTFMetallic_Roughness = struct {
         };
 
         var new_layout: c.VkPipelineLayout = undefined;
-        const result = c.vkCreatePipelineLayout(renderer._device, &mesh_layout_info, null, &new_layout);
+        const result = c.vkCreatePipelineLayout(r._device, &mesh_layout_info, null, &new_layout);
         if (result != c.VK_SUCCESS) {
-            log.write("Failed to create descriptor layout ! Reason {d}", .{ result });
+            std.log.err("Failed to create descriptor layout ! Reason {d}", .{ result });
             @panic("Failed to create descriptor layout");
         }
 
@@ -112,17 +112,17 @@ pub const GLTFMetallic_Roughness = struct {
         builder.disable_blending();
         builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
 
-        builder.set_color_attachment_format(renderer._draw_image.format);
-        builder.set_depth_format(renderer._depth_image.format);
+        builder.set_color_attachment_format(r._draw_image.format);
+        builder.set_depth_format(r._depth_image.format);
 
         builder._pipeline_layout = new_layout;
 
-        self.opaque_pipeline.pipeline = builder.build_pipeline(renderer._device);
+        self.opaque_pipeline.pipeline = builder.build_pipeline(r._device);
 
         builder.enable_blending_additive();
         builder.enable_depthtest(false, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
 
-        self.transparent_pipeline.pipeline = builder.build_pipeline(renderer._device);
+        self.transparent_pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
     pub fn clear_resources(_: *GLTFMetallic_Roughness, _: c.VkDevice) void {
@@ -180,9 +180,9 @@ pub const LoadedGLTF = struct {
 
     material_data_buffer: buffers.AllocatedBuffer,
 
-    renderer: *engine.renderer_t,
+    renderer: *renderer.renderer_t,
 
-    pub fn init(allocator: std.mem.Allocator, r: *engine.renderer_t) LoadedGLTF {
+    pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) LoadedGLTF {
         var gltf = LoadedGLTF {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .meshes = undefined,
@@ -249,7 +249,7 @@ pub const LoadedGLTF = struct {
     }
 };
 
-pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *engine.renderer_t) !LoadedGLTF {
+pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.renderer_t) !LoadedGLTF {
     var scene = LoadedGLTF.init(allocator, r);
 
     var options: cgltf.options = .{};
@@ -357,7 +357,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *engine.rend
                 std.log.warn("Missing image {s}", .{ std.mem.span(img.name) });
 
                 const name = try alloc.dupe(u8, std.mem.span(img.name));
-                try images.put(name, &engine.renderer_t._error_checker_board_image);
+                try images.put(name, &renderer.renderer_t._error_checker_board_image);
             }
         }
     }
@@ -393,10 +393,10 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *engine.rend
         const pass_type = if (material.alpha_mode == cgltf.cgltf_alpha_mode_blend) mat.MaterialPass.Transparent else mat.MaterialPass.MainColor;
 
         var material_ressources = GLTFMetallic_Roughness.MaterialResources {
-            .color_image = engine.renderer_t._white_image,
-            .color_sampler = engine.renderer_t._default_sampler_linear,
-            .metal_rough_image = engine.renderer_t._white_image,
-            .metal_rough_sampler = engine.renderer_t._default_sampler_linear,
+            .color_image = renderer.renderer_t._white_image,
+            .color_sampler = renderer.renderer_t._default_sampler_linear,
+            .metal_rough_image = renderer.renderer_t._white_image,
+            .metal_rough_sampler = renderer.renderer_t._default_sampler_linear,
 
             .data_buffer = scene.material_data_buffer.buffer,
             .data_buffer_offset = data_index * @sizeOf(GLTFMetallic_Roughness.MaterialConstants),
@@ -607,7 +607,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *engine.rend
     return scene;
 }
 
-pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, r: *engine.renderer_t) ?*vk_images.image_t {
+pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, r: *renderer.renderer_t) ?*vk_images.image_t {
     var new_image: ?*vk_images.image_t = null;
 
     var width: i32 = 0;
@@ -696,10 +696,10 @@ const c = @import("../clibs.zig");
 const buffers = @import("buffers.zig");
 const log = @import("../utils/log.zig");
 const z = @import("zalgebra");
-const mat = @import("../engine/materials.zig");
+const mat = @import("materials.zig");
 const m = @import("assets.zig");
 const descriptors = @import("descriptor.zig");
-const engine = @import("engine.zig");
+const renderer = @import("renderer.zig");
 const vk_images = @import("vk_images.zig");
 const cgltf = @import("cgltf");
 const stb = @import("stb");

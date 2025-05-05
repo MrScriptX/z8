@@ -43,7 +43,7 @@ pub const GPUMeshBuffers = struct {
     vertex_buffer: AllocatedBuffer,
     vertex_buffer_address: c.VkDeviceAddress,
 
-    pub fn init(vma: c.VmaAllocator, indices: []u32, vertices: []Vertex, r: *const engine.renderer_t) GPUMeshBuffers {
+    pub fn init(vma: c.VmaAllocator, indices: []u32, vertices: []Vertex, r: *const renderer.renderer_t) GPUMeshBuffers {
         const vertex_buffer_size = vertices.len * @sizeOf(Vertex);
         
         var new_surface = GPUMeshBuffers{
@@ -89,7 +89,7 @@ pub const GPUMeshBuffers = struct {
         self.vertex_buffer.deinit(vma);
     }
 
-    fn submit(self: *GPUMeshBuffers, vertex_buffer_size: usize, index_buffer_size: usize, buffer: *AllocatedBuffer, r: *const engine.renderer_t) void {
+    fn submit(self: *GPUMeshBuffers, vertex_buffer_size: usize, index_buffer_size: usize, buffer: *AllocatedBuffer, r: *const renderer.renderer_t) void {
         var result = c.vkResetFences(r._device, 1, &r.submit.fence);
         if (result != c.VK_SUCCESS) {
             log.write("vkResetFences failed with error {x}\n", .{ result });
@@ -173,4 +173,4 @@ pub const GPUDrawPushConstants = struct {
 
 const c = @import("../clibs.zig");
 const log = @import("../utils/log.zig");
-const engine = @import("../renderer/engine.zig");
+const renderer = @import("renderer.zig");
