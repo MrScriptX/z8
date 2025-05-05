@@ -36,12 +36,10 @@ pub const renderer_t = struct {
 
     var _gui_context: gui.GuiContext = undefined;
 
-    var rectangle: buffers.GPUMeshBuffers = undefined;
-
-    pub var _white_image: vk_images.image_t = undefined;
-    pub var _black_image: vk_images.image_t = undefined;
-    pub var _grey_image: vk_images.image_t = undefined;
-    pub var _error_checker_board_image: vk_images.image_t = undefined;
+    pub var _white_image: vk.image.image_t = undefined;
+    pub var _black_image: vk.image.image_t = undefined;
+    pub var _grey_image: vk.image.image_t = undefined;
+    pub var _error_checker_board_image: vk.image.image_t = undefined;
 
     pub var _default_sampler_linear: c.VkSampler = undefined;
     pub var _default_sampler_nearest: c.VkSampler = undefined;
@@ -72,8 +70,8 @@ pub const renderer_t = struct {
     _frameNumber: u32 = 0,
 
     // draw objects
-    _draw_image: vk_images.image_t = vk_images.image_t{},
-    _depth_image: vk_images.image_t = vk_images.image_t{},
+    _draw_image: vk.image.image_t = vk.image.image_t{},
+    _depth_image: vk.image.image_t = vk.image.image_t{},
     _draw_extent: c.VkExtent2D = .{},
     _descriptor_pool: descriptor.DescriptorAllocator = undefined,
     _draw_image_descriptor: c.VkDescriptorSetLayout = undefined,
@@ -143,20 +141,18 @@ pub const renderer_t = struct {
 
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
-            log.write("Failed to wait for device idle ! Reason {d}.", .{result});
+            std.log.warn("Failed to wait for device idle ! Reason {d}.", .{result});
         }
 
         c.vkDestroySampler(self._device, _default_sampler_nearest, null);
         c.vkDestroySampler(self._device, _default_sampler_linear, null);
 
-        vk_images.destroy_image(self._device, self._vma, &_white_image);
-        vk_images.destroy_image(self._device, self._vma, &_grey_image);
-        vk_images.destroy_image(self._device, self._vma, &_black_image);
-        vk_images.destroy_image(self._device, self._vma, &_error_checker_board_image);
+        vk.image.destroy_image(self._device, self._vma, &_white_image);
+        vk.image.destroy_image(self._device, self._vma, &_grey_image);
+        vk.image.destroy_image(self._device, self._vma, &_black_image);
+        vk.image.destroy_image(self._device, self._vma, &_error_checker_board_image);
 
         self._mat_constants.deinit(self._vma);
-
-        rectangle.deinit(self._vma);
 
         for (&self._frames) |*frame| {
             frame.deinit(self._device, self._vma);
@@ -227,7 +223,7 @@ pub const renderer_t = struct {
 	    draw_image_usages |= c.VK_IMAGE_USAGE_STORAGE_BIT;
 	    draw_image_usages |= c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        const image_create_info = vk_images.create_image_info(self._draw_image.format, draw_image_usages, draw_image_extent);
+        const image_create_info = vk.image.create_image_info(self._draw_image.format, draw_image_usages, draw_image_extent);
 
         const rimg_allocinfo = c.VmaAllocationCreateInfo {
             .usage = c.VMA_MEMORY_USAGE_GPU_ONLY,
@@ -236,7 +232,7 @@ pub const renderer_t = struct {
 
         _ = c.vmaCreateImage(self._vma, &image_create_info, &rimg_allocinfo, &self._draw_image.image, &self._draw_image.allocation, null);
 
-        const image_view_info = vk_images.create_imageview_info(self._draw_image.format, self._draw_image.image, c.VK_IMAGE_ASPECT_COLOR_BIT);
+        const image_view_info = vk.image.create_imageview_info(self._draw_image.format, self._draw_image.image, c.VK_IMAGE_ASPECT_COLOR_BIT);
         _ = c.vkCreateImageView(self._device, &image_view_info, null, &self._draw_image.view);
 
         // depth image
@@ -246,11 +242,11 @@ pub const renderer_t = struct {
         var depth_image_usages: c.VkImageUsageFlags = 0;
 	    depth_image_usages |= c.VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-        const depth_create_info = vk_images.create_image_info(self._depth_image.format, depth_image_usages, self._depth_image.extent);
+        const depth_create_info = vk.image.create_image_info(self._depth_image.format, depth_image_usages, self._depth_image.extent);
 
         _ = c.vmaCreateImage(self._vma, &depth_create_info, &rimg_allocinfo, &self._depth_image.image, &self._depth_image.allocation, null);
 
-        const depth_view_info = vk_images.create_imageview_info(self._depth_image.format, self._depth_image.image, c.VK_IMAGE_ASPECT_DEPTH_BIT);
+        const depth_view_info = vk.image.create_imageview_info(self._depth_image.format, self._depth_image.image, c.VK_IMAGE_ASPECT_DEPTH_BIT);
         _ = c.vkCreateImageView(self._device, &depth_view_info, null, &self._depth_image.view);
     }
 
@@ -585,13 +581,13 @@ pub const renderer_t = struct {
 
         result = c.vkResetFences(self._device, 1, &self.current_frame()._render_fence);
         if (result != c.VK_SUCCESS) {
-            log.write("vkResetFences failed with error {x}\n", .{ result });
+            std.log.warn("vkResetFences failed with error {x}\n", .{ result });
             return;
         }
 
         result = c.vkResetCommandBuffer(self.current_frame()._main_buffer, 0);
         if (result != c.VK_SUCCESS) {
-            log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
+            std.log.warn("vkResetCommandBuffer failed with error {x}\n", .{ result });
             return;
         }
 
@@ -616,16 +612,12 @@ pub const renderer_t = struct {
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         utils.transition_image(cmd_buffer, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        // switch (scene._type) {
-        //     scenes.type_e.MESH => self.draw_geometry(cmd_buffer),
-        //     scenes.type_e.GLTF => self.draw_scene(scene, cmd_buffer),
-        // }
         self.draw_scene(scene, cmd_buffer);
 
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
-        vk_images.copy_image_to_image(cmd_buffer, self._draw_image.image, self._sw._images[image_index], self._draw_extent, self._sw._extent);
+        vk.image.copy_image_to_image(cmd_buffer, self._draw_image.image, self._sw._images[image_index], self._draw_extent, self._sw._extent);
 
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -635,7 +627,7 @@ pub const renderer_t = struct {
 
         result = c.vkEndCommandBuffer(cmd_buffer);
         if (result != c.VK_SUCCESS) {
-            log.write("vkEndCommandBuffer failed with error {x}\n", .{ result });
+            std.log.warn("vkEndCommandBuffer failed with error {x}\n", .{ result });
         }
 
         const cmd_submit_info = c.VkCommandBufferSubmitInfo {
@@ -661,7 +653,7 @@ pub const renderer_t = struct {
 
         result = c.vkQueueSubmit2(self._queues.graphics, 1, &submit_info, self.current_frame()._render_fence);
         if (result != c.VK_SUCCESS) {
-            log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
+            std.log.warn("vkQueueSubmit2 failed with error {x}\n", .{ result });
         }
 
         const present_info = c.VkPresentInfoKHR {
@@ -685,7 +677,7 @@ pub const renderer_t = struct {
                 return;
             },
             else => {
-                log.write("vkQueuePresentKHR failed with error {x}\n", .{ result });
+                std.log.warn("vkQueuePresentKHR failed with error {x}\n", .{ result });
             }
         }
 
@@ -707,139 +699,6 @@ pub const renderer_t = struct {
         const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(self._draw_extent.height)) / 16.0)));
 
 	    c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
-    }
-
-    pub fn draw_geometry(self: *renderer_t, cmd: c.VkCommandBuffer) void {
-        self.stats.drawcall_count = 0;
-        self.stats.triangle_count = 0;
-
-        const start_time: u128 = @intCast(std.time.nanoTimestamp());
-
-        //begin a render pass  connected to our draw image
-	    const color_attachment = c.VkRenderingAttachmentInfo {
-            .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .pNext = null,
-
-            .imageView = self._draw_image.view,
-            .imageLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-
-            .loadOp = c.VK_ATTACHMENT_LOAD_OP_LOAD,
-            .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-
-            .clearValue = std.mem.zeroes(c.VkClearValue),
-        };
-
-        const depth_attachment = c.VkRenderingAttachmentInfo {
-            .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .pNext = null,
-
-            .imageView = self._depth_image.view,
-            .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-
-            .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-
-            .clearValue = .{
-                .depthStencil = .{
-                    .depth = 0.0,
-                    .stencil = 0
-                }
-            }
-        };
-
-        const render_info = c.VkRenderingInfo {
-            .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .pNext = null,
-            .pColorAttachments = &color_attachment,
-            .colorAttachmentCount = 1,
-            .pDepthAttachment = &depth_attachment,
-            .renderArea = .{
-            .extent = self._draw_extent,
-            .offset = .{
-                    .x = 0,
-                    .y = 0
-                }
-            },
-            .flags = 0,
-            .layerCount = 1,
-            .pStencilAttachment = null,
-            .viewMask = 0,
-        };
-	    c.vkCmdBeginRendering(cmd, &render_info);
-
-	    // c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
-
-	    //set dynamic viewport and scissor
-	    const viewport = c.VkViewport {
-            .x = 0,
-	        .y = 0,
-	        .width = @floatFromInt(self._draw_extent.width),
-	        .height = @floatFromInt(self._draw_extent.height),
-	        .minDepth = 0.0,
-	        .maxDepth = 1.0,
-        };
-
-	    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-	    const scissor = c.VkRect2D {
-            .offset = .{ .x = 0, .y = 0 },
-	        .extent = self._draw_extent,
-        };
-
-	    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-        // bind pipeline for meshes
-	    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
-
-        // bind texture
-        const image_set = self.current_frame()._frame_descriptors.allocate(self._device, _single_image_descriptor_layout, null);
-
-        {
-            var writer = descriptor.Writer.init(std.heap.page_allocator);
-            defer writer.deinit();
-
-            writer.write_image(0, _error_checker_board_image.view, _default_sampler_nearest, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-            writer.update_set(self._device, image_set);
-        }
-
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipelineLayout, 0, 1, &image_set, 0, null);
-
-        // draw rectangle
-        const push_constants = buffers.GPUDrawPushConstants {
-            .world_matrix = z.Mat4.identity().data,
-            .vertex_buffer = rectangle.vertex_buffer_address,
-        };
-
-	    c.vkCmdPushConstants(cmd, _meshPipelineLayout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants);
-	    c.vkCmdBindIndexBuffer(cmd, rectangle.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
-
-	    c.vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
-
-        // allocate new uniform buffer for the scene
-        // const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-        // self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
-        //     log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
-        //     @panic("OOM");
-        // };
-
-        // const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
-        // scene_uniform_data.* = self.scenes.getLast().data;
-
-        // const global_descriptor = self.current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
-    
-        // {
-        //     var writer = descriptor.DescriptorWriter.init(std.heap.page_allocator);
-        //     defer writer.deinit();
-
-        //     writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        //     writer.update_set(self._device, global_descriptor);
-        // }
-
-	    c.vkCmdEndRendering(cmd);
-
-        const end_time: u128 = @intCast(std.time.nanoTimestamp());
-        self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
     }
 
     fn draw_scene(self: *renderer_t, scene: *scenes.scene_t, cmd: c.VkCommandBuffer) void {
@@ -1020,64 +879,16 @@ pub const renderer_t = struct {
         self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
     }
 
-    fn init_default_data(self: *renderer_t, allocator: std.mem.Allocator) !void {
-        var rect_vertices =  std.ArrayList(buffers.Vertex).init(allocator);
-        defer rect_vertices.deinit();
-
-        try rect_vertices.append(.{
-            .position = .{ 0.5, -0.5, 0.0 },
-            .color = .{ 0, 0, 0, 1},
-            .uv_x = 0,
-            .uv_y = 0,
-            .normal = .{ 0, 0, 0 }
-        });
-
-        try rect_vertices.append(.{
-            .position = .{ 0.5, 0.5, 0 },
-            .color = .{ 0.5, 0.5, 0.5 ,1},
-            .uv_x = 0,
-            .uv_y = 0,
-            .normal = .{ 0, 0, 0 }
-        });
-
-        try rect_vertices.append(.{
-            .position = .{ -0.5, -0.5, 0 },
-            .color = .{ 1, 0, 0, 1 },
-            .uv_x = 0,
-            .uv_y = 0,
-            .normal = .{ 0, 0, 0 }
-        });
-
-        try rect_vertices.append(.{
-            .position = .{ -0.5, 0.5, 0 },
-            .color = .{ 0, 1, 0, 1 },
-            .uv_x = 0,
-            .uv_y = 0,
-            .normal = .{ 0, 0, 0 }
-        });
-
-        var rect_indices = std.ArrayList(u32).init(allocator);
-        defer rect_indices.deinit();
-
-        try rect_indices.append(0);
-        try rect_indices.append(1);
-        try rect_indices.append(2);
-
-        try rect_indices.append(2);
-        try rect_indices.append(1);
-        try rect_indices.append(3);
-
-	    rectangle = buffers.GPUMeshBuffers.init(self._vma, rect_indices.items, rect_vertices.items, self);
-
+    fn init_default_data(self: *renderer_t, _: std.mem.Allocator) !void {
         // initialize textures
         const white: u32 align(4) = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
-        _white_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
+        _white_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
         const grey: u32 align(4) = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
-        _grey_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
+        _grey_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
         const black: u32 align(4) = maths.pack_unorm4x8(.{ 0, 0, 0, 0 });
-        _black_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&black), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
+        _black_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&black), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
         const magenta: u32 align(4) = maths.pack_unorm4x8(.{ 1, 0, 1, 1 });
         var pixels: [16 * 16]u32 = [_]u32 { 0 } ** (16 * 16);
@@ -1087,7 +898,7 @@ pub const renderer_t = struct {
             }
         }
 
-        _error_checker_board_image = vk_images.create_image_data(self._vma, self._device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
+        _error_checker_board_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
         const nearest_sampler_image = c.VkSamplerCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -1257,7 +1068,6 @@ const z = @import("zalgebra");
 const vk = @import("vulkan/vulkan.zig");
 const frames = @import("frame.zig");
 const utils = @import("utils.zig");
-const vk_images = @import("vulkan/image.zig");
 const descriptor = @import("descriptor.zig");
 const effects = @import("compute_effect.zig");
 const pipelines = @import("pipeline.zig");
@@ -1269,4 +1079,4 @@ const material = @import("materials.zig");
 const m = @import("assets.zig");
 const cam = @import("camera.zig");
 
-const log = @import("../utils/log.zig");
+// const log = @import("../utils/log.zig");
