@@ -34,7 +34,7 @@ pub const renderer_t = struct {
     var _background_effects: std.ArrayList(effects.ComputeEffect) = undefined;
     var _current_effect: u32 = 0;
 
-    var _gui_context: imgui.GuiContext = undefined;
+    var _gui_context: gui.GuiContext = undefined;
 
     var rectangle: buffers.GPUMeshBuffers = undefined;
 
@@ -116,13 +116,13 @@ pub const renderer_t = struct {
         try renderer.init_pipelines();
 
         std.log.info("Initiliazing GUI...", .{});
-        _gui_context = imgui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
+        _gui_context = gui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
             switch (e) {
-                imgui.Error.PoolAllocFailed => {
+                gui.Error.PoolAllocFailed => {
                     std.log.err("Failed to create pool for ImGui !", .{});
                     std.process.exit(1);
                 },
-                imgui.Error.ImGuiInitFailed => {
+                gui.Error.ImGuiInitFailed => {
                     std.log.err("Failed to initialize ImGui !", .{});
                     std.process.exit(1);
                 },
@@ -1252,7 +1252,7 @@ pub const renderer_t = struct {
 
 const std = @import("std");
 const c = @import("../clibs.zig");
-const imgui = @import("imgui.zig");
+const gui = @import("../engine/gui.zig");
 const z = @import("zalgebra");
 const err = @import("../errors.zig");
 const vk = @import("../engine/vulkan/vulkan.zig");

@@ -270,7 +270,6 @@ const builtin = @import("builtin");
 const c = @import("clibs.zig");
 const engine = @import("renderer/engine.zig");
 const camera = @import("engine/camera.zig");
-const ui = @import("renderer/imgui.zig");
 const imgui = @import("imgui");
 const scene = @import("engine/scene.zig");
 const za = @import("zalgebra");
