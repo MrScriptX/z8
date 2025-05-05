@@ -161,7 +161,7 @@ pub const VoxelMaterial = struct {
 
         self.default_pipeline.layout = new_layout;
 
-        var builder = pipelines.builder_t.init();
+        var builder = pipelines.builder_t.init(allocator);
         defer builder.deinit();
 
         try builder.set_shaders(vert_shader, frag_shader);

@@ -1,3 +1,40 @@
+pub const compute_builder_t = struct {
+    shader_stage: c.VkPipelineShaderStageCreateInfo,
+    layout: c.VkPipelineLayout,
+
+    pub fn init() compute_builder_t {
+        const builder = compute_builder_t {
+            .shader_stage = undefined,
+            .layout = undefined,
+        };
+        return builder;
+    }
+
+    pub fn deinit(_: *compute_builder_t) void {
+    }
+
+    pub fn set_shaders(self: *compute_builder_t, shader: c.VkShaderModule) void {
+        self.shader_stage = create_shader_stage_info(shader, c.VK_SHADER_STAGE_COMPUTE_BIT);
+    }
+
+    pub fn build_pipeline(self: *compute_builder_t, device: c.VkDevice) c.VkPipeline {
+        const compute_pipeline_create_info = c.VkComputePipelineCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+	        .pNext = null,
+	        .layout = self.layout,
+	        .stage = self.shader_stage,
+        };
+
+        var pipeline: c.VkPipeline = undefined;
+        const success = c.vkCreateComputePipelines(device, null, 1, &compute_pipeline_create_info, null, &pipeline);
+        if (success != c.VK_SUCCESS) {
+            std.log.warn("Failed to create compute pipeline !", .{});
+        }
+
+        return pipeline;
+    }
+};
+
 pub const builder_t = struct {
     _shader_stages: std.ArrayList(c.VkPipelineShaderStageCreateInfo),
 
@@ -10,9 +47,9 @@ pub const builder_t = struct {
     _render_info: c.VkPipelineRenderingCreateInfo = undefined,
     _color_attachment_format: c.VkFormat = undefined,
 
-    pub fn init() builder_t {
+    pub fn init(allocator: std.mem.Allocator) builder_t {
         var builder = builder_t {
-            ._shader_stages = std.ArrayList(c.VkPipelineShaderStageCreateInfo).init(std.heap.page_allocator),
+            ._shader_stages = std.ArrayList(c.VkPipelineShaderStageCreateInfo).init(allocator),
         };
         builder.clear();
 

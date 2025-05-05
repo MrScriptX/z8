@@ -446,7 +446,7 @@ pub const renderer_t = struct {
             std.debug.panic("failed to create pipeline layout!", .{});
         }
 
-        var pipeline_builder = pipelines.builder_t.init();
+        var pipeline_builder = pipelines.builder_t.init(allocator);
         defer pipeline_builder.deinit();
 
         pipeline_builder._pipeline_layout = _trianglePipelineLayout;
@@ -498,7 +498,7 @@ pub const renderer_t = struct {
             std.debug.panic("failed to create pipeline layout!", .{});
         }
 
-        var pipeline_builder = pipelines.builder_t.init();
+        var pipeline_builder = pipelines.builder_t.init(allocator);
         defer pipeline_builder.deinit();
 
         //use the triangle layout we created

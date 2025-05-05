@@ -101,7 +101,7 @@ pub const GLTFMetallic_Roughness = struct {
         self.opaque_pipeline.layout = new_layout;
         self.transparent_pipeline.layout = new_layout;
 
-        var builder = pipeline.builder_t.init();
+        var builder = pipeline.builder_t.init(allocator);
         defer builder.deinit();
 
         try builder.set_shaders(vertex_shader, frag_shader);
