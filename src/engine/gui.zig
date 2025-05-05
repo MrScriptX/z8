@@ -38,17 +38,17 @@ pub const GuiContext = struct {
          return Error.PoolAllocFailed;
       }
 
-      const context = imgui.ImGui_CreateContext(null);
+      const context = imgui.CreateContext(null);
       if (context == null) {
          return Error.ImGuiInitFailed;
       }
 
-      const init_sdl3 = imgui.cImGui_ImplSDL3_InitForVulkan(@ptrCast(window));
+      const init_sdl3 = imgui.ImplSDL3_InitForVulkan(@ptrCast(window));
       if (!init_sdl3) {
          return Error.ImGuiInitFailed;
       }
 
-      var init_imgui_info = imgui.ImGui_ImplVulkan_InitInfo {
+      var init_imgui_info = imgui.ImplVulkan_InitInfo {
          .Instance = @ptrCast(instance),
 	      .PhysicalDevice = @ptrCast(gpu),
 	      .Device = @ptrCast(device),
@@ -67,7 +67,7 @@ pub const GuiContext = struct {
          .MSAASamples = c.VK_SAMPLE_COUNT_1_BIT,
       };
 
-      const init_vulkan = imgui.cImGui_ImplVulkan_Init(&init_imgui_info);
+      const init_vulkan = imgui.ImplVulkan_Init(&init_imgui_info);
       if (!init_vulkan) {
          return Error.ImGuiInitFailed;
       }
@@ -84,7 +84,7 @@ pub const GuiContext = struct {
    }
 
    pub fn deinit(self: *GuiContext, device: c.VkDevice) void {
-      imgui.cImGui_ImplVulkan_Shutdown();
+      imgui.ImplVulkan_Shutdown();
       c.vkDestroyDescriptorPool(device, self._pool, null);
    }
 

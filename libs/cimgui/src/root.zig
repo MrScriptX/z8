@@ -4,12 +4,34 @@ pub usingnamespace @cImport({
     @cInclude("dcimgui_impl_vulkan.h");
 });
 
+pub const ImplVulkan_InitInfo = c.ImGui_ImplVulkan_InitInfo;
+
+pub fn ImplVulkan_Init(info: *ImplVulkan_InitInfo) bool {
+    return c.cImGui_ImplVulkan_Init(info);
+}
+
 pub fn ImplVulkan_NewFrame() void {
     c.cImGui_ImplVulkan_NewFrame();
 }
 
+pub fn ImplVulkan_Shutdown() void {
+    c.cImGui_ImplVulkan_Shutdown();
+}
+
+pub fn ImplSDL3_InitForVulkan(window: ?*c.SDL_Window) bool {
+    return c.cImGui_ImplSDL3_InitForVulkan(window);
+}
+
+pub fn ImplSDL3_ProcessEvent(event: *c.SDL_Event) bool {
+    return c.cImGui_ImplSDL3_ProcessEvent(event);
+}
+
 pub fn ImplSDL3_NewFrame() void {
     c.cImGui_ImplSDL3_NewFrame();
+}
+
+pub fn CreateContext(shared_font_atlas: ?*c.ImFontAtlas) ?*c.ImGuiContext {
+    return c.ImGui_CreateContext(shared_font_atlas);
 }
 
 pub fn NewFrame() void {

@@ -71,7 +71,7 @@ pub fn main() !u8 {
                 main_camera.process_sdl_event(&event);
             }
             else {
-                _ = imgui.cImGui_ImplSDL3_ProcessEvent(@ptrCast(&event));
+                _ = imgui.ImplSDL3_ProcessEvent(@ptrCast(&event));
             }
         }
 
