@@ -37,18 +37,6 @@ pub fn main() !u8 {
     try voxel_material.build_pipeline(&renderer);
     defer voxel_material.deinit(renderer._device);
 
-    // load reactor scene
-    var reactor_scene = scene.scene_t.init(gpa.allocator(), scene.type_e.GLTF);
-    defer reactor_scene.deinit(renderer._device, renderer._vma);
-
-    // load monkey scene
-    var monkey_scene = scene.scene_t.init(gpa.allocator(), scene.type_e.GLTF);
-    defer monkey_scene.deinit(renderer._device, renderer._vma);
-
-    // rectangle scene
-    var rectangle_scene = scene.scene_t.init(gpa.allocator(), scene.type_e.MESH);
-    defer rectangle_scene.deinit(renderer._device, renderer._vma);
-
     var scene_manager = scene.manager_t.init(gpa.allocator());
     defer scene_manager.deinit(renderer._device, renderer._vma);
 
