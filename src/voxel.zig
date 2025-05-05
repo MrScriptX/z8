@@ -254,6 +254,6 @@ const mat = @import("engine/materials.zig");
 const descriptors = @import("engine/descriptor.zig");
 const c = @import("clibs.zig");
 const maths = @import("utils/maths.zig");
-const images = @import("engine/vk_images.zig");
+const images = @import("engine/vulkan/image.zig");
 const pipelines = @import("engine/pipeline.zig");
 const assets = @import("engine/assets.zig");

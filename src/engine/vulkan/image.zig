@@ -1,8 +1,7 @@
 const std = @import("std");
-const c = @import("../clibs.zig");
-const log = @import("../utils/log.zig");
-const buffers = @import("buffers.zig");
-const utils = @import("utils.zig");
+const c = @import("../../clibs.zig");
+const buffers = @import("../buffers.zig");
+const utils = @import("../utils.zig");
 
 pub const image_t = struct {
     image: c.VkImage = undefined,
@@ -114,8 +113,6 @@ pub fn create_imageview_info(format: c.VkFormat, image: c.VkImage, aspect_flags:
     return info;
 }
 
-// TODO : add those functions to image_t struct
-
 pub fn create_image(vma: c.VmaAllocator, device: c.VkDevice, size: c.VkExtent3D, format: c.VkFormat, usage: c.VkImageUsageFlags, mimapped: bool) image_t {
     var image = image_t {
         .format = format,
@@ -135,7 +132,7 @@ pub fn create_image(vma: c.VmaAllocator, device: c.VkDevice, size: c.VkExtent3D,
 
     const result = c.vmaCreateImage(vma, &image_info, &alloc_info, &image.image, &image.allocation, null);
     if (result != c.VK_SUCCESS) {
-        log.err("Failed to allocate image ! Reason {d}", .{ result });
+        std.log.err("Failed to allocate image ! Reason {d}", .{ result });
         @panic("Failed to allocate image !");
     }
 
@@ -146,7 +143,7 @@ pub fn create_image(vma: c.VmaAllocator, device: c.VkDevice, size: c.VkExtent3D,
 
     const success = c.vkCreateImageView(device, &image_view_info, null, &image.view);
     if (success != c.VK_SUCCESS) {
-        log.err("Failed to create image view ! Reason {d}", .{ result });
+        std.log.err("Failed to create image view ! Reason {d}", .{ result });
         @panic("Failed to create image view !");
     }
 
@@ -171,12 +168,12 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
     // submit
     var result = c.vkResetFences(device, 1, fence);
     if (result != c.VK_SUCCESS) {
-        log.write("vkResetFences failed with error {x}\n", .{ result });
+        std.log.warn("vkResetFences failed with error {x}\n", .{ result });
     }
 
     result = c.vkResetCommandBuffer(cmd, 0);
     if (result != c.VK_SUCCESS) {
-        log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
+        std.log.warn("vkResetCommandBuffer failed with error {x}\n", .{ result });
     }
 
     const begin_info = c.VkCommandBufferBeginInfo {
@@ -187,7 +184,7 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
 
     result = c.vkBeginCommandBuffer(cmd, &begin_info);
     if (result != c.VK_SUCCESS) {
-        log.write("vkBeginCommandBuffer failed with error {x}\n", .{ result });
+        std.log.warn("vkBeginCommandBuffer failed with error {x}\n", .{ result });
     }
 
     utils.transition_image(cmd, new_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -214,7 +211,7 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
     // end command buffer and submit
     result = c.vkEndCommandBuffer(cmd);
     if (result != c.VK_SUCCESS) {
-        log.write("vkEndCommandBuffer failed with error {x}\n", .{ result });
+        std.log.warn("vkEndCommandBuffer failed with error {x}\n", .{ result });
     }
 
     const cmd_submit_info = c.VkCommandBufferSubmitInfo {
@@ -241,12 +238,12 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
 
     result = c.vkQueueSubmit2(queue, 1, &submit_info, fence.*); // TODO : run it on other queue
     if (result != c.VK_SUCCESS) {
-        log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
+        std.log.warn("vkQueueSubmit2 failed with error {x}\n", .{ result });
     }
 
     result = c.vkWaitForFences(device, 1, fence, c.VK_TRUE, 9999999999);
     if (result != c.VK_SUCCESS) {
-        log.write("vkWaitForFences failed with error {x}\n", .{ result });
+        std.log.warn("vkWaitForFences failed with error {x}\n", .{ result });
     }
 
     return new_image;
