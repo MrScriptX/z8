@@ -161,7 +161,7 @@ pub fn main() !u8 {
             if (result) {
                 defer imgui.End();
 
-                const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "rectangle" };
+                const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "cube" };
                 _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 3);
 		    }
         }

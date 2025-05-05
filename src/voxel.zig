@@ -8,48 +8,17 @@ pub const Voxel = struct {
         var rect_vertices =  std.ArrayList(buffers.Vertex).init(alloc);
         defer rect_vertices.deinit();
 
-        try rect_vertices.append(.{
-            .position = .{ 0.5, -0.5, 0.0 },
-            .color = .{ 0, 0, 0, 1},
-            .uv_x = 0,
-            .uv_y = 0,
-            .normal = .{ 0, 0, 0 }
-        });
-
-        try rect_vertices.append(.{
-            .position = .{ 0.5, 0.5, 0 },
-            .color = .{ 0.5, 0.5, 0.5 ,1},
-            .uv_x = 0,
-            .uv_y = 0,
-            .normal = .{ 0, 0, 0 }
-        });
-
-        try rect_vertices.append(.{
-            .position = .{ -0.5, -0.5, 0 },
-            .color = .{ 1, 0, 0, 1 },
-            .uv_x = 0,
-            .uv_y = 0,
-            .normal = .{ 0, 0, 0 }
-        });
-
-        try rect_vertices.append(.{
-            .position = .{ -0.5, 0.5, 0 },
-            .color = .{ 0, 1, 0, 1 },
-            .uv_x = 0,
-            .uv_y = 0,
-            .normal = .{ 0, 0, 0 }
-        });
+        for (cube_vertices) |v| {
+            try rect_vertices.append(v);
+        }
 
         var rect_indices = std.ArrayList(u32).init(alloc);
         defer rect_indices.deinit();
 
-        try rect_indices.append(0);
-        try rect_indices.append(1);
-        try rect_indices.append(2);
-
-        try rect_indices.append(2);
-        try rect_indices.append(1);
-        try rect_indices.append(3);
+        // Fill index buffer
+        for (cube_indices) |i| {
+            try rect_indices.append(i);
+        }
 
         const mat_resources = VoxelMaterial.Resources {
             .color_image = engine.renderer_t._white_image,
@@ -221,6 +190,61 @@ pub const VoxelMaterial = struct {
         data_buffer: c.VkBuffer,
         data_buffer_offset: u32,
     };
+};
+
+// Cube vertices (24: 4 per face, for unique normals/colors/UVs)
+const cube_vertices = [_]buffers.Vertex{
+    // Front face (z = 0.5)
+    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 1, 0, 0, 1 }, .uv_x = 0, .uv_y = 0, .normal = .{ 0, 0, 1 } },
+    .{ .position = .{  0.5, -0.5,  0.5 }, .color = .{ 1, 0, 0, 1 }, .uv_x = 1, .uv_y = 0, .normal = .{ 0, 0, 1 } },
+    .{ .position = .{  0.5,  0.5,  0.5 }, .color = .{ 1, 0, 0, 1 }, .uv_x = 1, .uv_y = 1, .normal = .{ 0, 0, 1 } },
+    .{ .position = .{ -0.5,  0.5,  0.5 }, .color = .{ 1, 0, 0, 1 }, .uv_x = 0, .uv_y = 1, .normal = .{ 0, 0, 1 } },
+
+    // Back face (z = -0.5)
+    .{ .position = .{  0.5, -0.5, -0.5 }, .color = .{ 0, 1, 0, 1 }, .uv_x = 0, .uv_y = 0, .normal = .{ 0, 0, -1 } },
+    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 0, 1, 0, 1 }, .uv_x = 1, .uv_y = 0, .normal = .{ 0, 0, -1 } },
+    .{ .position = .{ -0.5,  0.5, -0.5 }, .color = .{ 0, 1, 0, 1 }, .uv_x = 1, .uv_y = 1, .normal = .{ 0, 0, -1 } },
+    .{ .position = .{  0.5,  0.5, -0.5 }, .color = .{ 0, 1, 0, 1 }, .uv_x = 0, .uv_y = 1, .normal = .{ 0, 0, -1 } },
+
+    // Left face (x = -0.5)
+    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 0, 0, 1, 1 }, .uv_x = 0, .uv_y = 0, .normal = .{ -1, 0, 0 } },
+    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 0, 0, 1, 1 }, .uv_x = 1, .uv_y = 0, .normal = .{ -1, 0, 0 } },
+    .{ .position = .{ -0.5,  0.5,  0.5 }, .color = .{ 0, 0, 1, 1 }, .uv_x = 1, .uv_y = 1, .normal = .{ -1, 0, 0 } },
+    .{ .position = .{ -0.5,  0.5, -0.5 }, .color = .{ 0, 0, 1, 1 }, .uv_x = 0, .uv_y = 1, .normal = .{ -1, 0, 0 } },
+
+    // Right face (x = 0.5)
+    .{ .position = .{ 0.5, -0.5,  0.5 }, .color = .{ 1, 1, 0, 1 }, .uv_x = 0, .uv_y = 0, .normal = .{ 1, 0, 0 } },
+    .{ .position = .{ 0.5, -0.5, -0.5 }, .color = .{ 1, 1, 0, 1 }, .uv_x = 1, .uv_y = 0, .normal = .{ 1, 0, 0 } },
+    .{ .position = .{ 0.5,  0.5, -0.5 }, .color = .{ 1, 1, 0, 1 }, .uv_x = 1, .uv_y = 1, .normal = .{ 1, 0, 0 } },
+    .{ .position = .{ 0.5,  0.5,  0.5 }, .color = .{ 1, 1, 0, 1 }, .uv_x = 0, .uv_y = 1, .normal = .{ 1, 0, 0 } },
+
+    // Top face (y = 0.5)
+    .{ .position = .{ -0.5, 0.5,  0.5 }, .color = .{ 1, 0, 1, 1 }, .uv_x = 0, .uv_y = 0, .normal = .{ 0, 1, 0 } },
+    .{ .position = .{  0.5, 0.5,  0.5 }, .color = .{ 1, 0, 1, 1 }, .uv_x = 1, .uv_y = 0, .normal = .{ 0, 1, 0 } },
+    .{ .position = .{  0.5, 0.5, -0.5 }, .color = .{ 1, 0, 1, 1 }, .uv_x = 1, .uv_y = 1, .normal = .{ 0, 1, 0 } },
+    .{ .position = .{ -0.5, 0.5, -0.5 }, .color = .{ 1, 0, 1, 1 }, .uv_x = 0, .uv_y = 1, .normal = .{ 0, 1, 0 } },
+
+    // Bottom face (y = -0.5)
+    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 0, 1, 1, 1 }, .uv_x = 0, .uv_y = 0, .normal = .{ 0, -1, 0 } },
+    .{ .position = .{  0.5, -0.5, -0.5 }, .color = .{ 0, 1, 1, 1 }, .uv_x = 1, .uv_y = 0, .normal = .{ 0, -1, 0 } },
+    .{ .position = .{  0.5, -0.5,  0.5 }, .color = .{ 0, 1, 1, 1 }, .uv_x = 1, .uv_y = 1, .normal = .{ 0, -1, 0 } },
+    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 0, 1, 1, 1 }, .uv_x = 0, .uv_y = 1, .normal = .{ 0, -1, 0 } },
+};
+
+// Cube indices (6 faces × 2 triangles × 3 indices)
+const cube_indices = [_]u32{
+    // Front
+    0, 1, 2, 0, 2, 3,
+    // Back
+    4, 5, 6, 4, 6, 7,
+    // Left
+    8, 9,10, 8,10,11,
+    // Right
+   12,13,14,12,14,15,
+    // Top
+   16,17,18,16,18,19,
+    // Bottom
+   20,21,22,20,22,23,
 };
 
 const std = @import("std");
