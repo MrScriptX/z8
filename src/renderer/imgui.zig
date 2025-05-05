@@ -1,17 +1,3 @@
-const c = @import("../clibs.zig");
-// pub usingnamespace @cImport({
-//    @cInclude("dcimgui.h");
-//    @cInclude("dcimgui_impl_sdl3.h");
-//    @cInclude("dcimgui_impl_vulkan.h");
-// });
-
-// const lib = @cImport({
-//    @cInclude("dcimgui.h");
-//    @cInclude("dcimgui_impl_sdl3.h");
-//    @cInclude("dcimgui_impl_vulkan.h");
-// });
-const imgui = @import("imgui");
-
 pub const Error = error{
    PoolAllocFailed,
    ImGuiInitFailed,
@@ -133,3 +119,6 @@ pub const GuiContext = struct {
 	   c.vkCmdEndRendering(cmd);
    }
 };
+
+const c = @import("../clibs.zig");
+const imgui = @import("imgui");

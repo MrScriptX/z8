@@ -105,27 +105,17 @@ pub const renderer_t = struct {
         
         _background_effects = std.ArrayList(effects.ComputeEffect).init(allocator);
 
-        std.log.info("Initiliaze vulkan instance...", .{});
+        std.log.info("Initiliazing vulkan instance...", .{});
         try renderer.init_vulkan(allocator, window);
 
         std.log.info("Initiliazing the swapchain, res {d}x{d}...", .{ width, height });
         try renderer.init_swapchain(width, height);
 
-        renderer.init_commands() catch {
-            std.log.err("Failed to initialize command buffers !", .{});
-            std.process.exit(1);
-        };
+        try renderer.init_commands();
+        try renderer.init_descriptors();
+        try renderer.init_pipelines();
 
-        renderer.init_descriptors() catch {
-            std.log.err("Failed to initialize descriptors !", .{});
-            std.process.exit(1);
-        };
-
-        renderer.init_pipelines() catch {
-            std.log.err("Failed to initialize pipelines !", .{});
-            std.process.exit(1);
-        };
-
+        std.log.info("Initiliazing GUI...", .{});
         _gui_context = imgui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
             switch (e) {
                 imgui.Error.PoolAllocFailed => {
