@@ -120,24 +120,7 @@ pub fn main() !u8 {
         imgui.NewFrame();
 
         // stats window
-        {
-            const win_stats = imgui.Begin("Stats", null, 0);
-            if (win_stats) {
-                defer imgui.End();
-
-                const frame_time: f32 = renderer.stats.frame_time / 1_000_000;
-                imgui.ImGui_Text("frame time : %f ms",  frame_time);
-
-                const draw_time: f32 = renderer.stats.mesh_draw_time / 1_000_000;
-                imgui.ImGui_Text("draw time : %f ms",  draw_time);
-
-                const scene_update_time: f32 = renderer.stats.scene_update_time / 1_000_000;
-                imgui.ImGui_Text("update time : %f ms",  scene_update_time);
-
-                imgui.ImGui_Text("triangles : %i",  renderer.stats.triangle_count);
-                imgui.ImGui_Text("draws : %i",  renderer.stats.drawcall_count);
-            }
-        }
+        engine.gui.show_stats_window(&renderer);
 
         // player control
         {

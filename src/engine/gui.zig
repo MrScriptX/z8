@@ -120,5 +120,27 @@ pub const GuiContext = struct {
    }
 };
 
+pub fn show_stats_window(r: *renderer.renderer_t) void {
+   const win_stats = imgui.Begin("Stats", null, 0);
+   if (!win_stats) {
+      std.log.warn("Failed to create stats window", .{});
+   }
+   defer imgui.End();
+
+   const frame_time: f32 = r.stats.frame_time / 1_000_000;
+   imgui.ImGui_Text("frame time : %f ms",  frame_time);
+
+   const draw_time: f32 = r.stats.mesh_draw_time / 1_000_000;
+   imgui.ImGui_Text("draw time : %f ms",  draw_time);
+
+   const scene_update_time: f32 = r.stats.scene_update_time / 1_000_000;
+   imgui.ImGui_Text("update time : %f ms",  scene_update_time);
+
+   imgui.ImGui_Text("triangles : %i",  r.stats.triangle_count);
+   imgui.ImGui_Text("draws : %i",  r.stats.drawcall_count);
+}
+
+const std = @import("std");
 const c = @import("../clibs.zig");
 const imgui = @import("imgui");
+const renderer = @import("renderer.zig");
