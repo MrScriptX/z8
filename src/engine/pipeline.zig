@@ -92,7 +92,7 @@ pub const builder_t = struct {
         var pipeline: c.VkPipeline = undefined;
         const result = c.vkCreateGraphicsPipelines(device, null, 1, &pipeline_info, null, &pipeline);
         if (result != c.VK_SUCCESS) {
-            log.err("Failed to create pipeline ! Reason {d}", .{ result });
+            std.log.err("Failed to create pipeline ! Reason {d}", .{ result });
             return null;
         }
 
@@ -210,20 +210,17 @@ pub fn create_shader_stage_info(shader: c.VkShaderModule, stage: c.VkShaderStage
     return shader_stage_info;
 }
 
-pub fn load_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModule {
+pub fn load_shader_module(allocator: std.mem.Allocator, device: c.VkDevice, path: []const u8) !c.VkShaderModule {
     var file = std.fs.cwd().openFile(path, .{}) catch |e| {
         switch (e) {
             error.FileNotFound => {
-                const msg = try std.fmt.allocPrint(std.heap.page_allocator, "Failed to open file {s}.\nReason : File was not found.", .{ path });
-                err.display_error(msg);
+                std.log.err("Failed to open file {s}.\nReason : File was not found.", .{ path });
             },
             error.AccessDenied => {
-                const msg = try std.fmt.allocPrint(std.heap.page_allocator, "Failed to open file {s}.\nReason : Access was denied.", .{ path });
-                err.display_error(msg);
+                std.log.err("Failed to open file {s}.\nReason : Access was denied.", .{ path });
             },
             else => {
-                const msg = try std.fmt.allocPrint(std.heap.page_allocator, "Failed to open file {s}.\nReason : Unknwon error.", .{ path });
-                err.display_error(msg);
+                std.log.err("Failed to open file {s}.\nReason : Unknwon error.", .{ path });
             }
         }
         std.process.exit(1);
@@ -232,12 +229,13 @@ pub fn load_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModul
 
     const stat = try file.stat();
     const file_size = stat.size;
-    const buffer = try std.heap.page_allocator.alloc(u8, file_size);
-    defer std.heap.page_allocator.free(buffer);
+    const buffer = try allocator.alloc(u8, file_size);
+    defer allocator.free(buffer);
 
     const bytes_read = try file.readAll(buffer);
     if (bytes_read != file_size) {
-        std.debug.panic("Failed to read shader file !", .{});
+        std.log.err("Failed to read shader file !", .{});
+        @panic("Failed to read shader file");
     }
     
     const create_info = c.VkShaderModuleCreateInfo {
@@ -250,7 +248,8 @@ pub fn load_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModul
     var shader_module: c.VkShaderModule = undefined;
     const result = c.vkCreateShaderModule(device, &create_info, null, &shader_module) ;
     if (result != c.VK_SUCCESS) {
-        std.debug.panic("Failed to create shader module !", .{});
+        std.log.err("Failed to create shader module ! Reason {d}", .{ result });
+        @panic("Failed to create shader module");
     }
 
     return shader_module;
@@ -258,5 +257,3 @@ pub fn load_shader_module(device: c.VkDevice, path: []const u8) !c.VkShaderModul
 
 const std = @import("std");
 const c = @import("../clibs.zig");
-const err = @import("../errors.zig");
-const log = @import("../utils/log.zig");

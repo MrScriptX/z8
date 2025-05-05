@@ -111,7 +111,7 @@ pub const renderer_t = struct {
 
         try renderer.init_commands();
         try renderer.init_descriptors();
-        try renderer.init_pipelines();
+        try renderer.init_pipelines(allocator);
 
         std.log.info("Initiliazing GUI...", .{});
         _gui_context = gui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
@@ -321,16 +321,16 @@ pub const renderer_t = struct {
         }
     }
 
-    fn init_pipelines(self: *renderer_t) !void {
-        try self.init_background_pipelines();
-        try self.init_triangle_pipeline();
-        try self.init_mesh_pipeline();
+    fn init_pipelines(self: *renderer_t, allocator: std.mem.Allocator) !void {
+        try self.init_background_pipelines(allocator);
+        try self.init_triangle_pipeline(allocator);
+        try self.init_mesh_pipeline(allocator);
 
         self._metal_rough_material = loader.GLTFMetallic_Roughness.init(std.heap.page_allocator);
-        try self._metal_rough_material.build_pipeline(self);
+        try self._metal_rough_material.build_pipeline(allocator, self);
     }
 
-    fn init_background_pipelines(self: *renderer_t) !void {
+    fn init_background_pipelines(self: *renderer_t, allocator: std.mem.Allocator) !void {
         const push_constant = c.VkPushConstantRange {
             .offset = 0,
             .size = @sizeOf(effects.ComputePushConstants),
@@ -353,7 +353,7 @@ pub const renderer_t = struct {
             std.debug.panic("Failed to create pipeline layout !", .{});
         }
 
-        const compute_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/gradiant.spv");
+        const compute_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/gradiant.spv");
         defer c.vkDestroyShaderModule(self._device, compute_shader, null);
 
         const gradiant_stage_info = c.VkPipelineShaderStageCreateInfo {
@@ -390,7 +390,7 @@ pub const renderer_t = struct {
         }
 
         // sky shader
-        const sky_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/sky.spv");
+        const sky_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/sky.spv");
         defer c.vkDestroyShaderModule(self._device, sky_shader, null);
 
         const sky_stage_info = c.VkPipelineShaderStageCreateInfo {
@@ -430,11 +430,11 @@ pub const renderer_t = struct {
         try _background_effects.append(sky);
     }
 
-    fn init_triangle_pipeline(self: *renderer_t) !void {
-        const triangle_frag_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+    fn init_triangle_pipeline(self: *renderer_t, allocator: std.mem.Allocator) !void {
+        const triangle_frag_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
         defer c.vkDestroyShaderModule(self._device, triangle_frag_shader, null);
 
-	    const triangle_vertex_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
+	    const triangle_vertex_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
         defer c.vkDestroyShaderModule(self._device, triangle_vertex_shader, null);
 
         const pipeline_layout_info = c.VkPipelineLayoutCreateInfo {
@@ -471,14 +471,11 @@ pub const renderer_t = struct {
 	    _trianglePipeline = pipeline_builder.build_pipeline(self._device);
     }
 
-    fn init_mesh_pipeline(self: *renderer_t) !void {
-        // const frag_shader = try pipelines.load_shader_module(_device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
-        // defer c.vkDestroyShaderModule(_device, frag_shader, null);
-
-        const frag_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/image_texture.frag.spv");
+    fn init_mesh_pipeline(self: *renderer_t, allocator: std.mem.Allocator) !void {
+        const frag_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/image_texture.frag.spv");
         defer c.vkDestroyShaderModule(self._device, frag_shader, null);
 
-	    const vertex_shader = try pipelines.load_shader_module(self._device, "./zig-out/bin/shaders/colored_triangle_mesh.vert.spv");
+	    const vertex_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/colored_triangle_mesh.vert.spv");
         defer c.vkDestroyShaderModule(self._device, vertex_shader, null);
 
         const buffer_range = c.VkPushConstantRange {
@@ -947,7 +944,7 @@ pub const renderer_t = struct {
         return self._rebuild_swapchain;
     }
 
-    pub fn rebuild_swapchain(self: *renderer_t, window: ?*c.SDL_Window) void {
+    pub fn rebuild_swapchain(self: *renderer_t, allocator: std.mem.Allocator, window: ?*c.SDL_Window) void {
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device with error {d}", .{ result });
@@ -972,7 +969,7 @@ pub const renderer_t = struct {
             return;
         };
 
-        self.init_pipelines() catch {
+        self.init_pipelines(allocator) catch {
             std.log.err("Failed to build pipelines !", .{});
             return;
         };

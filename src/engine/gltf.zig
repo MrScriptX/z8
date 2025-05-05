@@ -54,11 +54,11 @@ pub const GLTFMetallic_Roughness = struct {
         self.writer.deinit();
     }
 
-    pub fn build_pipeline(self: *GLTFMetallic_Roughness, r: *renderer.renderer_t) !void {
-        const frag_shader = try pipeline.load_shader_module(r._device, "./zig-out/bin/shaders/mesh.frag.spv");
+    pub fn build_pipeline(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, r: *renderer.renderer_t) !void {
+        const frag_shader = try pipeline.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/mesh.frag.spv");
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
-        const vertex_shader = try pipeline.load_shader_module(r._device, "./zig-out/bin/shaders/mesh.vert.spv");
+        const vertex_shader = try pipeline.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/mesh.vert.spv");
         defer c.vkDestroyShaderModule(r._device, vertex_shader, null);
 
         const matrix_range: c.VkPushConstantRange = .{

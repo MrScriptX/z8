@@ -116,11 +116,11 @@ pub const VoxelMaterial = struct {
         return data;
     }
 
-    pub fn build_pipeline(self: *VoxelMaterial, renderer: *engine.renderer_t) !void {
-        const frag_shader = try pipelines.load_shader_module(renderer._device, "./zig-out/bin/shaders/voxel.frag.spv");
+    pub fn build_pipeline(self: *VoxelMaterial, allocator: std.mem.Allocator, renderer: *engine.renderer_t) !void {
+        const frag_shader = try pipelines.load_shader_module(allocator, renderer._device, "./zig-out/bin/shaders/voxel.frag.spv");
         defer c.vkDestroyShaderModule(renderer._device, frag_shader, null);
 
-        const vert_shader = try pipelines.load_shader_module(renderer._device, "./zig-out/bin/shaders/voxel.vert.spv");
+        const vert_shader = try pipelines.load_shader_module(allocator, renderer._device, "./zig-out/bin/shaders/voxel.vert.spv");
         defer c.vkDestroyShaderModule(renderer._device, vert_shader, null);
 
         const matrix_range: c.VkPushConstantRange = .{

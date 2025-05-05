@@ -34,7 +34,7 @@ pub fn main() !u8 {
     defer renderer.deinit();
 
     var voxel_material = vox.VoxelMaterial.init(gpa.allocator(), renderer._device);
-    try voxel_material.build_pipeline(&renderer);
+    try voxel_material.build_pipeline(gpa.allocator(), &renderer);
     defer voxel_material.deinit(renderer._device);
 
     var scene_manager = engine.scene.manager_t.init(gpa.allocator());
@@ -78,7 +78,7 @@ pub fn main() !u8 {
         const current = scene_manager.scene(@intCast(current_scene));
 
         if (renderer.should_rebuild_sw()) {
-            renderer.rebuild_swapchain(window);
+            renderer.rebuild_swapchain(gpa.allocator(), window);
 
             if (current) |s| {
                 s.clear(renderer._device, renderer._vma);
