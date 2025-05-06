@@ -67,7 +67,7 @@ pub const GLTFMetallic_Roughness = struct {
             .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
         };
 
-        var layout_builder = descriptors.DescriptorLayout.init();
+        var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
         try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -129,11 +129,11 @@ pub const GLTFMetallic_Roughness = struct {
 
     }
 
-    pub fn write_material(self: *GLTFMetallic_Roughness, device: c.VkDevice, pass: mat.MaterialPass, resources: *const MaterialResources, ds_alloc: *descriptors.DescriptorAllocator2) mat.MaterialInstance {
+    pub fn write_material(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, device: c.VkDevice, pass: mat.MaterialPass, resources: *const MaterialResources, ds_alloc: *descriptors.DescriptorAllocator2) mat.MaterialInstance {
         const mat_data = mat.MaterialInstance {
             .pass_type = pass,
             .pipeline = if (pass == mat.MaterialPass.Transparent) self.transparent_pipeline else self.opaque_pipeline,
-            .material_set = ds_alloc.allocate(device, self.material_layout, null),
+            .material_set = ds_alloc.allocate(allocator, device, self.material_layout, null),
         };
 
         self.writer.clear();
@@ -411,7 +411,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.re
             material_ressources.color_sampler = scene.samplers.items[sampler];
         }
 
-        new_mat.* = r._metal_rough_material.write_material(r._device, pass_type, &material_ressources, &scene.descriptor_pool);
+        new_mat.* = r._metal_rough_material.write_material(allocator, r._device, pass_type, &material_ressources, &scene.descriptor_pool);
         data_index += 1;
     }
 

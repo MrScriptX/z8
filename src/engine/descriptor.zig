@@ -9,8 +9,8 @@ pub const PoolSizeRatio = struct {
 pub const DescriptorLayout = struct {
     _bindings: std.ArrayList(c.VkDescriptorSetLayoutBinding),
 
-    pub fn init() DescriptorLayout {
-        const bindings = std.ArrayList(c.VkDescriptorSetLayoutBinding).init(std.heap.page_allocator);
+    pub fn init(allocator: std.mem.Allocator) DescriptorLayout {
+        const bindings = std.ArrayList(c.VkDescriptorSetLayoutBinding).init(allocator);
         return DescriptorLayout{
             ._bindings = bindings,
         };
@@ -62,8 +62,8 @@ pub const DescriptorLayout = struct {
 pub const DescriptorAllocator = struct {
     _pool: c.VkDescriptorPool = undefined,
 
-    pub fn init(device: c.VkDevice, max_sets: u32, pool_ratios: [] const PoolSizeRatio) !DescriptorAllocator {
-        var pool_sizes = std.ArrayList(c.VkDescriptorPoolSize).init(std.heap.page_allocator);
+    pub fn init(allocator: std.mem.Allocator, device: c.VkDevice, max_sets: u32, pool_ratios: [] const PoolSizeRatio) !DescriptorAllocator {
+        var pool_sizes = std.ArrayList(c.VkDescriptorPoolSize).init(allocator);
         defer pool_sizes.deinit();
         
         for (pool_ratios) |pool_ratio| {
@@ -147,7 +147,7 @@ pub const DescriptorAllocator2 = struct {
             };
         }
 
-        const new_pool = create_pool(device, max_sets, pool_ratios);
+        const new_pool = create_pool(alloc, device, max_sets, pool_ratios);
         builder._ready_pools.append(new_pool) catch {
             std.log.err("Failed to store Descriptor Pool ! Out of memory", .{});
             @panic("Out of memory");
@@ -197,12 +197,12 @@ pub const DescriptorAllocator2 = struct {
         self._full_pools.clearAndFree();
     }
 
-    fn get_pool(self: *DescriptorAllocator2, device: c.VkDevice) c.VkDescriptorPool {
+    fn get_pool(self: *DescriptorAllocator2, allocator: std.mem.Allocator, device: c.VkDevice) c.VkDescriptorPool {
         if (self._ready_pools.items.len != 0) {
             return self._ready_pools.pop().?;
         }
 
-        const new_pool = create_pool(device, self._sets_per_pool, self._ratios.items);
+        const new_pool = create_pool(allocator, device, self._sets_per_pool, self._ratios.items);
         self._sets_per_pool = @intFromFloat(@as(f32, @floatFromInt(self._sets_per_pool)) * 1.5);
         if (self._sets_per_pool > 4092) {
             self._sets_per_pool = 4092;
@@ -211,8 +211,8 @@ pub const DescriptorAllocator2 = struct {
         return new_pool;
     }
 
-    pub fn allocate(self: *DescriptorAllocator2, device: c.VkDevice, layout: c.VkDescriptorSetLayout, next: ?*anyopaque) c.VkDescriptorSet {
-        var pool = self.get_pool(device);
+    pub fn allocate(self: *DescriptorAllocator2, allocator: std.mem.Allocator, device: c.VkDevice, layout: c.VkDescriptorSetLayout, next: ?*anyopaque) c.VkDescriptorSet {
+        var pool = self.get_pool(allocator, device);
 
 	    var alloc_info = c.VkDescriptorSetAllocateInfo {
             .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -230,7 +230,7 @@ pub const DescriptorAllocator2 = struct {
                 @panic("OOM");
             };
 
-            pool = self.get_pool(device);
+            pool = self.get_pool(allocator, device);
             alloc_info.descriptorPool = pool;
 
             result = c.vkAllocateDescriptorSets(device, &alloc_info, &descriptor_set);
@@ -362,8 +362,8 @@ pub const Writer = struct {
     }
 };
 
-fn create_pool(device: c.VkDevice, set_count: u32, pool_ratios: []const PoolSizeRatio) c.VkDescriptorPool {
-    var pool_sizes = std.ArrayList(c.VkDescriptorPoolSize).init(std.heap.page_allocator);
+fn create_pool(allocator: std.mem.Allocator, device: c.VkDevice, set_count: u32, pool_ratios: []const PoolSizeRatio) c.VkDescriptorPool {
+    var pool_sizes = std.ArrayList(c.VkDescriptorPoolSize).init(allocator);
     defer pool_sizes.deinit();
 
 	for (pool_ratios) |ratio| {

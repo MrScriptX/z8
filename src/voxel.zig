@@ -34,7 +34,7 @@ pub const Voxel = struct {
         };
 
         voxel.material = try voxel.allocator.create(mat.MaterialInstance);
-        voxel.material.* = material.write_material(renderer._device, mat.MaterialPass.MainColor, &mat_resources, &material.pool);
+        voxel.material.* = material.write_material(alloc, renderer._device, mat.MaterialPass.MainColor, &mat_resources, &material.pool);
 
         voxel.meshes.surfaces.append(.{
             .startIndex = 0,
@@ -100,11 +100,11 @@ pub const VoxelMaterial = struct {
         self.writer.deinit();
     }
 
-    pub fn write_material(self: *VoxelMaterial, device: c.VkDevice, pass: mat.MaterialPass, resources: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2) mat.MaterialInstance {
+    pub fn write_material(self: *VoxelMaterial, allocator: std.mem.Allocator, device: c.VkDevice, pass: mat.MaterialPass, resources: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2) mat.MaterialInstance {
         const data = mat.MaterialInstance {
             .pass_type = pass,
             .pipeline = self.default_pipeline,
-            .material_set = ds_alloc.allocate(device, self.layout, null),
+            .material_set = ds_alloc.allocate(allocator, device, self.layout, null),
         };
 
         self.writer.clear();
@@ -129,7 +129,7 @@ pub const VoxelMaterial = struct {
             .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
         };
 
-        var layout_builder = descriptors.DescriptorLayout.init();
+        var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
         try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);

@@ -236,7 +236,7 @@ pub fn main() !u8 {
             }
 
             renderer.update_scene(s);
-            renderer.draw(s);
+            renderer.draw(gpa.allocator(), s);
         }
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());

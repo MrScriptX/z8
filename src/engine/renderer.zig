@@ -106,8 +106,8 @@ pub const renderer_t = struct {
         std.log.info("Initiliazing the swapchain, res {d}x{d}...", .{ width, height });
         try renderer.init_swapchain(width, height);
 
-        try renderer.init_commands();
-        try renderer.init_descriptors();
+        try renderer.init_commands(allocator);
+        try renderer.init_descriptors(allocator);
         try renderer.init_pipelines(allocator);
 
         std.log.info("Initiliazing GUI...", .{});
@@ -124,7 +124,7 @@ pub const renderer_t = struct {
             }
         };
 
-        renderer.init_default_data(std.heap.page_allocator) catch {
+        renderer.init_default_data(allocator) catch {
             std.log.err("Failed to initialize data !", .{});
             std.process.exit(1);
         };
@@ -246,14 +246,14 @@ pub const renderer_t = struct {
         _ = c.vkCreateImageView(self._device, &depth_view_info, null, &self._depth_image.view);
     }
 
-    fn init_commands(self: *renderer_t) !void {
+    fn init_commands(self: *renderer_t, allocator: std.mem.Allocator,) !void {
         self._frames = [_]frames.data_t{
             frames.data_t{},
             frames.data_t{},
         };
 
         for (&self._frames) |*frame| {
-            try frame.init(self._device, self._queue_indices.graphics);
+            try frame.init(allocator, self._device, self._queue_indices.graphics);
         }
 
         self.submit.pool = try frames.create_command_pool(self._device, self._queue_indices.graphics);
@@ -261,7 +261,7 @@ pub const renderer_t = struct {
         self.submit.fence = try frames.create_fence(self._device);
     }
 
-    fn init_descriptors(self: *renderer_t) !void {
+    fn init_descriptors(self: *renderer_t, allocator: std.mem.Allocator) !void {
         const sizes = [_]descriptor.PoolSizeRatio{
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
@@ -269,11 +269,11 @@ pub const renderer_t = struct {
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
         };
 
-	    self._descriptor_pool = try descriptor.DescriptorAllocator.init(self._device, 10, &sizes);
+	    self._descriptor_pool = try descriptor.DescriptorAllocator.init(allocator, self._device, 10, &sizes);
 
 	    //make the descriptor set layout for our compute draw
 	    {
-		    var builder = descriptor.DescriptorLayout.init();
+		    var builder = descriptor.DescriptorLayout.init(allocator);
             defer builder.deinit();
 
 		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -282,7 +282,7 @@ pub const renderer_t = struct {
 
         self._draw_image_descriptor_set = self._descriptor_pool.allocate(self._device, self._draw_image_descriptor);
 
-        var writer = descriptor.Writer.init(std.heap.page_allocator);
+        var writer = descriptor.Writer.init(allocator);
         defer writer.deinit();
     
         writer.write_image(0, self._draw_image.view, null, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -296,12 +296,12 @@ pub const renderer_t = struct {
                 descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 3 },
                 descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
             };
-            frame._frame_descriptors = descriptor.DescriptorAllocator2.init(std.heap.page_allocator, self._device, 1000, &frame_size);
+            frame._frame_descriptors = descriptor.DescriptorAllocator2.init(allocator, self._device, 1000, &frame_size);
         }
 
         // make descriptor for gpu scene data
         {
-            var builder = descriptor.DescriptorLayout.init();
+            var builder = descriptor.DescriptorLayout.init(allocator);
             defer builder.deinit();
 
 		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -309,7 +309,7 @@ pub const renderer_t = struct {
         }
 
         {
-            var builder = descriptor.DescriptorLayout.init();
+            var builder = descriptor.DescriptorLayout.init(allocator);
             defer builder.deinit();
 
 		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -431,7 +431,7 @@ pub const renderer_t = struct {
         return @max(-n, n);
     }
 
-    pub fn draw(self: *renderer_t, scene: *scenes.scene_t) void {
+    pub fn draw(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.scene_t) void {
         var result = c.vkWaitForFences(self._device, 1, &self.current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkWaitForFences failed with error {d}\n", .{ result });
@@ -504,7 +504,7 @@ pub const renderer_t = struct {
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         utils.transition_image(cmd_buffer, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        self.draw_scene(scene, cmd_buffer);
+        self.draw_scene(allocator, scene, cmd_buffer);
 
         utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -593,7 +593,7 @@ pub const renderer_t = struct {
 	    c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
     }
 
-    fn draw_scene(self: *renderer_t, scene: *scenes.scene_t, cmd: c.VkCommandBuffer) void {
+    fn draw_scene(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.scene_t, cmd: c.VkCommandBuffer) void {
         self.stats.drawcall_count = 0;
         self.stats.triangle_count = 0;
 
@@ -678,7 +678,7 @@ pub const renderer_t = struct {
         const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
         scene_uniform_data.* = scene.data;
 
-        const global_descriptor = self.current_frame()._frame_descriptors.allocate(self._device, self._gpu_scene_data_descriptor_layout, null);
+        const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self._gpu_scene_data_descriptor_layout, null);
     
         {
             var writer = descriptor.Writer.init(std.heap.page_allocator);
@@ -859,7 +859,7 @@ pub const renderer_t = struct {
             return;
         };
 
-        self.init_descriptors() catch {
+        self.init_descriptors(allocator) catch {
             std.log.err("Failed to build descriptors !", .{});
             return;
         };

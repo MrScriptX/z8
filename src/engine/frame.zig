@@ -16,13 +16,13 @@ pub const data_t = struct {
 
     _buffers: std.ArrayList(buffers.AllocatedBuffer) = undefined,
 
-    pub fn init(self: *data_t, device: c.VkDevice, queue_family_index: u32) !void {
+    pub fn init(self: *data_t, allocator: std.mem.Allocator, device: c.VkDevice, queue_family_index: u32) !void {
         self._cmd_pool = try create_command_pool(device, queue_family_index);
         self._main_buffer = try create_command_buffer(1, device, self._cmd_pool);
         self._sw_semaphore = try create_semaphore(device);
         self._render_semaphore = try create_semaphore(device);
         self._render_fence = try create_fence(device);
-        self._buffers = std.ArrayList(buffers.AllocatedBuffer).init(std.heap.page_allocator);
+        self._buffers = std.ArrayList(buffers.AllocatedBuffer).init(allocator);
     }
 
     pub fn deinit(self: *data_t, device: c.VkDevice, vma: c.VmaAllocator) void {
