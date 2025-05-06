@@ -17,7 +17,7 @@ pub const compute_builder_t = struct {
         self.shader_stage = create_shader_stage_info(shader, c.VK_SHADER_STAGE_COMPUTE_BIT);
     }
 
-    pub fn build_pipeline(self: *compute_builder_t, device: c.VkDevice) c.VkPipeline {
+    pub fn build_pipeline(self: *const compute_builder_t, device: c.VkDevice) c.VkPipeline {
         const compute_pipeline_create_info = c.VkComputePipelineCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 	        .pNext = null,

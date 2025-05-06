@@ -33,10 +33,12 @@ pub fn main() !u8 {
     };
     defer renderer.deinit();
 
+    // create materials
     var voxel_material = vox.VoxelMaterial.init(gpa.allocator(), renderer._device);
     try voxel_material.build_pipeline(gpa.allocator(), &renderer);
     defer voxel_material.deinit(renderer._device);
 
+    // create scenes
     var scene_manager = engine.scene.manager_t.init(gpa.allocator());
     defer scene_manager.deinit(renderer._device, renderer._vma);
 
@@ -44,6 +46,46 @@ pub fn main() !u8 {
     _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
     _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.MESH);
 
+
+    // create effects
+    var background_effects = std.ArrayList(*compute.ComputeEffect).init(gpa.allocator());
+    defer background_effects.deinit();
+
+    // gradient shader
+    var gradient_effect = compute.ComputeEffect {
+        .name = "gradient",
+        .data = .{
+            .data1 = c.vec4{ 1, 0, 0, 1 },
+	        .data2 = c.vec4{ 0, 0, 1, 1 },
+            .data3 = c.glms_vec4_zero().raw,
+            .data4 = c.glms_vec4_zero().raw 
+        },
+    };
+    gradient_effect.build(gpa.allocator(), "./zig-out/bin/shaders/gradiant.spv", &renderer) catch {
+        std.log.err("Failed to create gradiant shader", .{});
+        return 2;
+    };
+    defer gradient_effect.deinit(&renderer);
+
+    try background_effects.append(&gradient_effect);
+
+    // sky shader
+    var sky_shader = compute.ComputeEffect {
+        .name = "sky",
+        .data = .{
+            .data1 = c.vec4{ 0.1, 0.2, 0.4 , 0.97 },
+	        .data2 = c.glms_vec4_zero().raw,
+            .data3 = c.glms_vec4_zero().raw,
+            .data4 = c.glms_vec4_zero().raw 
+        },
+    };
+    sky_shader.build(gpa.allocator(), "./zig-out/bin/shaders/sky.spv", &renderer) catch {
+        std.log.err("Failed to create sky shader", .{});
+        return 2;
+    };
+    defer sky_shader.deinit(&renderer);
+
+    try background_effects.append(&sky_shader);
 
     var current_scene: i32 = 0;
     var render_scene: i32 = -1;
@@ -256,3 +298,4 @@ const imgui = @import("imgui");
 const za = @import("zalgebra");
 const maths = @import("utils/maths.zig");
 const vox = @import("voxel.zig");
+const compute = @import("engine/compute_effect.zig");
