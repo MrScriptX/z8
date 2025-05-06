@@ -1,6 +1,5 @@
 const std = @import("std");
 const c = @import("../clibs.zig");
-const log = @import("../utils/log.zig");
 
 pub const PoolSizeRatio = struct {
     _type: c.VkDescriptorType = undefined,
@@ -52,7 +51,7 @@ pub const DescriptorLayout = struct {
         var set: c.VkDescriptorSetLayout = undefined;
         const result = c.vkCreateDescriptorSetLayout(device, &info, null, &set);
         if (result != c.VK_SUCCESS) {
-            log.err("Failed to create descriptor set layout ! Reason {d}", .{result});
+            std.log.err("Failed to create descriptor set layout ! Reason {d}", .{result});
             @panic("Failed to create descriptor set layout !");
         }
 
@@ -87,7 +86,7 @@ pub const DescriptorAllocator = struct {
         var pool: c.VkDescriptorPool = undefined;
 	    const result = c.vkCreateDescriptorPool(device, &pool_info, null, &pool);
         if (result != c.VK_SUCCESS) {
-            log.err("Failed to create descriptor pool ! Reason {d}", .{result});
+            std.log.err("Failed to create descriptor pool ! Reason {d}", .{result});
             @panic("Failed to create descriptor pool !");
         }
 
@@ -116,7 +115,7 @@ pub const DescriptorAllocator = struct {
         var descriptor_set: c.VkDescriptorSet = undefined;
         const result = c.vkAllocateDescriptorSets(device, &alloc_info, &descriptor_set);
         if (result != c.VK_SUCCESS) {
-            log.write("Failed to allocate descriptor set ! Reason {d}", .{result});
+            std.log.err("Failed to allocate descriptor set ! Reason {d}", .{result});
             @panic("Failed to allocate descriptor set !");
         }
 
@@ -143,14 +142,14 @@ pub const DescriptorAllocator2 = struct {
 
         for (pool_ratios) |pool_ratio| {
             builder._ratios.append(pool_ratio) catch {
-                log.err("pool sizes allocation failed ! Out of memory", .{});
+                std.log.err("pool sizes allocation failed ! Out of memory", .{});
                 @panic("Out of memory");
             };
         }
 
         const new_pool = create_pool(device, max_sets, pool_ratios);
         builder._ready_pools.append(new_pool) catch {
-            log.err("Failed to store Descriptor Pool ! Out of memory", .{});
+            std.log.err("Failed to store Descriptor Pool ! Out of memory", .{});
             @panic("Out of memory");
         };
 
@@ -179,18 +178,18 @@ pub const DescriptorAllocator2 = struct {
         for (self._ready_pools.items) |p| {
             const result = c.vkResetDescriptorPool(device, p, 0);
             if (result != c.VK_SUCCESS) {
-                log.write("ERROR : Failed to reset descriptor pool ! Reason {d}", .{ result });
+                std.log.warn("ERROR : Failed to reset descriptor pool ! Reason {d}", .{ result });
             }
         }
 
         for (self._full_pools.items) |p| {
             const result = c.vkResetDescriptorPool(device, p, 0);
             if (result != c.VK_SUCCESS) {
-                log.write("ERROR : Failed to reset descriptor pool ! Reason {d}", .{ result });
+                std.log.warn("ERROR : Failed to reset descriptor pool ! Reason {d}", .{ result });
             }
 
             self._ready_pools.append(p) catch {
-                log.err("Failed to store Descriptor Pool ! Out of memory", .{});
+                std.log.err("Failed to store Descriptor Pool ! Out of memory", .{});
                 @panic("Out of memory");
             };
         }
@@ -227,7 +226,7 @@ pub const DescriptorAllocator2 = struct {
 	    var result = c.vkAllocateDescriptorSets(device, &alloc_info, &descriptor_set);
         if (result == c.VK_ERROR_OUT_OF_POOL_MEMORY or result == c.VK_ERROR_FRAGMENTED_POOL) {
             self._full_pools.append(pool) catch {
-                log.err("Failed to add new pool\n", .{});
+                std.log.err("Failed to add new pool\n", .{});
                 @panic("OOM");
             };
 
@@ -238,12 +237,12 @@ pub const DescriptorAllocator2 = struct {
         }
 
         if (result != c.VK_SUCCESS) {
-            log.err("Failed to allocate descriptor set. Reason {d}\n", .{ result });
+            std.log.err("Failed to allocate descriptor set. Reason {d}\n", .{ result });
             @panic("Failed to allocate descriptor set");
         }
 
         self._ready_pools.append(pool) catch {
-            log.err("Failed to add new pool\n", .{});
+            std.log.err("Failed to add new pool\n", .{});
             @panic("OOM");
         };
 
@@ -280,7 +279,7 @@ pub const Writer = struct {
     pub fn write_buffer(self: *Writer, binding: u32, buffer: c.VkBuffer, size: usize, offset: usize, dtype: c.VkDescriptorType) void {
         const allocator = self._arena.allocator();
         const buffer_info = allocator.create(c.VkDescriptorBufferInfo) catch {
-            log.err("Failed to allocate memory for VkDescriptorBufferInfo.", .{});
+            std.log.err("Failed to allocate memory for VkDescriptorBufferInfo.", .{});
             @panic("OOM");
         };
 
@@ -289,7 +288,7 @@ pub const Writer = struct {
         buffer_info.*.range = size;
 
         self._buffer_infos.append(buffer_info) catch {
-            log.err("Failed to insert new buffer info !", .{});
+            std.log.err("Failed to insert new buffer info !", .{});
             @panic("OOM");
         };
 
@@ -305,7 +304,7 @@ pub const Writer = struct {
         };
 
         self._writes.append(write) catch {
-            log.err("Failed to insert new VkWriteDescriptorSet !", .{});
+            std.log.err("Failed to insert new VkWriteDescriptorSet !", .{});
             @panic("OOM");
         };
     }
@@ -313,7 +312,7 @@ pub const Writer = struct {
     pub fn write_image(self: *Writer, binding: u32, image_view: c.VkImageView, sampler: c.VkSampler, layout: c.VkImageLayout, dtype: c.VkDescriptorType) void {
         const allocator = self._arena.allocator();
         const image_info = allocator.create(c.VkDescriptorImageInfo) catch {
-            log.err("Failed to allocate memory for VkDescriptorImageInfo.", .{});
+            std.log.err("Failed to allocate memory for VkDescriptorImageInfo.", .{});
             @panic("OOM");
         };
 
@@ -322,7 +321,7 @@ pub const Writer = struct {
         image_info.*.imageLayout = layout;
 
         self._image_infos.append(image_info) catch {
-            log.err("Failed to insert new image info !", .{});
+            std.log.err("Failed to insert new image info !", .{});
             @panic("OOM");
         };
 
@@ -338,7 +337,7 @@ pub const Writer = struct {
         };
 
         self._writes.append(write) catch {
-            log.err("Failed to insert new VkWriteDescriptorSet !", .{});
+            std.log.err("Failed to insert new VkWriteDescriptorSet !", .{});
             @panic("OOM");
         };
     }
@@ -350,7 +349,7 @@ pub const Writer = struct {
 
         const reset = self._arena.reset(.free_all);
         if (reset == false) {
-            log.write("Something went wrong with the reset !", .{});
+            std.log.warn("Something went wrong with the reset !", .{});
         }
     }
 
@@ -372,7 +371,7 @@ fn create_pool(device: c.VkDevice, set_count: u32, pool_ratios: []const PoolSize
 			.type = ratio._type,
 			.descriptorCount = @intFromFloat(ratio._ratio * @as(f32, @floatFromInt(set_count)))
 		}) catch {
-            log.err("Failed to allocate memory for pool sizes ! Out of memory !", .{});
+            std.log.err("Failed to allocate memory for pool sizes ! Out of memory !", .{});
             @panic("Out of memory");
         };
 	}
@@ -388,7 +387,7 @@ fn create_pool(device: c.VkDevice, set_count: u32, pool_ratios: []const PoolSize
     var new_pool: c.VkDescriptorPool = undefined;
     const result = c.vkCreateDescriptorPool(device, &pool_info, null, &new_pool);
     if (result != c.VK_SUCCESS) {
-        log.write("Failed to create descriptor pool. Reason {d}", .{ result });
+        std.log.warn("Failed to create descriptor pool. Reason {d}", .{ result });
     }
 
     return new_pool;

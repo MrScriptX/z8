@@ -1,6 +1,5 @@
 const std = @import("std");
 const c = @import("../../clibs.zig");
-const err = @import("../../errors.zig");
 const queue = @import("queue_family.zig");
 const sw = @import("swapchain.zig");
 const opt = @import("../../options.zig");

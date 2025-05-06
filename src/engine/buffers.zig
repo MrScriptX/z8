@@ -19,7 +19,7 @@ pub const AllocatedBuffer = struct {
 	    var new_buffer: AllocatedBuffer = .{};
 	    const result = c.vmaCreateBuffer(vma, &buffer_info, &vmaalloc_info, &new_buffer.buffer, &new_buffer.allocation, &new_buffer.info);
         if (result != c.VK_SUCCESS) {
-            log.write("Failed to create buffer with error {x}", .{ result });
+            std.log.warn("Failed to create buffer with error {d}", .{ result });
         }
 
 	    return new_buffer;
@@ -92,12 +92,12 @@ pub const GPUMeshBuffers = struct {
     fn submit(self: *GPUMeshBuffers, vertex_buffer_size: usize, index_buffer_size: usize, buffer: *AllocatedBuffer, r: *const renderer.renderer_t) void {
         var result = c.vkResetFences(r._device, 1, &r.submit.fence);
         if (result != c.VK_SUCCESS) {
-            log.write("vkResetFences failed with error {x}\n", .{ result });
+            std.log.warn("vkResetFences failed with error {d}", .{ result });
         }
 
         result = c.vkResetCommandBuffer(r.submit.cmd, 0);
         if (result != c.VK_SUCCESS) {
-            log.write("vkResetCommandBuffer failed with error {x}\n", .{ result });
+            std.log.warn("vkResetCommandBuffer failed with error {d}", .{ result });
         }
 
         const begin_info = c.VkCommandBufferBeginInfo {
@@ -108,7 +108,7 @@ pub const GPUMeshBuffers = struct {
 
         result = c.vkBeginCommandBuffer(r.submit.cmd, &begin_info);
         if (result != c.VK_SUCCESS) {
-            log.write("vkBeginCommandBuffer failed with error {x}\n", .{ result });
+            std.log.warn("vkBeginCommandBuffer failed with error {d}", .{ result });
         }
 
         const vertex_copy = c.VkBufferCopy { 
@@ -129,7 +129,7 @@ pub const GPUMeshBuffers = struct {
 
         result = c.vkEndCommandBuffer(r.submit.cmd);
         if (result != c.VK_SUCCESS) {
-            log.write("vkEndCommandBuffer failed with error {x}\n", .{ result });
+            std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
         }
 
         const cmd_submit_info = c.VkCommandBufferSubmitInfo {
@@ -156,12 +156,12 @@ pub const GPUMeshBuffers = struct {
 
         result = c.vkQueueSubmit2(r._queues.graphics, 1, &submit_info, r.submit.fence); // TODO : run it on other queue for multithreading
         if (result != c.VK_SUCCESS) {
-            log.write("vkQueueSubmit2 failed with error {x}\n", .{ result });
+            std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
         }
 
         result = c.vkWaitForFences(r._device, 1, &r.submit.fence, c.VK_TRUE, 9999999999);
         if (result != c.VK_SUCCESS) {
-            log.write("vkWaitForFences failed with error {x}\n", .{ result });
+            std.log.warn("vkWaitForFences failed with error {d}", .{ result });
         }
     }
 };
@@ -171,6 +171,6 @@ pub const GPUDrawPushConstants = struct {
     vertex_buffer: c.VkDeviceAddress = undefined
 };
 
+const std = @import("std");
 const c = @import("../clibs.zig");
-const log = @import("../utils/log.zig");
 const renderer = @import("renderer.zig");

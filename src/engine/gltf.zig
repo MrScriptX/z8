@@ -378,7 +378,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.re
         scene.materials.put(name, new_mat) catch @panic("OOM");
 
         materials.put(name, new_mat) catch {
-            log.err("Failed to append material ! OOM !", .{});
+            std.log.err("Failed to append material ! OOM !", .{});
             @panic("OOM");
         };
 
@@ -694,7 +694,6 @@ pub fn extract_mipmap_mode(filter: u32) c.VkSamplerMipmapMode {
 const std = @import("std");
 const c = @import("../clibs.zig");
 const buffers = @import("buffers.zig");
-const log = @import("../utils/log.zig");
 const z = @import("zalgebra");
 const mat = @import("materials.zig");
 const m = @import("assets.zig");

@@ -1075,5 +1075,3 @@ const maths = @import("../utils/maths.zig");
 const material = @import("materials.zig");
 const m = @import("assets.zig");
 const cam = @import("camera.zig");
-
-// const log = @import("../utils/log.zig");

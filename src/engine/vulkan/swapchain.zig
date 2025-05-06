@@ -1,7 +1,6 @@
 const std = @import("std");
 const c = @import("../../clibs.zig");
 const queue = @import("queue_family.zig");
-const log = @import("../../utils/log.zig");
 
 const SWError = error{
     SwapchainCreationFailed,
@@ -33,7 +32,7 @@ pub const swapchain_t = struct {
         var image_count: u32 = 0;
         const result = c.vkGetSwapchainImagesKHR(device, sw._sw, &image_count, null);
         if (result != c.VK_SUCCESS) {
-            log.write("Failed to retrive swapchain image count ! reason {d}", .{result});
+            std.log.err("Failed to retrive swapchain image count ! reason {d}", .{ result });
             std.debug.panic("Failed to retrive swapchain image count !", .{});
         }
     
@@ -117,7 +116,7 @@ pub const details_t = struct {
     pub fn resize_formats(self: *details_t, size: usize) void {
         const allocator = self.arena.allocator();
         self.formats = allocator.alloc(c.VkSurfaceFormatKHR, size) catch {
-            log.err("VkSurfaceFormatKHR : Out of memory", .{});
+            std.log.err("VkSurfaceFormatKHR : Out of memory", .{});
             @panic("Out of memory");
         };
     }
@@ -125,7 +124,7 @@ pub const details_t = struct {
     pub fn resize_present_modes(self: *details_t, size: usize) void {
         const allocator = self.arena.allocator();
         self.present_modes = allocator.alloc(c.VkPresentModeKHR, size) catch {
-            log.err("VkPresentModeKHR : Out of memory", .{});
+            std.log.err("VkPresentModeKHR : Out of memory", .{});
             @panic("Out of memory");
         };
     }
