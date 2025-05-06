@@ -31,9 +31,6 @@ pub const renderer_t = struct {
     var _meshPipelineLayout: c.VkPipelineLayout = undefined;
     var _meshPipeline: c.VkPipeline = undefined;
 
-    var _background_effects: std.ArrayList(effects.ComputeEffect) = undefined;
-    var _current_effect: u32 = 0;
-
     var _gui_context: gui.GuiContext = undefined;
 
     pub var _white_image: vk.image.image_t = undefined;
@@ -91,6 +88,7 @@ pub const renderer_t = struct {
 
     camera: *cam.camera_t,
     stats: stats_t,
+    bg_shader: ?*effects.ComputeEffect,
 
     pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !renderer_t {
         var renderer = renderer_t{
@@ -98,10 +96,9 @@ pub const renderer_t = struct {
 
             .camera = camera,
             .stats = stats_t{},
-            .submit = submit_t{}
+            .submit = submit_t{},
+            .bg_shader = null,
         };
-        
-        _background_effects = std.ArrayList(effects.ComputeEffect).init(allocator);
 
         std.log.info("Initiliazing vulkan instance...", .{});
         try renderer.init_vulkan(allocator, window);
@@ -137,7 +134,6 @@ pub const renderer_t = struct {
 
     pub fn deinit(self: *renderer_t) void {
         defer self._arena.deinit();
-        defer _background_effects.deinit();
 
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
@@ -322,112 +318,11 @@ pub const renderer_t = struct {
     }
 
     fn init_pipelines(self: *renderer_t, allocator: std.mem.Allocator) !void {
-        try self.init_background_pipelines(allocator);
         try self.init_triangle_pipeline(allocator);
         try self.init_mesh_pipeline(allocator);
 
         self._metal_rough_material = loader.GLTFMetallic_Roughness.init(std.heap.page_allocator);
         try self._metal_rough_material.build_pipeline(allocator, self);
-    }
-
-    fn init_background_pipelines(self: *renderer_t, allocator: std.mem.Allocator) !void {
-        const push_constant = c.VkPushConstantRange {
-            .offset = 0,
-            .size = @sizeOf(effects.ComputePushConstants),
-            .stageFlags = c.VK_SHADER_STAGE_COMPUTE_BIT,
-        };
-    
-        const compute_layout = c.VkPipelineLayoutCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-	        .pNext = null,
-
-	        .pSetLayouts = &self._draw_image_descriptor,
-	        .setLayoutCount = 1,
-
-            .pPushConstantRanges = &push_constant,
-            .pushConstantRangeCount = 1,
-        };
-
-	    const result = c.vkCreatePipelineLayout(self._device, &compute_layout, null, &_gradiant_pipeline_layout);
-        if (result != c.VK_SUCCESS) {
-            std.debug.panic("Failed to create pipeline layout !", .{});
-        }
-
-        const compute_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/gradiant.spv");
-        defer c.vkDestroyShaderModule(self._device, compute_shader, null);
-
-        const gradiant_stage_info = c.VkPipelineShaderStageCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-	        .pNext = null,
-	        .stage = c.VK_SHADER_STAGE_COMPUTE_BIT,
-	        .module = compute_shader,
-	        .pName = "main",
-        };
-	
-        const compute_pipeline_create_info = c.VkComputePipelineCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-	        .pNext = null,
-	        .layout = _gradiant_pipeline_layout,
-	        .stage = gradiant_stage_info,
-        };
-
-        var gradient = effects.ComputeEffect {
-            .layout = _gradiant_pipeline_layout,
-            .name = "gradient",
-            .data = .{
-                .data1 = c.vec4{ 1, 0, 0, 1 },
-	            .data2 = c.vec4{ 0, 0, 1, 1 },
-                .data3 = c.glms_vec4_zero().raw,
-                .data4 = c.glms_vec4_zero().raw 
-            },
-        };
-
-        {
-            const success = c.vkCreateComputePipelines(self._device, null, 1, &compute_pipeline_create_info, null, &gradient.pipeline);
-            if (success != c.VK_SUCCESS) {
-                std.debug.panic("Failed to create compute pipeline !", .{});
-            }
-        }
-
-        // sky shader
-        const sky_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/sky.spv");
-        defer c.vkDestroyShaderModule(self._device, sky_shader, null);
-
-        const sky_stage_info = c.VkPipelineShaderStageCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-	        .pNext = null,
-	        .stage = c.VK_SHADER_STAGE_COMPUTE_BIT,
-	        .module = sky_shader,
-	        .pName = "main",
-        };
-	
-        const sky_pipeline_create_info = c.VkComputePipelineCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-	        .pNext = null,
-	        .layout = _gradiant_pipeline_layout,
-	        .stage = sky_stage_info,
-        };
-
-        var sky = effects.ComputeEffect {
-            .layout = _gradiant_pipeline_layout,
-            .name = "sky",
-            .data = .{
-                .data1 = c.vec4{ 0.1, 0.2, 0.4 , 0.97 },
-	            .data2 = c.glms_vec4_zero().raw,
-                .data3 = c.glms_vec4_zero().raw,
-                .data4 = c.glms_vec4_zero().raw 
-            },
-        };
-
-        {
-            const success = c.vkCreateComputePipelines(self._device, null, 1, &sky_pipeline_create_info, null, &sky.pipeline);
-            if (success != c.VK_SUCCESS) {
-                std.debug.panic("Failed to create compute pipeline !", .{});
-            }
-        }
-
-        try _background_effects.append(gradient);
-        try _background_effects.append(sky);
     }
 
     fn init_triangle_pipeline(self: *renderer_t, allocator: std.mem.Allocator) !void {
@@ -682,15 +577,15 @@ pub const renderer_t = struct {
     }
 
     pub fn draw_background(self: *renderer_t, cmd: c.VkCommandBuffer) void {
-        const effect = current_effect();
+        const effect = self.bg_shader.?;
 
         // bind the gradient drawing compute pipeline
 	    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	    // bind the descriptor set containing the draw image for the compute pipeline
-	    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, _gradiant_pipeline_layout, 0, 1, &self._draw_image_descriptor_set, 0, null);
+	    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &self._draw_image_descriptor_set, 0, null);
 
-	    c.vkCmdPushConstants(cmd, _gradiant_pipeline_layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(effects.ComputePushConstants), &effect.data);
+	    c.vkCmdPushConstants(cmd, effect.layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(effects.ComputePushConstants), &effect.data);
 
         const group_count_x: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(self._draw_extent.width)) / 16.0)));
         const group_count_y: u32 = @intFromFloat(@as(f32, std.math.ceil(@as(f32, @floatFromInt(self._draw_extent.height)) / 16.0)));
@@ -1013,9 +908,6 @@ pub const renderer_t = struct {
         }
 
         // destroy pipelines
-        for (_background_effects.items) |*it| {
-            c.vkDestroyPipeline(self._device, it.pipeline, null);
-        }
         c.vkDestroyPipelineLayout(self._device, _gradiant_pipeline_layout, null);
 
         c.vkDestroyPipeline(self._device, _trianglePipeline, null);
@@ -1023,27 +915,6 @@ pub const renderer_t = struct {
 
         c.vkDestroyPipeline(self._device, _meshPipeline, null);
         c.vkDestroyPipelineLayout(self._device, _meshPipelineLayout, null);
-
-        // clear pipelines array
-        _background_effects.clearAndFree();
-    }
-
-    pub fn max_effect() u32 {
-        return @intCast(_background_effects.items.len);
-    }
-
-    pub fn effect_index() *u32 {
-        return &_current_effect;
-    }
-
-    pub fn current_effect() *effects.ComputeEffect {
-        for (_background_effects.items, 0..) |*e, i| {
-            if (i == _current_effect) {
-                return e;
-            }
-        }
-
-        return @constCast(&_background_effects.getLast());
     }
 
     pub fn update_scene(self: *renderer_t, scene: *scenes.scene_t) void {

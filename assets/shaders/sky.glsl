@@ -1,6 +1,6 @@
 #version 450
 layout (local_size_x = 16, local_size_y = 16) in;
-layout(rgba8,set = 0, binding = 0) uniform image2D image;
+layout(rgba16f,set = 0, binding = 0) uniform image2D image;
 
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 

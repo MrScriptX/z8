@@ -87,6 +87,9 @@ pub fn main() !u8 {
 
     try background_effects.append(&sky_shader);
 
+    var current_shader: u32 = 0;
+    renderer.bg_shader = background_effects.items[current_shader];
+
     var current_scene: i32 = 0;
     var render_scene: i32 = -1;
 
@@ -127,6 +130,11 @@ pub fn main() !u8 {
             }
 
             render_scene = -1; // force rebuild of scene
+        }
+
+        // check if bg shader needs to be rebuilt
+        if (renderer.bg_shader != background_effects.items[current_shader]) {
+            renderer.bg_shader = background_effects.items[current_shader];
         }
 
         // check if scene needs to be rebuilt
@@ -199,17 +207,14 @@ pub fn main() !u8 {
 
                 _ = imgui.SliderFloat("Render Scale", engine.renderer.renderer_t.render_scale(), 0.3, 1.0);
 
-			    const selected = engine.renderer.renderer_t.current_effect();
+			    const shader = background_effects.items[current_shader];
 		
-                const name = try std.fmt.allocPrint(std.heap.page_allocator, "Selected effect: {s}", .{ selected.name });
-			    imgui.ImGui_Text(@ptrCast(&name));
-		
-                _ = imgui.SliderUint("Effect Index", engine.renderer.renderer_t.effect_index(), 0, engine.renderer.renderer_t.max_effect() - 1);
+                _ = imgui.SliderUint("Effect Index", &current_shader, 0, @intCast(background_effects.items.len - 1));
 
-			    _ = imgui.InputFloat4("data1", &selected.data.data1);
-			    _ = imgui.InputFloat4("data2", &selected.data.data2);
-			    _ = imgui.InputFloat4("data3", &selected.data.data3);
-			    _ = imgui.InputFloat4("data4", &selected.data.data4);
+			    _ = imgui.InputFloat4("data1", &shader.data.data1);
+			    _ = imgui.InputFloat4("data2", &shader.data.data2);
+			    _ = imgui.InputFloat4("data3", &shader.data.data3);
+			    _ = imgui.InputFloat4("data4", &shader.data.data4);
 		    }
         }
 
