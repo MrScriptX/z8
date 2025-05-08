@@ -25,57 +25,57 @@ pub fn build(b: *std.Build) !void {
             stage: []const u8
         } {
             .{
-                .source = "assets/shaders/default.compute.hlsl",
+                .source = "assets/shaders/vkguide/default.compute.hlsl",
                 .output = "compute.spv",
                 .stage = "compute"
             },
             .{
-                .source = "assets/shaders/default.vert.hlsl",
+                .source = "assets/shaders/vkguide/default.vert.hlsl",
                 .output = "vertex.spv",
                 .stage = "vertex"
             },
             .{
-                .source = "assets/shaders/default.frag.hlsl",
+                .source = "assets/shaders/vkguide/default.frag.hlsl",
                 .output = "fragment.spv",
                 .stage = "fragment"
             },
             .{
-                .source = "assets/shaders/gradiant.glsl",
+                .source = "assets/shaders/vkguide/gradiant.glsl",
                 .output = "gradiant.spv",
                 .stage = "compute"
             },
             .{
-                .source = "assets/shaders/sky.glsl",
+                .source = "assets/shaders/vkguide/sky.glsl",
                 .output = "sky.spv",
                 .stage = "compute"
             },
             .{
-                .source = "assets/shaders/colored_triangle.frag.glsl",
+                .source = "assets/shaders/vkguide/colored_triangle.frag.glsl",
                 .output = "colored_triangle.frag.spv",
                 .stage = "fragment"
             },
             .{
-                .source = "assets/shaders/colored_triangle.vert.glsl",
+                .source = "assets/shaders/vkguide/colored_triangle.vert.glsl",
                 .output = "colored_triangle.vert.spv",
                 .stage = "vertex"
             },
             .{
-                .source = "assets/shaders/colored_triangle_mesh.vert.glsl",
+                .source = "assets/shaders/vkguide/colored_triangle_mesh.vert.glsl",
                 .output = "colored_triangle_mesh.vert.spv",
                 .stage = "vertex"
             },
             .{
-                .source = "assets/shaders/image_texture.frag.glsl",
+                .source = "assets/shaders/vkguide/image_texture.frag.glsl",
                 .output = "image_texture.frag.spv",
                 .stage = "fragment"
             },
             .{
-                .source = "assets/shaders/mesh.vert.glsl",
+                .source = "assets/shaders/vkguide/mesh.vert.glsl",
                 .output = "mesh.vert.spv",
                 .stage = "vertex"
             },
             .{
-                .source = "assets/shaders/mesh.frag.glsl",
+                .source = "assets/shaders/vkguide/mesh.frag.glsl",
                 .output = "mesh.frag.spv",
                 .stage = "fragment"
             },
