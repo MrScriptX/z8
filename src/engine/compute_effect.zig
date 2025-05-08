@@ -14,6 +14,11 @@ pub const ComputeEffect = struct {
     data: ComputePushConstants = undefined,
 
     pub fn deinit(self: *ComputeEffect, r: *renderer.renderer_t) void {
+        const result = c.vkDeviceWaitIdle(r._device);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("Failed to wait for device idle ! Reason {d}", .{ result });
+        }
+
         c.vkDestroyPipeline(r._device, self.pipeline, null);
         c.vkDestroyPipelineLayout(r._device, self.layout, null);
     }
