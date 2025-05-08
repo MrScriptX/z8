@@ -25,6 +25,11 @@ pub fn build(b: *std.Build) !void {
             stage: []const u8
         } {
             .{
+                .source = "assets/shaders/default.compute.hlsl",
+                .output = "compute.spv",
+                .stage = "compute"
+            },
+            .{
                 .source = "assets/shaders/default.vert.hlsl",
                 .output = "vertex.spv",
                 .stage = "vertex"
@@ -32,6 +37,56 @@ pub fn build(b: *std.Build) !void {
             .{
                 .source = "assets/shaders/default.frag.hlsl",
                 .output = "fragment.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/gradiant.glsl",
+                .output = "gradiant.spv",
+                .stage = "compute"
+            },
+            .{
+                .source = "assets/shaders/sky.glsl",
+                .output = "sky.spv",
+                .stage = "compute"
+            },
+            .{
+                .source = "assets/shaders/colored_triangle.frag.glsl",
+                .output = "colored_triangle.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/colored_triangle.vert.glsl",
+                .output = "colored_triangle.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/colored_triangle_mesh.vert.glsl",
+                .output = "colored_triangle_mesh.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/image_texture.frag.glsl",
+                .output = "image_texture.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/mesh.vert.glsl",
+                .output = "mesh.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/mesh.frag.glsl",
+                .output = "mesh.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/voxels/voxel.vert.glsl",
+                .output = "voxel.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/voxels/voxel.frag.glsl",
+                .output = "voxel.frag.spv",
                 .stage = "fragment"
             }
         };
@@ -64,6 +119,29 @@ pub fn build(b: *std.Build) !void {
     exe.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
 
     exe.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
+
+    exe.addCSourceFile(.{ .file = b.path("src/vk_mem_alloc.cpp"), .flags = &.{ "" } });
+
+    // add imgui
+    const cimgui = @import("libs/cimgui/build.zig").build(b, target, optimize);
+    exe.root_module.addImport("imgui", cimgui);
+
+    // add cgltf
+    const gltf = @import("libs/cgltf/build.zig").build(b, target, optimize);
+    exe.root_module.addImport("cgltf", gltf);
+
+    // add zalgebra
+    const zalgebra = b.addModule("zalgebra", .{
+        .root_source_file = b.path("common/zalgebra/src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.root_module.addImport("zalgebra", zalgebra);
+
+    // add stb
+    const stb = @import("libs/stb/build.zig").build(b, target, optimize);
+    exe.root_module.addImport("stb", stb);
 
     exe.linkLibC();
     exe.linkLibCpp();
@@ -107,6 +185,44 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+
+    unit_tests.linkSystemLibrary(vk_lib_name);
+
+    if (env_map.get("VK_SDK_PATH")) |path| {
+        unit_tests.addLibraryPath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/lib", .{path}) catch @panic("OOM") });
+        unit_tests.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
+    }
+
+    unit_tests.linkSystemLibrary("SDL3");
+    unit_tests.addLibraryPath(.{ .cwd_relative = "common/SDL3/lib" });
+    unit_tests.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
+
+    unit_tests.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
+
+    unit_tests.addCSourceFile(.{ .file = b.path("src/vk_mem_alloc.cpp"), .flags = &.{ "" } });
+
+    // add imgui
+    unit_tests.addIncludePath(.{ .cwd_relative = "common/imgui-1.91.9b" });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_widgets.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_tables.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_draw.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_impl_sdl3.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_impl_vulkan.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_demo.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_internal.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_sdl3.cpp"), .flags = &.{ "" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_vulkan.cpp"), .flags = &.{ "" } });
+
+    // add cgltf
+    unit_tests.addIncludePath(.{ .cwd_relative = "common/cgltf" });
+    unit_tests.addCSourceFile(.{ .file = b.path("src/lib/gltf.c"), .flags = &.{ "" } });
+
+    unit_tests.root_module.addImport("zalgebra", zalgebra);
+
+    unit_tests.linkLibC();
+    unit_tests.linkLibCpp();
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
