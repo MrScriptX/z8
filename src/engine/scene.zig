@@ -27,6 +27,14 @@ pub const scene_t = struct {
             .mem = std.heap.ArenaAllocator.init(alloc),
             .draw_context = mesh.DrawContext.init(alloc),
             ._type = t,
+            .data = .{
+                .view = za.Mat4.identity().data,
+                .proj = za.Mat4.identity().data,
+                .viewproj = za.Mat4.identity().data,
+                .ambient_color = [4]f32 { 0.1, 0.1, 0.1, 0.1 },
+                .sunlight_color = [4]f32 { 1, 1, 1, 1 },
+                .sunlight_dir = [4]f32 { 0, 1, 0.5, 1 },
+            }
         };
 
         return scene;
@@ -81,9 +89,9 @@ pub const scene_t = struct {
         self.data.view = view.data;
         self.data.proj = proj.data;
         self.data.viewproj = za.Mat4.mul(proj, view).data;
-        self.data.ambient_color = [4]f32 { 0.1, 0.1, 0.1, 0.1 };
-        self.data.sunlight_color = [4]f32 { 1, 1, 1, 1 };
-        self.data.sunlight_dir = [4]f32 { 0, 1, 0.5, 1 };
+        // self.data.ambient_color = [4]f32 { 0.1, 0.1, 0.1, 0.1 };
+        // self.data.sunlight_color = [4]f32 { 1, 1, 1, 1 };
+        // self.data.sunlight_dir = [4]f32 { 0, 1, 0.5, 1 };
 
         self.draw_context.opaque_surfaces.clearRetainingCapacity();
         self.draw_context.transparent_surfaces.clearRetainingCapacity();

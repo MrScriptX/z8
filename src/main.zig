@@ -196,6 +196,18 @@ pub fn main() !u8 {
 
                 const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "cube" };
                 _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 3);
+
+                if (scene_manager.scene(@intCast(render_scene))) |scene| {
+                    const data = &scene.data;
+                    
+                    imgui.ImGui_Text("sun direction");
+                    _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
+                    _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
+                    _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
+
+                    _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
+                    _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
+                }
 		    }
         }
 
