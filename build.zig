@@ -18,78 +18,6 @@ pub fn build(b: *std.Build) !void {
 
     if (env_map.get("VULKAN_SDK")) |path| {
         const glslc_path = std.fmt.allocPrint(b.allocator, "{s}/Bin/glslc.exe", .{path}) catch @panic("OOM");
-        
-        const shaders = [_]struct {
-            source: []const u8,
-            output: []const u8,
-            stage: []const u8
-        } {
-            .{
-                .source = "assets/shaders/vkguide/default.compute.hlsl",
-                .output = "compute.spv",
-                .stage = "compute"
-            },
-            .{
-                .source = "assets/shaders/vkguide/default.vert.hlsl",
-                .output = "vertex.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/vkguide/default.frag.hlsl",
-                .output = "fragment.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/vkguide/gradiant.glsl",
-                .output = "gradiant.spv",
-                .stage = "compute"
-            },
-            .{
-                .source = "assets/shaders/vkguide/sky.glsl",
-                .output = "sky.spv",
-                .stage = "compute"
-            },
-            .{
-                .source = "assets/shaders/vkguide/colored_triangle.frag.glsl",
-                .output = "colored_triangle.frag.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/vkguide/colored_triangle.vert.glsl",
-                .output = "colored_triangle.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/vkguide/colored_triangle_mesh.vert.glsl",
-                .output = "colored_triangle_mesh.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/vkguide/image_texture.frag.glsl",
-                .output = "image_texture.frag.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/vkguide/mesh.vert.glsl",
-                .output = "mesh.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/vkguide/mesh.frag.glsl",
-                .output = "mesh.frag.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/voxels/voxel.vert.glsl",
-                .output = "voxel.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/voxels/voxel.frag.glsl",
-                .output = "voxel.frag.spv",
-                .stage = "fragment"
-            }
-        };
 
         for (shaders) |shader| {
             const glslc = b.addSystemCommand(&.{glslc_path});
@@ -232,3 +160,90 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 }
+
+const shaders = [_]struct {
+    source: []const u8,
+    output: []const u8,
+    stage: []const u8
+} {
+    .{
+                .source = "assets/shaders/vkguide/default.compute.hlsl",
+                .output = "compute.spv",
+                .stage = "compute"
+            },
+            .{
+                .source = "assets/shaders/vkguide/default.vert.hlsl",
+                .output = "vertex.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/vkguide/default.frag.hlsl",
+                .output = "fragment.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/vkguide/gradiant.glsl",
+                .output = "gradiant.spv",
+                .stage = "compute"
+            },
+            .{
+                .source = "assets/shaders/vkguide/sky.glsl",
+                .output = "sky.spv",
+                .stage = "compute"
+            },
+            .{
+                .source = "assets/shaders/vkguide/colored_triangle.frag.glsl",
+                .output = "colored_triangle.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/vkguide/colored_triangle.vert.glsl",
+                .output = "colored_triangle.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/vkguide/colored_triangle_mesh.vert.glsl",
+                .output = "colored_triangle_mesh.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/vkguide/image_texture.frag.glsl",
+                .output = "image_texture.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/vkguide/mesh.vert.glsl",
+                .output = "mesh.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/vkguide/mesh.frag.glsl",
+                .output = "mesh.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/voxels/voxel.vert.glsl",
+                .output = "voxel.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/voxels/voxel.frag.glsl",
+                .output = "voxel.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/aurora/cube.frag.glsl",
+                .output = "cube.frag.spv",
+                .stage = "fragment"
+            },
+            .{
+                .source = "assets/shaders/aurora/cube.vert.glsl",
+                .output = "cube.vert.spv",
+                .stage = "vertex"
+            },
+            .{
+                .source = "assets/shaders/aurora/cube.comp.glsl",
+                .output = "cube.comp.spv",
+                .stage = "compute"
+            },
+        };
