@@ -172,5 +172,5 @@ pub const GPUDrawPushConstants = struct {
 };
 
 const std = @import("std");
-const c = @import("../clibs.zig");
-const renderer = @import("renderer.zig");
+const c = @import("../../clibs.zig");
+const renderer = @import("../renderer.zig");

@@ -249,11 +249,11 @@ const cube_indices = [_]u32{
 
 const std = @import("std");
 const engine = @import("engine/renderer.zig");
-const buffers = @import("engine/buffers.zig");
-const mat = @import("engine/materials.zig");
+const buffers = @import("engine/graphics/buffers.zig");
+const mat = @import("engine/graphics/materials.zig");
 const descriptors = @import("engine/descriptor.zig");
 const c = @import("clibs.zig");
 const maths = @import("utils/maths.zig");
 const images = @import("engine/vulkan/image.zig");
 const pipelines = @import("engine/pipeline.zig");
-const assets = @import("engine/assets.zig");
+const assets = @import("engine/graphics/assets.zig");

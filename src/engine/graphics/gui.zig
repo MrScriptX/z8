@@ -141,7 +141,7 @@ pub fn show_stats_window(r: *renderer.renderer_t) void {
 }
 
 const std = @import("std");
-const c = @import("../clibs.zig");
+const c = @import("../../clibs.zig");
 const imgui = @import("imgui");
-const renderer = @import("renderer.zig");
+const renderer = @import("../renderer.zig");
 const sdl = @import("sdl3");

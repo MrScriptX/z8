@@ -692,16 +692,16 @@ pub fn extract_mipmap_mode(filter: u32) c.VkSamplerMipmapMode {
 }
 
 const std = @import("std");
-const c = @import("../clibs.zig");
-const buffers = @import("buffers.zig");
+const c = @import("../../clibs.zig");
+const buffers = @import("../graphics/buffers.zig");
 const z = @import("zalgebra");
-const mat = @import("materials.zig");
-const m = @import("assets.zig");
-const descriptors = @import("descriptor.zig");
-const renderer = @import("renderer.zig");
-const vk_images = @import("vulkan/image.zig");
+const mat = @import("../graphics/materials.zig");
+const m = @import("../graphics/assets.zig");
+const descriptors = @import("../descriptor.zig");
+const renderer = @import("../renderer.zig");
+const vk_images = @import("../vulkan/image.zig");
 const cgltf = @import("cgltf");
 const stb = @import("stb");
-const pipeline = @import("pipeline.zig");
-const maths = @import("../utils/maths.zig");
-const assets = @import("assets.zig");
+const pipeline = @import("../pipeline.zig");
+const maths = @import("../../utils/maths.zig");
+const assets = @import("../graphics/assets.zig");

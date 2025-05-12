@@ -136,8 +136,7 @@ pub const MeshAsset = struct {
 };
 
 const std = @import("std");
-const math = @import("../utils/maths.zig");
+const math = @import("../../utils/maths.zig");
 const mat = @import("materials.zig");
 const z = @import("zalgebra");
 const buffers = @import("buffers.zig");
-const gltf = @import("gltf.zig");

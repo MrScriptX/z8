@@ -46,6 +46,6 @@ pub const Voxel = struct {
 
 const std = @import("std");
 const c = @import("clibs.zig");
-const buffers = @import("engine/buffers.zig");
+const buffers = @import("engine/graphics/buffers.zig");
 const shader = @import("engine/compute_effect.zig");
-const materials = @import("engine/materials.zig");
+const materials = @import("engine/graphics/materials.zig");
