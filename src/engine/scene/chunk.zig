@@ -6,12 +6,13 @@ pub const Voxel = struct {
     compute_shader: *compute.Instance,
     material: *materials.MaterialInstance,
 
-    pub fn init(vma: c.VmaAllocator, p: *shader.ComputeEffect) Voxel {
+    pub fn init(vma: c.VmaAllocator, shader: *compute.Instance, mat: *materials.MaterialInstance) Voxel {
         const buffer_size = @sizeOf(buffers.Vertex) * cube_vertex_count;
 
         return .{
             .vertex_buffer = buffers.AllocatedBuffer.init(vma, buffer_size, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-            .pipeline = p,
+            .compute_shader = shader,
+            .material = mat,
         };
     }
 
@@ -45,9 +46,34 @@ pub const Voxel = struct {
     }
 };
 
+pub const Material = struct {
+    pipeline: *materials.MaterialPipeline,
+    layout: c.VkDescriptorSetLayout,
+    writer: descriptors.Writer,
+
+    pub fn init(allocator: std.mem.Allocator) Material {
+        const instance = Material {
+            .writer = descriptors.Writer.init(allocator),
+            .layout = undefined,
+            .pipeline = undefined,
+        };
+
+        return instance;
+    }
+
+    pub fn deinit(self: *Material, device: c.VkDevice) void {
+        c.vkDestroyPipeline(device, self.pipeline.pipeline , null);
+        c.vkDestroyPipelineLayout(device, self.pipeline.layout, null);
+
+        c.vkDestroyDescriptorSetLayout(device, self.layout, null);
+
+        self.writer.deinit();
+    }
+};
+
 const std = @import("std");
 const c = @import("../../clibs.zig");
 const buffers = @import("../graphics/buffers.zig");
-const shader = @import("../compute_effect.zig");
 const materials = @import("../graphics/materials.zig");
 const compute = @import("../graphics/compute.zig");
+const descriptors = @import("../descriptor.zig");

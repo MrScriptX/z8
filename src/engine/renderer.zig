@@ -771,6 +771,10 @@ pub const renderer_t = struct {
         self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
     }
 
+    // var voxel_mat: material.MaterialPipeline = undefined;
+    // var voxel_shader: compute.Shader = undefined;
+    // var chunk: voxel.Voxel = undefined;
+
     fn init_default_data(self: *renderer_t, _: std.mem.Allocator) !void {
         // initialize textures
         const white: u32 align(4) = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
@@ -816,6 +820,14 @@ pub const renderer_t = struct {
         scene_uniform_data.metal_rough_factors = maths.vec4{ 1, 0.5, 0, 0 };
 
         try self.init_mesh_material();
+
+        // voxel
+        // voxel_shader = compute.Shader.init("voxel");
+        // voxel_shader.build(std.heap.page_allocator, "", self);
+
+        // voxel_mat = 
+
+        // chunk = voxel.Voxel.init(self._vma, &voxel_shader, );
     }
 
     fn init_mesh_material(self: *renderer_t) !void {
@@ -947,3 +959,6 @@ const maths = @import("../utils/maths.zig");
 const material = @import("graphics/materials.zig");
 const m = @import("graphics/assets.zig");
 const cam = @import("scene/camera.zig");
+
+const voxel = @import("scene/chunk.zig");
+const compute = @import("graphics/compute.zig");
