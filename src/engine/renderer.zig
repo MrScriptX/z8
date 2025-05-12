@@ -771,7 +771,7 @@ pub const renderer_t = struct {
         self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
     }
 
-    // var voxel_mat: material.MaterialPipeline = undefined;
+    var voxel_mat: voxel.Material = undefined;
     // var voxel_shader: compute.Shader = undefined;
     // var chunk: voxel.Voxel = undefined;
 
@@ -822,10 +822,13 @@ pub const renderer_t = struct {
         try self.init_mesh_material();
 
         // voxel
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        defer std.log.debug("leak : {any}", .{ gpa.deinit() });
+
         // voxel_shader = compute.Shader.init("voxel");
         // voxel_shader.build(std.heap.page_allocator, "", self);
 
-        // voxel_mat = 
+        voxel_mat = voxel.Material.init(gpa.allocator(), self);
 
         // chunk = voxel.Voxel.init(self._vma, &voxel_shader, );
     }

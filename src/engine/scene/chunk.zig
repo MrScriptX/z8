@@ -9,6 +9,9 @@ pub const Voxel = struct {
     pub fn init(vma: c.VmaAllocator, shader: *compute.Instance, mat: *materials.MaterialInstance) Voxel {
         const buffer_size = @sizeOf(buffers.Vertex) * cube_vertex_count;
 
+        // material = try voxel.allocator.create(mat.MaterialInstance);
+        // .material.* = material.write_material(alloc, renderer._device, mat.MaterialPass.MainColor, &mat_resources, &material.pool);
+
         return .{
             .vertex_buffer = buffers.AllocatedBuffer.init(vma, buffer_size, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
             .compute_shader = shader,
@@ -51,11 +54,15 @@ pub const Material = struct {
     layout: c.VkDescriptorSetLayout,
     writer: descriptors.Writer,
 
-    pub fn init(allocator: std.mem.Allocator) Material {
-        const instance = Material {
+    pub fn init(allocator: std.mem.Allocator, r: *const renderer.renderer_t) Material {
+        var instance = Material {
             .writer = descriptors.Writer.init(allocator),
             .layout = undefined,
             .pipeline = undefined,
+        };
+
+        instance.build_pipeline(allocator, r) catch {
+            std.log.err("Failed to build pipeline", .{});
         };
 
         return instance;
@@ -69,6 +76,95 @@ pub const Material = struct {
 
         self.writer.deinit();
     }
+
+    fn build_pipeline(self: *Material, allocator: std.mem.Allocator, r: *const renderer.renderer_t) !void {
+        const frag_shader = try p.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/voxel.frag.spv");
+        defer c.vkDestroyShaderModule(r._device, frag_shader, null);
+
+        const vert_shader = try p.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/voxel.vert.spv");
+        defer c.vkDestroyShaderModule(r._device, vert_shader, null);
+
+        const matrix_range: c.VkPushConstantRange = .{
+            .offset = 0,
+            .size = @sizeOf(buffers.GPUDrawPushConstants),
+            .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
+        };
+
+        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        defer layout_builder.deinit();
+
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
+
+        const layouts = [_]c.VkDescriptorSetLayout {
+            r._gpu_scene_data_descriptor_layout,
+            self.layout
+        };
+
+        const mesh_layout_info = c.VkPipelineLayoutCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = null,
+
+            .setLayoutCount = 2,
+            .pSetLayouts = &layouts,
+            .pPushConstantRanges = &matrix_range,
+            .pushConstantRangeCount = 1,
+        };
+
+        var new_layout: c.VkPipelineLayout = undefined;
+        const result = c.vkCreatePipelineLayout(r._device, &mesh_layout_info, null, &new_layout);
+        if (result != c.VK_SUCCESS) {
+            std.log.err("Failed to create descriptor layout ! Reason {d}", .{ result });
+            @panic("Failed to create descriptor layout");
+        }
+
+        self.pipeline.layout = new_layout;
+
+        var builder = p.builder_t.init(allocator);
+        defer builder.deinit();
+
+        try builder.set_shaders(vert_shader, frag_shader);
+        builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
+        builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
+        builder.set_multisampling_none();
+        builder.disable_blending();
+        builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+        builder.set_color_attachment_format(r._draw_image.format);
+        builder.set_depth_format(r._depth_image.format);
+
+        builder._pipeline_layout = new_layout;
+
+        self.pipeline.pipeline = builder.build_pipeline(r._device);
+    }
+
+    pub fn write_material(self: *Material, allocator: std.mem.Allocator, device: c.VkDevice, pass: materials.MaterialPass, resources: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2)  materials.MaterialInstance {
+        const data =  materials.MaterialInstance {
+            .pass_type = pass,
+            .pipeline = self.default_pipeline,
+            .material_set = ds_alloc.allocate(allocator, device, self.layout, null),
+        };
+
+        self.writer.clear();
+        self.writer.write_buffer(0, resources.data_buffer, @sizeOf(Constants), resources.data_buffer_offset, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        // self.writer.write_image(1, resources.color_image.view, resources.color_sampler, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+        self.writer.update_set(device, data.material_set);
+
+        return data;
+    }
+
+    pub const Constants = struct {
+        color_factors: @Vector(4, f32) align(16),
+    };
+
+    pub const Resources = struct {
+        data_buffer: c.VkBuffer,
+        data_buffer_offset: u32,
+    };
 };
 
 const std = @import("std");
@@ -77,3 +173,5 @@ const buffers = @import("../graphics/buffers.zig");
 const materials = @import("../graphics/materials.zig");
 const compute = @import("../graphics/compute.zig");
 const descriptors = @import("../descriptor.zig");
+const p = @import("../pipeline.zig");
+const renderer = @import("../renderer.zig");
