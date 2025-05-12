@@ -43,8 +43,11 @@ pub fn build(b: *std.Build) !void {
     }
 
     exe.linkSystemLibrary("SDL3");
-    exe.addLibraryPath(.{ .cwd_relative = "common/SDL3/lib" });
-    exe.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
+    // exe.addLibraryPath(.{ .cwd_relative = "common/SDL3/lib" });
+    // exe.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
+    // add sdl3
+    const sdl = @import("libs/sdl/build.zig").build(b, target, optimize);
+    exe.root_module.addImport("sdl3", sdl);
 
     exe.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
 

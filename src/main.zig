@@ -1,22 +1,22 @@
 pub fn main() !u8 {
-    const init = c.SDL_Init(c.SDL_INIT_VIDEO);
+    const init = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
     if (!init) {
-        c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s", c.SDL_GetError());
+        sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s", sdl.SDL_GetError());
         return 1;
     }
-    defer c.SDL_Quit();
+    defer sdl.SDL_Quit();
 
     const width = 1280;
     const heigh = 960;
 
-    const window = c.SDL_CreateWindow("Hello World", width, heigh, c.SDL_WINDOW_VULKAN | c.SDL_WINDOW_RESIZABLE);
+    const window = sdl.SDL_CreateWindow("Hello World", width, heigh, sdl.SDL_WINDOW_VULKAN | sdl.SDL_WINDOW_RESIZABLE);
     if (window == null) {
-        c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to create window: %s", c.SDL_GetError());
+        sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to create window: %s", sdl.SDL_GetError());
         return 1;
     }
-    defer c.SDL_DestroyWindow(window);
+    defer sdl.SDL_DestroyWindow(window);
 
-    _ = c.SDL_SetWindowRelativeMouseMode(window, true);
+    _ = sdl.SDL_SetWindowRelativeMouseMode(window, true);
 
     var main_camera: engine.camera.camera_t = .{
         .position = .{ 0, 0, 75 },
@@ -28,7 +28,7 @@ pub fn main() !u8 {
     defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
     var renderer = engine.renderer.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
-        c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
+        sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
     defer renderer.deinit();
@@ -98,14 +98,14 @@ pub fn main() !u8 {
     while (!quit) {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
-        var event: c.SDL_Event = undefined;
-        while (c.SDL_PollEvent(&event)) {
-            if (event.type == c.SDL_EVENT_QUIT) {
+        var event: sdl.SDL_Event = undefined;
+        while (sdl.SDL_PollEvent(&event)) {
+            if (event.type == sdl.SDL_EVENT_QUIT) {
                 quit = true;
             }
-            else if (event.type == c.SDL_EVENT_KEY_DOWN) {
-                if (event.key.key == c.SDLK_ESCAPE) {
-                    const succeed = c.SDL_SetWindowRelativeMouseMode(window, !main_camera.active);
+            else if (event.type == sdl.SDL_EVENT_KEY_DOWN) {
+                if (event.key.key == sdl.SDLK_ESCAPE) {
+                    const succeed = sdl.SDL_SetWindowRelativeMouseMode(window, !main_camera.active);
                     if (succeed) {
                         main_camera.active = !main_camera.active;
                     }
@@ -286,10 +286,10 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     defer allocator.free(log_msg);
 
     if (level == std.log.Level.err) {
-        const success = c.SDL_ShowSimpleMessageBox(c.SDL_MESSAGEBOX_ERROR, "Error", log_msg.ptr, null);
+        const success = sdl.SDL_ShowSimpleMessageBox(sdl.SDL_MESSAGEBOX_ERROR, "Error", log_msg.ptr, null);
         if (!success) {
-            std.debug.print("Unable to show message box: {s}\n", .{ c.SDL_GetError() });
-            c.SDL_LogError(c.SDL_LOG_CATEGORY_APPLICATION, "Unable to show message box: %s", c.SDL_GetError());
+            std.debug.print("Unable to show message box: {s}\n", .{ sdl.SDL_GetError() });
+            sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to show message box: %s", sdl.SDL_GetError());
         }
     }
 
@@ -310,6 +310,7 @@ test "engine test" {
 const std = @import("std");
 const builtin = @import("builtin");
 const c = @import("clibs.zig");
+const sdl = @import("sdl3");
 const engine = @import("engine/engine.zig");
 const imgui = @import("imgui");
 const za = @import("zalgebra");

@@ -90,7 +90,7 @@ pub const renderer_t = struct {
     stats: stats_t,
     bg_shader: ?*effects.ComputeEffect,
 
-    pub fn init(allocator: std.mem.Allocator, window: ?*c.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !renderer_t {
+    pub fn init(allocator: std.mem.Allocator, window: ?*sdl.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !renderer_t {
         var renderer = renderer_t{
             ._arena = std.heap.ArenaAllocator.init(allocator),
 
@@ -174,7 +174,7 @@ pub const renderer_t = struct {
         c.vkDestroyInstance(self._instance, null);
     }
 
-    fn init_vulkan(self: *renderer_t, allocator: std.mem.Allocator, window: ?*c.SDL_Window) !void {
+    fn init_vulkan(self: *renderer_t, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) !void {
         self._instance = try vk.init.init_instance(allocator);
         self._surface = try vk.init.create_surface(window, self._instance);
         self._gpu = try vk.init.select_physical_device(allocator, self._instance, self._surface);
@@ -839,7 +839,7 @@ pub const renderer_t = struct {
         return self._rebuild_swapchain;
     }
 
-    pub fn rebuild_swapchain(self: *renderer_t, allocator: std.mem.Allocator, window: ?*c.SDL_Window) void {
+    pub fn rebuild_swapchain(self: *renderer_t, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) void {
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device with error {d}", .{ result });
@@ -849,7 +849,7 @@ pub const renderer_t = struct {
 
         var width: i32 = 0;
         var height: i32 = 0;
-        const succeed = c.SDL_GetWindowSize(window, &width, &height);
+        const succeed = sdl.SDL_GetWindowSize(window, &width, &height);
         if (!succeed) {
             std.log.warn("Failed to get window current size", .{});
         }
@@ -931,6 +931,7 @@ pub const renderer_t = struct {
 
 const std = @import("std");
 const c = @import("../clibs.zig");
+const sdl = @import("sdl3");
 const gui = @import("gui.zig");
 const z = @import("zalgebra");
 const vk = @import("vulkan/vulkan.zig");
