@@ -2,8 +2,9 @@ const cube_vertex_count = 36;
 
 pub const Voxel = struct {
     vertex_buffer: buffers.AllocatedBuffer,
-    compute_pipeline: *shader.ComputeEffect,
-    graphic_pipeline: *materials.MaterialPipeline,
+
+    compute_shader: *compute.Instance,
+    material: *materials.MaterialInstance,
 
     pub fn init(vma: c.VmaAllocator, p: *shader.ComputeEffect) Voxel {
         const buffer_size = @sizeOf(buffers.Vertex) * cube_vertex_count;
@@ -18,9 +19,9 @@ pub const Voxel = struct {
         self.vertex_buffer.deinit(vma);
     }
 
-    pub fn compute(self: *Voxel, cmd: c.VkCommandBuffer, descriptor_set: c.VkDescriptorSet) void {
-        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_pipeline.pipeline);
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_pipeline.layout, 0, 1, &descriptor_set, 0, null);
+    pub fn dispatch(self: *Voxel, cmd: c.VkCommandBuffer) void {
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.pipeline);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.layout, 0, 1, &self.compute_shader.descriptor, 0, null);
         c.vkCmdDispatch(cmd, cube_vertex_count, 1, 1);
 
         const barrier = c.VkBufferMemoryBarrier {
@@ -38,14 +39,15 @@ pub const Voxel = struct {
     }
 
     pub fn draw(self: *Voxel, cmd: c.VkCommandBuffer) void {
-        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.graphic_pipeline.pipeline);
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.material.pipeline.pipeline);
         c.vkCmdBindVertexBuffers(cmd, 0, 1, &self.vertex_buffer.buffer, 0);
         c.vkCmdDraw(cmd, cube_vertex_count, 1, 0, 0);
     }
 };
 
 const std = @import("std");
-const c = @import("clibs.zig");
-const buffers = @import("engine/graphics/buffers.zig");
-const shader = @import("engine/compute_effect.zig");
-const materials = @import("engine/graphics/materials.zig");
+const c = @import("../../clibs.zig");
+const buffers = @import("../graphics/buffers.zig");
+const shader = @import("../compute_effect.zig");
+const materials = @import("../graphics/materials.zig");
+const compute = @import("../graphics/compute.zig");
