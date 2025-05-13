@@ -3,8 +3,16 @@ const cube_vertex_count = 36;
 pub const Voxel = struct {
     arena: std.heap.ArenaAllocator,
 
-    vertex_buffer: buffers.AllocatedBuffer,
-    index_buffer: buffers.AllocatedBuffer,
+    buffer: buffers.GPUMeshBuffers,
+    
+    indices: [8]u32 = .{ 0 } ** 8,
+    vertices: [36]buffers.Vertex = .{ buffers.Vertex{
+        .position = std.mem.zeroes([3]f32),
+        .uv_x = 0,
+        .normal = std.mem.zeroes([3]f32),
+        .uv_y = 0,
+        .color = std.mem.zeroes([4]f32)
+    } } ** 36,
 
     compute_shader: *compute.Instance,
     material: *materials.MaterialInstance,
@@ -13,23 +21,21 @@ pub const Voxel = struct {
     material_buffer: buffers.AllocatedBuffer,
 
     pub fn init(allocator: std.mem.Allocator, vma: c.VmaAllocator, shader: *compute.Shader, mat: *Material, r: *const renderer.renderer_t) Voxel {
-        const buffer_size = @sizeOf(buffers.Vertex) * cube_vertex_count;
-
         const sizes = [_]descriptors.PoolSizeRatio {
-            // .{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 3 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 2 }
         };
 
         var voxel: Voxel = .{
             .arena = std.heap.ArenaAllocator.init(allocator),
-            .vertex_buffer = buffers.AllocatedBuffer.init(vma, buffer_size, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-            .index_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(u32) * 8, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+            .buffer = undefined,
             .compute_shader = undefined,
             .material = undefined,
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
             .material_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(Material.Constants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
         };
+
+        voxel.buffer = buffers.GPUMeshBuffers.init(vma, &voxel.indices, &voxel.vertices, r);
 
         const resources = Material.Resources {
             .data_buffer =  voxel.material_buffer.buffer,
@@ -40,9 +46,9 @@ pub const Voxel = struct {
         voxel.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &voxel.descriptor_pool);
 
         const compute_resources: compute.Shader.Resource = .{
-            .index_buffer = voxel.index_buffer.buffer,
+            .index_buffer = voxel.buffer.index_buffer.buffer,
             .index_buffer_offset = 0,
-            .vertex_buffer = voxel.vertex_buffer.buffer,
+            .vertex_buffer = voxel.buffer.vertex_buffer.buffer,
             .vertex_buffer_offset = 0,
         };
 
@@ -53,8 +59,7 @@ pub const Voxel = struct {
     }
 
     pub fn deinit(self: *Voxel, vma: c.VmaAllocator, r: *const renderer.renderer_t) void {
-        self.vertex_buffer.deinit(vma);
-        self.index_buffer.deinit(vma);
+        self.buffer.deinit(vma);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
         
@@ -77,7 +82,7 @@ pub const Voxel = struct {
             .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
             .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .buffer = self.vertex_buffer.buffer,
+            .buffer = self.buffer.vertex_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(buffers.Vertex) * cube_vertex_count,
         };
@@ -88,7 +93,7 @@ pub const Voxel = struct {
             .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
             .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .buffer = self.index_buffer.buffer,
+            .buffer = self.buffer.index_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(u32) * 8,
         };
@@ -101,16 +106,27 @@ pub const Voxel = struct {
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, null, 2, @ptrCast(&barriers), 0, null);
     }
 
-    pub fn draw(self: *Voxel, cmd: c.VkCommandBuffer) void {
+    pub fn draw(self: *Voxel, cmd: c.VkCommandBuffer, global_descriptor: c.VkDescriptorSet) void {
+        const constant = buffers.GPUDrawPushConstants{
+            .vertex_buffer = self.buffer.vertex_buffer_address,
+            .world_matrix = za.Mat4.identity().data,
+        };
+
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.material.pipeline.pipeline);
-        c.vkCmdBindVertexBuffers(cmd, 0, 1, &self.vertex_buffer.buffer, 0);
-        c.vkCmdBindIndexBuffer(cmd, 0, 1, &self.index_buffer.buffer, 0);
-        c.vkCmdDraw(cmd, 36, 1, 0, 0);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.material.pipeline.layout, 1, 1, &self.material.material_set, 0, null);
+
+        c.vkCmdBindIndexBuffer(cmd, self.buffer.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+
+        c.vkCmdPushConstants(cmd, self.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &constant);
+
+        c.vkCmdDrawIndexed(cmd, self.indices.len, 1, 0, 0, 0);
     }
 };
 
 pub const Material = struct {
-    pipeline: *materials.MaterialPipeline,
+    pipeline: materials.MaterialPipeline,
     layout: c.VkDescriptorSetLayout,
     writer: descriptors.Writer,
 
@@ -121,6 +137,7 @@ pub const Material = struct {
             .pipeline = undefined,
         };
 
+        std.log.info("Build voxel graphical pipeline", .{});
         instance.build_pipeline(allocator, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
@@ -204,13 +221,12 @@ pub const Material = struct {
     pub fn write_material(self: *Material, allocator: std.mem.Allocator, device: c.VkDevice, pass: materials.MaterialPass, resources: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2)  materials.MaterialInstance {
         const data =  materials.MaterialInstance {
             .pass_type = pass,
-            .pipeline = self.pipeline,
+            .pipeline = &self.pipeline,
             .material_set = ds_alloc.allocate(allocator, device, self.layout, null),
         };
 
         self.writer.clear();
         self.writer.write_buffer(0, resources.data_buffer, @sizeOf(Constants), resources.data_buffer_offset, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        // self.writer.write_image(1, resources.color_image.view, resources.color_sampler, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
         self.writer.update_set(device, data.material_set);
 
@@ -228,6 +244,7 @@ pub const Material = struct {
 };
 
 const std = @import("std");
+const za = @import("zalgebra");
 const c = @import("../../clibs.zig");
 const buffers = @import("../graphics/buffers.zig");
 const materials = @import("../graphics/materials.zig");

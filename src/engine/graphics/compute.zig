@@ -37,6 +37,8 @@ pub const Shader = struct {
         c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
         c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
 
+        c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
+
         self.writer.deinit();
     }
 

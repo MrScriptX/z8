@@ -2,6 +2,8 @@ const Error = error{
     Failed,
     VulkanInit,
     SwapchainInit,
+    SkipImage,
+    OutOfDate,
 };
 
 pub const stats_t = struct {
@@ -139,6 +141,11 @@ pub const renderer_t = struct {
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device idle ! Reason {d}.", .{result});
         }
+
+        chunk.deinit(self._vma, self);
+        voxel_shader.deinit(self);
+        voxel_mat.deinit(self._device);
+        std.log.debug("voxel allocator leak : {any}", .{ gpa.deinit() });
 
         c.vkDestroySampler(self._device, _default_sampler_nearest, null);
         c.vkDestroySampler(self._device, _default_sampler_linear, null);
@@ -431,12 +438,12 @@ pub const renderer_t = struct {
         return @max(-n, n);
     }
 
-    pub fn draw(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.scene_t) void {
+    fn next_image(self: *renderer_t) Error!u32 {
         var result = c.vkWaitForFences(self._device, 1, &self.current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkWaitForFences failed with error {d}\n", .{ result });
             self._frameNumber += 1;
-            return;
+            return Error.SkipImage;
         }
 
         self.current_frame().flush(self._vma);
@@ -455,35 +462,35 @@ pub const renderer_t = struct {
             c.VK_SUCCESS => {},
             c.VK_ERROR_OUT_OF_DATE_KHR => {
                 std.log.info("VK_ERROR_OUT_OF_DATE_KHR - rebuilding swapchain...", .{});
-
-                self._rebuild_swapchain = true;
-                return;
+                return Error.OutOfDate;
             },
             c.VK_SUBOPTIMAL_KHR => {
                 std.log.info("VK_SUBOPTIMAL_KHR - rebuilding swapchain...", .{});
-
-                self._rebuild_swapchain = true;
-                return;
+                return Error.OutOfDate;
             },
             else => {
                 std.log.warn("vkAcquireNextImageKHR failed with error {d}\n", .{ result });
-                return;
+                return Error.SkipImage;
             }
         }
 
-        result = c.vkResetFences(self._device, 1, &self.current_frame()._render_fence);
+        return image_index;
+    }
+
+    fn begin_draw(self: *renderer_t) Error!c.VkCommandBuffer {
+        var result = c.vkResetFences(self._device, 1, &self.current_frame()._render_fence);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetFences failed with error {x}\n", .{ result });
-            return;
+            return Error.SkipImage;
         }
 
         result = c.vkResetCommandBuffer(self.current_frame()._main_buffer, 0);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetCommandBuffer failed with error {x}\n", .{ result });
-            return;
+            return Error.SkipImage;
         }
 
-        const cmd_buffer: c.VkCommandBuffer = self.current_frame()._main_buffer;
+        const cmd: c.VkCommandBuffer = self.current_frame()._main_buffer;
         const cmd_buffer_begin_info = c.VkCommandBufferBeginInfo{
             .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .pNext = null,
@@ -491,33 +498,17 @@ pub const renderer_t = struct {
             .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
 
-        result = c.vkBeginCommandBuffer(cmd_buffer, &cmd_buffer_begin_info);
+        result = c.vkBeginCommandBuffer(cmd, &cmd_buffer_begin_info);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkBeginCommandBuffer failed with error {d}\n", .{ result });
-            return;
+            return Error.SkipImage;
         }
 
-        utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
+        return cmd;
+    }
 
-        self.draw_background(cmd_buffer);
-
-        utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        utils.transition_image(cmd_buffer, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-        self.draw_scene(allocator, scene, cmd_buffer);
-
-        utils.transition_image(cmd_buffer, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-        utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    
-        vk.image.copy_image_to_image(cmd_buffer, self._draw_image.image, self._sw._images[image_index], self._draw_extent, self._sw._extent);
-
-        utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-        _gui_context.draw(cmd_buffer, self._sw._image_views[image_index], self._sw._extent);
-
-        utils.transition_image(cmd_buffer, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-        result = c.vkEndCommandBuffer(cmd_buffer);
+    fn submit_cmd(self: *renderer_t, cmd: c.VkCommandBuffer, image_index: u32) void {
+        var result = c.vkEndCommandBuffer(cmd);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkEndCommandBuffer failed with error {x}\n", .{ result });
         }
@@ -525,7 +516,7 @@ pub const renderer_t = struct {
         const cmd_submit_info = c.VkCommandBufferSubmitInfo {
             .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
 	        .pNext = null,
-	        .commandBuffer = cmd_buffer,
+	        .commandBuffer = cmd,
 	        .deviceMask = 0,
         };
 
@@ -572,6 +563,42 @@ pub const renderer_t = struct {
                 std.log.warn("vkQueuePresentKHR failed with error {x}\n", .{ result });
             }
         }
+    }
+
+    pub fn draw(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.scene_t) void {
+        const image_index = self.next_image() catch |err| {
+            if (err == Error.OutOfDate) {
+                self._rebuild_swapchain = true;
+            }
+            return;
+        };
+
+        const cmd = self.begin_draw() catch {
+            return; // we skip for now
+        };
+
+        utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
+
+        self.draw_background(cmd);
+
+        utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        utils.transition_image(cmd, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+        // self.draw_scene(allocator, scene, cmd);
+        self.draw_voxel(allocator, cmd, scene);
+
+        utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        utils.transition_image(cmd, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    
+        vk.image.copy_image_to_image(cmd, self._draw_image.image, self._sw._images[image_index], self._draw_extent, self._sw._extent);
+
+        utils.transition_image(cmd, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+        _gui_context.draw(cmd, self._sw._image_views[image_index], self._sw._extent);
+
+        utils.transition_image(cmd, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+        self.submit_cmd(cmd, image_index);
 
         self._frameNumber += 1;
     }
@@ -681,7 +708,7 @@ pub const renderer_t = struct {
         const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self._gpu_scene_data_descriptor_layout, null);
     
         {
-            var writer = descriptor.Writer.init(std.heap.page_allocator);
+            var writer = descriptor.Writer.init(allocator);
             defer writer.deinit();
 
             writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -777,10 +804,103 @@ pub const renderer_t = struct {
     var chunk: voxel.Voxel = undefined;
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer std.log.debug("leak : {any}", .{ gpa.deinit() });
 
-    fn draw_voxel(_: *renderer_t, cmd: c.VkCommandBuffer) void {
-        chunk.draw(cmd);
+    fn draw_voxel(self: *renderer_t, allocator:std.mem.Allocator, cmd: c.VkCommandBuffer, scene: *scenes.scene_t) void {
+        //begin a render pass  connected to our draw image
+	    const color_attachment = c.VkRenderingAttachmentInfo {
+            .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = null,
+
+            .imageView = self._draw_image.view,
+            .imageLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+
+            .loadOp = c.VK_ATTACHMENT_LOAD_OP_LOAD,
+            .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+
+            .clearValue = std.mem.zeroes(c.VkClearValue),
+        };
+
+        const depth_attachment = c.VkRenderingAttachmentInfo {
+            .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = null,
+
+            .imageView = self._depth_image.view,
+            .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+
+            .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+
+            .clearValue = .{
+                .depthStencil = .{
+                    .depth = 0.0,
+                    .stencil = 0
+                }
+            }
+        };
+
+        const render_info = c.VkRenderingInfo {
+            .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .pNext = null,
+            .pColorAttachments = &color_attachment,
+            .colorAttachmentCount = 1,
+            .pDepthAttachment = &depth_attachment,
+            .renderArea = .{
+            .extent = self._draw_extent,
+            .offset = .{
+                    .x = 0,
+                    .y = 0
+                }
+            },
+            .flags = 0,
+            .layerCount = 1,
+            .pStencilAttachment = null,
+            .viewMask = 0,
+        };
+
+	    c.vkCmdBeginRendering(cmd, &render_info);
+
+        //set dynamic viewport and scissor
+	    const viewport = c.VkViewport {
+            .x = 0,
+	        .y = 0,
+	        .width = @floatFromInt(self._draw_extent.width),
+	        .height = @floatFromInt(self._draw_extent.height),
+	        .minDepth = 0.0,
+	        .maxDepth = 1.0,
+        };
+
+	    const scissor = c.VkRect2D {
+            .offset = .{ .x = 0, .y = 0 },
+	        .extent = self._draw_extent,
+        };
+        
+        c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+        c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+        // update scene data
+        const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
+            std.log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
+            @panic("OOM");
+        };
+
+        const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
+        scene_uniform_data.* = scene.data;
+
+        const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self._gpu_scene_data_descriptor_layout, null);
+    
+        {
+            var writer = descriptor.Writer.init(allocator);
+            defer writer.deinit();
+
+            writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            writer.update_set(self._device, global_descriptor);
+        }
+
+        chunk.draw(cmd, global_descriptor);
+
+        c.vkCmdEndRendering(cmd);
     }
 
     fn init_default_data(self: *renderer_t, _: std.mem.Allocator) !void {
