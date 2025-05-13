@@ -771,9 +771,17 @@ pub const renderer_t = struct {
         self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
     }
 
+    // TODO : testing voxel from compute
     var voxel_mat: voxel.Material = undefined;
-    // var voxel_shader: compute.Shader = undefined;
-    // var chunk: voxel.Voxel = undefined;
+    var voxel_shader: compute.Shader = undefined;
+    var chunk: voxel.Voxel = undefined;
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer std.log.debug("leak : {any}", .{ gpa.deinit() });
+
+    fn draw_voxel(_: *renderer_t, cmd: c.VkCommandBuffer) void {
+        chunk.draw(cmd);
+    }
 
     fn init_default_data(self: *renderer_t, _: std.mem.Allocator) !void {
         // initialize textures
@@ -822,15 +830,73 @@ pub const renderer_t = struct {
         try self.init_mesh_material();
 
         // voxel
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        defer std.log.debug("leak : {any}", .{ gpa.deinit() });
-
-        // voxel_shader = compute.Shader.init("voxel");
-        // voxel_shader.build(std.heap.page_allocator, "", self);
+        voxel_shader = compute.Shader.init(gpa.allocator(), "voxel");
+        try voxel_shader.build(gpa.allocator(), "./zig-out/bin/shaders/cube.comp.spv", self);
 
         voxel_mat = voxel.Material.init(gpa.allocator(), self);
 
-        // chunk = voxel.Voxel.init(self._vma, &voxel_shader, );
+        chunk = voxel.Voxel.init(gpa.allocator(), self._vma, &voxel_shader, &voxel_mat, self);
+
+        // dispatch
+        var result = c.vkResetFences(self._device, 1, &self.submit.fence);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkResetFences failed with error {d}", .{ result });
+        }
+
+        result = c.vkResetCommandBuffer(self.submit.cmd, 0);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkResetCommandBuffer failed with error {d}", .{ result });
+        }
+
+        const begin_info = c.VkCommandBufferBeginInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = null,
+            .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+
+        result = c.vkBeginCommandBuffer(self.submit.cmd, &begin_info);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkBeginCommandBuffer failed with error {d}", .{ result });
+        }
+
+        chunk.dispatch(self.submit.cmd);
+
+        result = c.vkEndCommandBuffer(self.submit.cmd);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
+        }
+
+        const cmd_submit_info = c.VkCommandBufferSubmitInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .pNext = null,
+            .commandBuffer = self.submit.cmd,
+            .deviceMask = 0
+        };
+
+        const submit_info = c.VkSubmitInfo2 {
+            .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .pNext = null,
+            .flags = 0,
+
+            .pCommandBufferInfos = &cmd_submit_info,
+            .commandBufferInfoCount = 1,
+
+            .pSignalSemaphoreInfos = null,
+            .signalSemaphoreInfoCount = 0,
+            
+            .pWaitSemaphoreInfos = null,
+            .waitSemaphoreInfoCount = 0,
+        };
+
+        result = c.vkQueueSubmit2(self._queues.graphics, 1, &submit_info, self.submit.fence); // TODO : run it on other queue for multithreading
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
+        }
+
+        result = c.vkWaitForFences(self._device, 1, &self.submit.fence, c.VK_TRUE, 9999999999);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkWaitForFences failed with error {d}", .{ result });
+        }
     }
 
     fn init_mesh_material(self: *renderer_t) !void {

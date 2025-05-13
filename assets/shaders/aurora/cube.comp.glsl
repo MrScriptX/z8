@@ -2,14 +2,16 @@
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
-struct Vertex {
+struct vertex_t {
     vec3 position;
-    vec3 normal;
-    vec2 uv;
+	float uv_x;
+	vec3 normal;
+	float uv_y;
+	vec4 color;
 };
 
 layout(std430, binding = 0) buffer VertexBuffer {
-    Vertex vertices[];
+    vertex_t vertices[];
 };
 
 layout(std430, binding = 1) buffer IndexBuffer {
@@ -21,21 +23,30 @@ void main() {
 
     // Define cube vertices
     vec3 positions[8] = vec3[](
-        vec3(-0.5, -0.5, -0.5), vec3(0.5, -0.5, -0.5),
-        vec3(0.5,  0.5, -0.5), vec3(-0.5,  0.5, -0.5),
-        vec3(-0.5, -0.5,  0.5), vec3(0.5, -0.5,  0.5),
-        vec3(0.5,  0.5,  0.5), vec3(-0.5,  0.5,  0.5)
+        vec3(-0.5, -0.5, -0.5),
+        vec3(0.5, -0.5, -0.5),
+        vec3(0.5,  0.5, -0.5),
+        vec3(-0.5,  0.5, -0.5),
+        vec3(-0.5, -0.5,  0.5),
+        vec3(0.5, -0.5,  0.5),
+        vec3(0.5,  0.5,  0.5),
+        vec3(-0.5,  0.5,  0.5)
     );
 
     vec3 normals[6] = vec3[](
-        vec3(0, 0, -1), vec3(0, 0, 1),
-        vec3(-1, 0, 0), vec3(1, 0, 0),
-        vec3(0, -1, 0), vec3(0, 1, 0)
+        vec3(0, 0, -1),
+        vec3(0, 0, 1),
+        vec3(-1, 0, 0),
+        vec3(1, 0, 0),
+        vec3(0, -1, 0),
+        vec3(0, 1, 0)
     );
 
     vec2 uvs[4] = vec2[](
-        vec2(0, 0), vec2(1, 0),
-        vec2(1, 1), vec2(0, 1)
+        vec2(0, 0),
+        vec2(1, 0),
+        vec2(1, 1),
+        vec2(0, 1)
     );
 
     // Define cube indices
@@ -51,7 +62,8 @@ void main() {
     if (vertex_id < 8) {
         vertices[vertex_id].position = positions[vertex_id];
         vertices[vertex_id].normal = normals[vertex_id / 4];
-        vertices[vertex_id].uv = uvs[vertex_id % 4];
+        vertices[vertex_id].uv_x = uvs[vertex_id % 4][0];
+        vertices[vertex_id].uv_y = uvs[vertex_id % 4][1];
     }
 
     if (vertex_id < 36) {
