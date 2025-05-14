@@ -1,5 +1,9 @@
 #version 450
 
+layout(set = 1, binding = 0) uniform MaterialData{   
+	vec4 color_factors;
+} material_data;
+
 layout(location = 0) in vec3 fragNormal;
 layout(location = 1) in vec2 fragUV;
 

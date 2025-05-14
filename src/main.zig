@@ -61,7 +61,7 @@ pub fn main() !u8 {
             .data4 = c.glms_vec4_zero().raw 
         },
     };
-    gradient_effect.build(gpa.allocator(), "./zig-out/bin/shaders/gradiant.spv", &renderer) catch {
+    gradient_effect.build(gpa.allocator(), "./zig-out/bin/shaders/vkguide/gradiant.spv", &renderer) catch {
         std.log.err("Failed to create gradiant shader", .{});
         return 2;
     };
@@ -79,7 +79,7 @@ pub fn main() !u8 {
             .data4 = c.glms_vec4_zero().raw 
         },
     };
-    sky_shader.build(gpa.allocator(), "./zig-out/bin/shaders/sky.spv", &renderer) catch {
+    sky_shader.build(gpa.allocator(), "./zig-out/bin/shaders/vkguide/sky.spv", &renderer) catch {
         std.log.err("Failed to create sky shader", .{});
         return 2;
     };

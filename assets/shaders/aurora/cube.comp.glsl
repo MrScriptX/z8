@@ -1,6 +1,6 @@
 #version 450
 
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 36, local_size_y = 1, local_size_z = 1) in;
 
 struct vertex_t {
     vec3 position;
@@ -49,6 +49,15 @@ void main() {
         vec2(0, 1)
     );
 
+    vec4 colors[6] = vec4[](
+        vec4(1, 0, 0, 1), // Red for -Z
+        vec4(0, 1, 0, 1), // Green for +Z
+        vec4(0, 0, 1, 1), // Blue for -X
+        vec4(1, 1, 0, 1), // Yellow for +X
+        vec4(1, 0, 1, 1), // Magenta for -Y
+        vec4(0, 1, 1, 1)  // Cyan for +Y
+    );
+
     // Define cube indices
     uint cube_indices[36] = uint[](
         0, 1, 2, 0, 2, 3, // Front
@@ -59,12 +68,11 @@ void main() {
         0, 1, 5, 0, 5, 4  // Bottom
     );
 
-    if (vertex_id < 8) {
-        vertices[vertex_id].position = positions[vertex_id];
-        vertices[vertex_id].normal = normals[vertex_id / 4];
-        vertices[vertex_id].uv_x = uvs[vertex_id % 4][0];
-        vertices[vertex_id].uv_y = uvs[vertex_id % 4][1];
-    }
+    vertices[vertex_id].position = positions[vertex_id];
+    vertices[vertex_id].normal = normals[vertex_id / 4];
+    vertices[vertex_id].uv_x = uvs[vertex_id % 4][0];
+    vertices[vertex_id].uv_y = uvs[vertex_id % 4][1];
+    vertices[vertex_id].color = colors[vertex_id / 4];
 
     if (vertex_id < 36) {
         indices[vertex_id] = cube_indices[vertex_id];

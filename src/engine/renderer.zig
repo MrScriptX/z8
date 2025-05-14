@@ -333,10 +333,10 @@ pub const renderer_t = struct {
     }
 
     fn init_triangle_pipeline(self: *renderer_t, allocator: std.mem.Allocator) !void {
-        const triangle_frag_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/colored_triangle.frag.spv");
+        const triangle_frag_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/vkguide/colored_triangle.frag.spv");
         defer c.vkDestroyShaderModule(self._device, triangle_frag_shader, null);
 
-	    const triangle_vertex_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/colored_triangle.vert.spv");
+	    const triangle_vertex_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/vkguide/colored_triangle.vert.spv");
         defer c.vkDestroyShaderModule(self._device, triangle_vertex_shader, null);
 
         const pipeline_layout_info = c.VkPipelineLayoutCreateInfo {
@@ -374,10 +374,10 @@ pub const renderer_t = struct {
     }
 
     fn init_mesh_pipeline(self: *renderer_t, allocator: std.mem.Allocator) !void {
-        const frag_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/image_texture.frag.spv");
+        const frag_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/vkguide/image_texture.frag.spv");
         defer c.vkDestroyShaderModule(self._device, frag_shader, null);
 
-	    const vertex_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/colored_triangle_mesh.vert.spv");
+	    const vertex_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/vkguide/colored_triangle_mesh.vert.spv");
         defer c.vkDestroyShaderModule(self._device, vertex_shader, null);
 
         const buffer_range = c.VkPushConstantRange {
@@ -951,7 +951,7 @@ pub const renderer_t = struct {
 
         // voxel
         voxel_shader = compute.Shader.init(gpa.allocator(), "voxel");
-        try voxel_shader.build(gpa.allocator(), "./zig-out/bin/shaders/cube.comp.spv", self);
+        try voxel_shader.build(gpa.allocator(), "./zig-out/bin/shaders/aurora/cube.comp.spv", self);
 
         voxel_mat = voxel.Material.init(gpa.allocator(), self);
 

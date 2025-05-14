@@ -5,7 +5,7 @@ pub const Voxel = struct {
 
     buffer: buffers.GPUMeshBuffers,
     
-    indices: [8]u32 = .{ 0 } ** 8,
+    indices: [36]u32 = .{ 0 } ** 36,
     vertices: [36]buffers.Vertex = .{ buffers.Vertex{
         .position = std.mem.zeroes([3]f32),
         .uv_x = 0,
@@ -70,7 +70,7 @@ pub const Voxel = struct {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.layout, 0, 1, &self.compute_shader.descriptor, 0, null);
 
-        const group_x: u32 = 1;
+        const group_x: u32 = self.indices.len;
         const group_y: u32 = 1;
         const group_z: u32 = 1;
         
@@ -84,7 +84,7 @@ pub const Voxel = struct {
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
             .buffer = self.buffer.vertex_buffer.buffer,
             .offset = 0,
-            .size = @sizeOf(buffers.Vertex) * cube_vertex_count,
+            .size = @sizeOf(buffers.Vertex) * self.vertices.len,
         };
 
         const index_barrier = c.VkBufferMemoryBarrier {
@@ -95,7 +95,7 @@ pub const Voxel = struct {
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
             .buffer = self.buffer.index_buffer.buffer,
             .offset = 0,
-            .size = @sizeOf(u32) * 8,
+            .size = @sizeOf(u32) * self.indices.len,
         };
 
         const barriers = [_]c.VkBufferMemoryBarrier {
@@ -155,10 +155,10 @@ pub const Material = struct {
     }
 
     fn build_pipeline(self: *Material, allocator: std.mem.Allocator, r: *const renderer.renderer_t) !void {
-        const frag_shader = try p.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/cube.frag.spv");
+        const frag_shader = try p.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/aurora/cube.frag.spv");
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
-        const vert_shader = try p.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/cube.vert.spv");
+        const vert_shader = try p.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/aurora/cube.vert.spv");
         defer c.vkDestroyShaderModule(r._device, vert_shader, null);
 
         const matrix_range: c.VkPushConstantRange = .{
@@ -169,9 +169,6 @@ pub const Material = struct {
 
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
-
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        // try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
 
@@ -218,7 +215,7 @@ pub const Material = struct {
         self.pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
-    pub fn write_material(self: *Material, allocator: std.mem.Allocator, device: c.VkDevice, pass: materials.MaterialPass, resources: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2)  materials.MaterialInstance {
+    pub fn write_material(self: *Material, allocator: std.mem.Allocator, device: c.VkDevice, pass: materials.MaterialPass, _: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2)  materials.MaterialInstance {
         const data =  materials.MaterialInstance {
             .pass_type = pass,
             .pipeline = &self.pipeline,
@@ -226,7 +223,6 @@ pub const Material = struct {
         };
 
         self.writer.clear();
-        self.writer.write_buffer(0, resources.data_buffer, @sizeOf(Constants), resources.data_buffer_offset, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
         self.writer.update_set(device, data.material_set);
 
