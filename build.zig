@@ -6,52 +6,34 @@ pub fn build(b: *std.Build) !void {
 
     const exe = b.addExecutable(.{
         .name = "vzig",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
+        // .use_llvm = false,
     });
 
     const env_map = try std.process.getEnvMap(b.allocator);
+    const vk_path = env_map.get("VULKAN_SDK") orelse @panic("VULKAN_SDK missing !");
 
-    if (env_map.get("VULKAN_SDK")) |path| {
-        const glslc_path = std.fmt.allocPrint(b.allocator, "{s}/Bin/glslc.exe", .{path}) catch @panic("OOM");
-
-        for (shaders) |shader| {
-            const glslc = b.addSystemCommand(&.{glslc_path});
-            glslc.addArg(b.fmt("-fshader-stage={s}", .{shader.stage}));
-            glslc.addFileArg(b.path(shader.source));
-            glslc.addArg("-o");
-            const output = glslc.addOutputFileArg(shader.output);
-
-            // Add the glslc command as a dependency to the executable
-            exe.step.dependOn(&glslc.step);
-        
-            // Declare vertex.spv as an artefact
-            exe.step.dependOn(&b.addInstallFileWithDir(output, .prefix, b.fmt("bin/shaders/{s}", .{shader.output})).step);
-        }
-    }
+    compile_shaders(b, exe, vk_path) catch @panic("Out of memory !");
 
     const vk_lib_name = if (target.result.os.tag == .windows) "vulkan-1" else "vulkan";
     exe.linkSystemLibrary(vk_lib_name);
 
-    if (env_map.get("VK_SDK_PATH")) |path| {
-        exe.addLibraryPath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/lib", .{path}) catch @panic("OOM") });
-        exe.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
-    }
+    exe.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{ vk_path }) });
+    exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{ vk_path }) });
 
-    exe.linkSystemLibrary("SDL3");
-    // exe.addLibraryPath(.{ .cwd_relative = "common/SDL3/lib" });
-    // exe.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
     // add sdl3
+    exe.linkSystemLibrary("SDL3");
     const sdl = @import("libs/sdl/build.zig").build(b, target, optimize);
     exe.root_module.addImport("sdl3", sdl);
 
     exe.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
-
-    exe.addCSourceFile(.{ .file = b.path("src/vk_mem_alloc.cpp"), .flags = &.{ "" } });
+    
+    // vma
+    const vma = @import("libs/vma/build.zig").build(b, target, optimize);
+    exe.root_module.addImport("vma", vma);
 
     // add imgui
     const cimgui = @import("libs/cimgui/build.zig").build(b, target, optimize);
@@ -124,129 +106,89 @@ pub fn build(b: *std.Build) !void {
         unit_tests.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
     }
 
-    unit_tests.linkSystemLibrary("SDL3");
-    unit_tests.addLibraryPath(.{ .cwd_relative = "common/SDL3/lib" });
-    unit_tests.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
-
-    unit_tests.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
-
-    unit_tests.addCSourceFile(.{ .file = b.path("src/vk_mem_alloc.cpp"), .flags = &.{ "" } });
-
-    // add imgui
-    unit_tests.addIncludePath(.{ .cwd_relative = "common/imgui-1.91.9b" });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_widgets.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_tables.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_draw.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_impl_sdl3.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_impl_vulkan.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_demo.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_internal.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_sdl3.cpp"), .flags = &.{ "" } });
-    unit_tests.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_vulkan.cpp"), .flags = &.{ "" } });
-
-    // add cgltf
-    unit_tests.addIncludePath(.{ .cwd_relative = "common/cgltf" });
-    unit_tests.addCSourceFile(.{ .file = b.path("src/lib/gltf.c"), .flags = &.{ "" } });
-
-    unit_tests.root_module.addImport("zalgebra", zalgebra);
-
-    unit_tests.linkLibC();
-    unit_tests.linkLibCpp();
-
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
-    // Similar to creating the run step earlier, this exposes a `test` step to
-    // the `zig build --help` menu, providing a way for the user to request
-    // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 }
 
-const shaders = [_]struct {
-    source: []const u8,
-    output: []const u8,
-    stage: []const u8
-} {
-    .{
-                .source = "assets/shaders/vkguide/default.compute.hlsl",
-                .output = "compute.spv",
-                .stage = "compute"
-            },
-            .{
-                .source = "assets/shaders/vkguide/default.vert.hlsl",
-                .output = "vertex.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/vkguide/default.frag.hlsl",
-                .output = "fragment.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/vkguide/gradiant.glsl",
-                .output = "gradiant.spv",
-                .stage = "compute"
-            },
-            .{
-                .source = "assets/shaders/vkguide/sky.glsl",
-                .output = "sky.spv",
-                .stage = "compute"
-            },
-            .{
-                .source = "assets/shaders/vkguide/colored_triangle.frag.glsl",
-                .output = "colored_triangle.frag.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/vkguide/colored_triangle.vert.glsl",
-                .output = "colored_triangle.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/vkguide/colored_triangle_mesh.vert.glsl",
-                .output = "colored_triangle_mesh.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/vkguide/image_texture.frag.glsl",
-                .output = "image_texture.frag.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/vkguide/mesh.vert.glsl",
-                .output = "mesh.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/vkguide/mesh.frag.glsl",
-                .output = "mesh.frag.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/voxels/voxel.vert.glsl",
-                .output = "voxel.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/voxels/voxel.frag.glsl",
-                .output = "voxel.frag.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/aurora/cube.frag.glsl",
-                .output = "cube.frag.spv",
-                .stage = "fragment"
-            },
-            .{
-                .source = "assets/shaders/aurora/cube.vert.glsl",
-                .output = "cube.vert.spv",
-                .stage = "vertex"
-            },
-            .{
-                .source = "assets/shaders/aurora/cube.comp.glsl",
-                .output = "cube.comp.spv",
-                .stage = "compute"
-            },
+fn compile_shaders(b: *std.Build, exe: *std.Build.Step.Compile, vk_path: []const u8) !void {
+    const glslc_path = b.fmt("{s}/Bin/glslc.exe", .{ vk_path });
+
+    for (shaders) |shader| {
+        const glslc = b.addSystemCommand(&.{glslc_path});
+        glslc.addArg(b.fmt("-fshader-stage={s}", .{ shader.stage_fmt() }));
+
+        const shader_path = b.fmt("assets/shaders/{s}", .{ shader.file });
+        glslc.addFileArg(b.path(shader_path));
+
+        glslc.addArg("-o");
+
+        const shader_output = shader.output(b) catch {
+            std.log.err("skipping {s} because of error", .{ shader.file });
+            continue;
         };
+
+        const output = glslc.addOutputFileArg(shader_output);
+
+        // Add the glslc command as a dependency to the executable
+        exe.step.dependOn(&glslc.step);
+        
+        // Declare vertex.spv as an artefact
+        exe.step.dependOn(&b.addInstallFileWithDir(output, .prefix, b.fmt("bin/shaders/{s}", .{shader_output})).step);
+    }
+}
+
+const Shader = struct {
+    const Error = error{
+        FileNotFound
+    };
+
+    const Stage = enum {
+        COMPUTE,
+        VERTEX,
+        FRAGMENT,
+    };
+
+    file: []const u8,
+    stage: Stage,
+
+    fn stage_fmt(self: *const Shader) []const u8 {
+        switch (self.stage) {
+            Stage.COMPUTE => return "compute",
+            Stage.VERTEX => return "vertex",
+            Stage.FRAGMENT => return "fragment"
+        }
+    }
+
+    fn output(self: *const Shader, b: *std.Build) Error![]u8 {
+        const dot_index = std.mem.lastIndexOf(u8, self.file, ".") orelse {
+            std.debug.print("No extension found in filename: {s}\n", .{self.file});
+            return Error.FileNotFound;
+        };
+
+        const out = b.fmt("{s}.spv", .{ self.file[0..dot_index] });
+        return out;
+    }
+};
+
+const shaders = [_]Shader {
+    .{ .stage = Shader.Stage.COMPUTE, .file = "vkguide/default.compute.hlsl" },
+    .{ .stage = Shader.Stage.VERTEX, .file = "vkguide/default.vert.hlsl" },
+    .{ .stage = Shader.Stage.FRAGMENT, .file = "vkguide/default.frag.hlsl" },
+    .{ .stage = Shader.Stage.COMPUTE, .file = "vkguide/gradiant.glsl" },
+    .{ .stage = Shader.Stage.COMPUTE, .file = "vkguide/sky.glsl" },
+    .{ .stage = Shader.Stage.FRAGMENT, .file = "vkguide/colored_triangle.frag.glsl" },
+    .{ .stage = Shader.Stage.VERTEX, .file = "vkguide/colored_triangle.vert.glsl" },
+    .{ .stage = Shader.Stage.VERTEX, .file = "vkguide/colored_triangle_mesh.vert.glsl" },
+    .{ .stage = Shader.Stage.FRAGMENT, .file = "vkguide/image_texture.frag.glsl" },
+    .{ .stage = Shader.Stage.VERTEX, .file = "vkguide/mesh.vert.glsl" },
+    .{ .stage = Shader.Stage.FRAGMENT, .file = "vkguide/mesh.frag.glsl" },
+
+    .{ .stage = Shader.Stage.VERTEX, .file = "voxels/voxel.vert.glsl" },
+    .{ .stage = Shader.Stage.FRAGMENT, .file = "voxels/voxel.frag.glsl" },
+
+    .{ .stage = Shader.Stage.VERTEX, .file = "aurora/cube.vert.glsl" },
+    .{ .stage = Shader.Stage.FRAGMENT, .file = "aurora/cube.frag.glsl" },
+    .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/cube.comp.glsl" },
+};
