@@ -38,7 +38,7 @@ pub const Voxel = struct {
         voxel.buffer = buffers.GPUMeshBuffers.init(vma, &voxel.indices, &voxel.vertices, r);
 
         const resources = Material.Resources {
-            .data_buffer =  voxel.material_buffer.buffer,
+            .data_buffer =  voxel.material_buffer.buffer, 
             .data_buffer_offset = 0,
         };
 
