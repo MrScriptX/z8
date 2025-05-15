@@ -88,6 +88,8 @@ pub const renderer_t = struct {
 
     _mat_constants: buffers.AllocatedBuffer = undefined,
 
+    _scene: ?*scenes.DrawContext = null, 
+
     camera: *cam.camera_t,
     stats: stats_t,
     bg_shader: ?*effects.ComputeEffect,
@@ -565,7 +567,7 @@ pub const renderer_t = struct {
         }
     }
 
-    pub fn draw(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.scene_t) void {
+    pub fn draw(self: *renderer_t, allocator: std.mem.Allocator) void {
         const image_index = self.next_image() catch |err| {
             if (err == Error.OutOfDate) {
                 self.rebuild = true;
@@ -590,7 +592,9 @@ pub const renderer_t = struct {
         utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         utils.transition_image(cmd, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        self.draw_scene(allocator, scene, cmd);
+        if (self._scene) |scene| {
+            self.draw_scene(allocator, scene, cmd);
+        }
         // self.draw_voxel(allocator, cmd, scene);
 
         utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -629,7 +633,7 @@ pub const renderer_t = struct {
 	    c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
     }
 
-    fn draw_scene(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.scene_t, cmd: c.VkCommandBuffer) void {
+    fn draw_scene(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.DrawContext, cmd: c.VkCommandBuffer) void {
         //begin a render pass  connected to our draw image
 	    const color_attachment = c.VkRenderingAttachmentInfo {
             .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -683,6 +687,8 @@ pub const renderer_t = struct {
 
 	    c.vkCmdBeginRendering(cmd, &render_info);
 
+        // draw meshes
+        
         // allocate new uniform buffer for the scene
         const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -692,10 +698,9 @@ pub const renderer_t = struct {
         };
 
         const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
-        scene_uniform_data.* = scene.data;
-
-        const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self._gpu_scene_data_descriptor_layout, null);
+        scene_uniform_data.* = scene.global_data.*;
     
+        const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self._gpu_scene_data_descriptor_layout, null);
         {
             var writer = descriptor.Writer.init(allocator);
             defer writer.deinit();
@@ -703,9 +708,8 @@ pub const renderer_t = struct {
             writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
             writer.update_set(self._device, global_descriptor);
         }
-
-        // draw meshes
-        scene.draw_context.draw(cmd, global_descriptor, self._draw_extent, &self.stats);
+        
+        scene.draw(cmd, global_descriptor, self._draw_extent, &self.stats);
 
 	    c.vkCmdEndRendering(cmd);
     }
@@ -1060,6 +1064,7 @@ const maths = @import("../utils/maths.zig");
 const material = @import("graphics/materials.zig");
 const m = @import("graphics/assets.zig");
 const cam = @import("scene/camera.zig");
+const assets = @import("graphics/assets.zig");
 
 const voxel = @import("scene/chunk.zig");
 const compute = @import("graphics/compute.zig");

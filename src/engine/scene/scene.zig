@@ -17,7 +17,7 @@ pub const scene_t = struct {
     _type: type_e,
 
     data: ShaderData = undefined,
-    draw_context: mesh.DrawContext,
+    draw_context: DrawContext,
     
     gltf: ?*gltf.LoadedGLTF = null,    
     voxel: ?vox.Voxel = null,
@@ -25,7 +25,7 @@ pub const scene_t = struct {
     pub fn init(alloc: std.mem.Allocator, t: type_e) scene_t {
         const scene = scene_t {
             .mem = std.heap.ArenaAllocator.init(alloc),
-            .draw_context = mesh.DrawContext.init(alloc),
+            .draw_context = DrawContext.init(alloc),
             ._type = t,
             .data = .{
                 .view = za.Mat4.identity().data,
@@ -92,6 +92,8 @@ pub const scene_t = struct {
 
         self.draw_context.opaque_surfaces.clearRetainingCapacity();
         self.draw_context.transparent_surfaces.clearRetainingCapacity();
+
+        self.draw_context.global_data = &self.data;
 
         switch (self._type) {
             type_e.GLTF => {
@@ -195,6 +197,120 @@ pub const manager_t = struct {
     }
 };
 
+pub const DrawContext = struct {
+    global_data: *ShaderData,
+    opaque_surfaces: std.ArrayList(materials.RenderObject),
+    transparent_surfaces: std.ArrayList(materials.RenderObject),
+
+    pub fn init(allocator: std.mem.Allocator) DrawContext {
+        const ctx = DrawContext {
+            .global_data = undefined, // TODO : should not even be a pointer
+            .opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
+            .transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
+        };
+
+        return ctx;
+    }
+
+    pub fn deinit(self: *DrawContext) void {
+        self.opaque_surfaces.deinit();
+        self.transparent_surfaces.deinit();
+    }
+
+    pub fn draw(self: *DrawContext, cmd: c.VkCommandBuffer, global_descriptor: c.VkDescriptorSet, extent: c.VkExtent2D, stats: *renderer.stats_t) void {       
+        //set dynamic viewport and scissor
+	    const viewport = c.VkViewport {
+            .x = 0,
+	        .y = 0,
+	        .width = @floatFromInt(extent.width),
+	        .height = @floatFromInt(extent.height),
+	        .minDepth = 0.0,
+	        .maxDepth = 1.0,
+        };
+
+	    const scissor = c.VkRect2D {
+            .offset = .{ .x = 0, .y = 0 },
+	        .extent = extent,
+        };
+        
+        var last_pipeline: ?*materials.MaterialPipeline = null;
+        var last_material: ?*materials.MaterialInstance = null;
+        var last_index_buffer: c.VkBuffer = null;
+
+        for (self.opaque_surfaces.items) |*obj| {
+            if (last_material != obj.material) {
+                last_material = obj.material;
+
+                if (last_pipeline != obj.material.pipeline) {
+                    last_pipeline = obj.material.pipeline;
+
+                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                }
+
+                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+            }
+
+            if (last_index_buffer != obj.index_buffer) {
+                last_index_buffer = obj.index_buffer;
+
+                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+            }
+
+            const push_constants_mesh = buffers.GPUDrawPushConstants {
+                .world_matrix = obj.transform,
+                .vertex_buffer = obj.vertex_buffer_address,
+            };
+
+            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+
+            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+
+            stats.drawcall_count += 1;
+            stats.triangle_count += obj.index_count / 3;
+        }
+
+        for (self.transparent_surfaces.items) |*obj| {
+            if (last_material != obj.material) {
+                last_material = obj.material;
+
+                if (last_pipeline != obj.material.pipeline) {
+                    last_pipeline = obj.material.pipeline;
+
+                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
+                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
+
+                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                }
+
+                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
+            }
+
+            if (last_index_buffer != obj.index_buffer) {
+                last_index_buffer = obj.index_buffer;
+                
+                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+            }
+
+            const push_constants_mesh = buffers.GPUDrawPushConstants {
+                .world_matrix = obj.transform,
+                .vertex_buffer = obj.vertex_buffer_address,
+            };
+
+            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
+
+            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+
+            stats.drawcall_count += 1;
+            stats.triangle_count += obj.index_count / 3;
+        }
+    }
+};
+
 const std = @import("std");
 const za = @import("zalgebra");
 const camera = @import("camera.zig");
@@ -203,4 +319,7 @@ const mesh = @import("../graphics/assets.zig");
 const gltf = @import("gltf.zig");
 const renderer = @import("../renderer.zig");
 const vox = @import("../../voxel.zig");
-const mat = @import("../graphics/materials.zig");
+const mat = @import("../graphics/materials.zig"); // TODO : use only one import
+const materials = @import("../graphics/materials.zig");
+const buffers = @import("../graphics/buffers.zig");
+const descriptors = @import("../descriptor.zig");

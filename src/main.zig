@@ -139,6 +139,8 @@ pub fn main() !u8 {
 
         // check if scene needs to be rebuilt
         if (render_scene != current_scene) {
+            std.log.info("loading new scene", .{});
+            
             const rendered_scene = scene_manager.scene(@intCast(current_scene));
             if (rendered_scene) |s| {
                 s.clear(renderer._device, renderer._vma);
@@ -156,6 +158,8 @@ pub fn main() !u8 {
                 else if (current_scene == 2) {
                     try s.load_mesh(gpa.allocator(), &voxel_material, &renderer);
                 }
+
+                renderer._scene = &s.draw_context;
             }
             else {
                 std.log.err("Invalid scene {d}", .{ current_scene });
@@ -248,7 +252,7 @@ pub fn main() !u8 {
             }
 
             renderer.update_scene(s);
-            renderer.draw(gpa.allocator(), s);
+            renderer.draw(gpa.allocator());
         }
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());

@@ -238,7 +238,7 @@ pub const LoadedGLTF = struct {
         }
     }
 
-    pub fn draw(self: *LoadedGLTF, top_matrix: [4][4]f32, ctx: *m.DrawContext) void {
+    pub fn draw(self: *LoadedGLTF, top_matrix: [4][4]f32, ctx: *scenes.DrawContext) void {
         for (self.top_nodes.items) |node| {
             node.*.draw(top_matrix, ctx);
         }
@@ -701,3 +701,4 @@ const stb = @import("stb");
 const pipeline = @import("../pipeline.zig");
 const maths = @import("../../utils/maths.zig");
 const assets = @import("../graphics/assets.zig");
+const scenes = @import("../scene/scene.zig");
