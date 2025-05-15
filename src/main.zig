@@ -122,7 +122,7 @@ pub fn main() !u8 {
 
         const current = scene_manager.scene(@intCast(current_scene));
 
-        if (renderer.should_rebuild_sw()) {
+        if (renderer.rebuild) {
             renderer.rebuild_swapchain(gpa.allocator(), window);
 
             if (current) |s| {

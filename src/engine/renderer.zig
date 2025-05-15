@@ -62,7 +62,7 @@ pub const renderer_t = struct {
 
     // swapchain
     _sw: vk.sw.swapchain_t = undefined,
-    _rebuild_swapchain: bool = false,
+    rebuild: bool = false,
 
     // frames
     _frames: [frames.FRAME_OVERLAP]frames.data_t = undefined,
@@ -556,7 +556,7 @@ pub const renderer_t = struct {
         switch(result) {
             c.VK_SUCCESS => {},
             c.VK_ERROR_OUT_OF_DATE_KHR => {
-                self._rebuild_swapchain = true;
+                self.rebuild = true;
                 return;
             },
             else => {
@@ -568,7 +568,7 @@ pub const renderer_t = struct {
     pub fn draw(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.scene_t) void {
         const image_index = self.next_image() catch |err| {
             if (err == Error.OutOfDate) {
-                self._rebuild_swapchain = true;
+                self.rebuild = true;
             }
             return;
         };
@@ -948,16 +948,13 @@ pub const renderer_t = struct {
         return &_render_scale;
     }
 
-    pub fn should_rebuild_sw(self: *renderer_t) bool {
-        return self._rebuild_swapchain;
-    }
-
     pub fn rebuild_swapchain(self: *renderer_t, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) void {
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device with error {d}", .{ result });
         }
 
+        std.log.info("destroying swapchain", .{});
         self.destroy_swapchain();
 
         var width: i32 = 0;
@@ -967,6 +964,7 @@ pub const renderer_t = struct {
             std.log.warn("Failed to get window current size", .{});
         }
 
+        std.log.info("initializaing swapchain", .{});
         self.init_swapchain(@intCast(width), @intCast(height)) catch {
             std.log.err("Failed to build swapchain !", .{});
             return;
@@ -991,7 +989,9 @@ pub const renderer_t = struct {
             frame._sw_semaphore = try frames.create_semaphore(self._device);
         }
 
-        self._rebuild_swapchain = false;
+
+        std.log.info("swapchain rebuilt", .{});
+        self.rebuild = false;
     }
 
     fn destroy_swapchain(self: *renderer_t) void {

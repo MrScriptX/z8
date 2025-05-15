@@ -106,6 +106,21 @@ pub const Voxel = struct {
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, null, 2, @ptrCast(&barriers), 0, null);
     }
 
+    pub fn update(self: *Voxel, ctx: *assets.DrawContext) void {
+        const object = materials.RenderObject {
+            .index_count = self.indices.len,
+            .first_index = 0,
+            .index_buffer = self.buffer.index_buffer.buffer,
+            .material = self.material,
+            .transform = za.Mat4.identity().data,
+            .vertex_buffer_address = self.buffer.vertex_buffer_address
+        };
+
+        ctx.opaque_surfaces.append(object) catch {
+            std.log.err("Failed to register object for draw", .{});
+        };
+    }
+
     pub fn draw(self: *Voxel, cmd: c.VkCommandBuffer, global_descriptor: c.VkDescriptorSet) void {
         const constant = buffers.GPUDrawPushConstants{
             .vertex_buffer = self.buffer.vertex_buffer_address,
@@ -248,3 +263,4 @@ const compute = @import("../graphics/compute.zig");
 const descriptors = @import("../descriptor.zig");
 const p = @import("../pipeline.zig");
 const renderer = @import("../renderer.zig");
+const assets = @import("../graphics/assets.zig");
