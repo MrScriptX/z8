@@ -89,9 +89,6 @@ pub const scene_t = struct {
         self.data.view = view.data;
         self.data.proj = proj.data;
         self.data.viewproj = za.Mat4.mul(proj, view).data;
-        // self.data.ambient_color = [4]f32 { 0.1, 0.1, 0.1, 0.1 };
-        // self.data.sunlight_color = [4]f32 { 1, 1, 1, 1 };
-        // self.data.sunlight_dir = [4]f32 { 0, 1, 0.5, 1 };
 
         self.draw_context.opaque_surfaces.clearRetainingCapacity();
         self.draw_context.transparent_surfaces.clearRetainingCapacity();
