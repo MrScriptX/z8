@@ -573,9 +573,15 @@ pub const renderer_t = struct {
             return;
         };
 
+        // reset stats
+        self.stats.drawcall_count = 0;
+        self.stats.triangle_count = 0;
+
         const cmd = self.begin_draw() catch {
             return; // we skip for now
         };
+
+        const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
         utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
@@ -584,8 +590,8 @@ pub const renderer_t = struct {
         utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         utils.transition_image(cmd, self._depth_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        // self.draw_scene(allocator, scene, cmd);
-        self.draw_voxel(allocator, cmd, scene);
+        self.draw_scene(allocator, scene, cmd);
+        // self.draw_voxel(allocator, cmd, scene);
 
         utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -599,6 +605,9 @@ pub const renderer_t = struct {
         utils.transition_image(cmd, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
         self.submit_cmd(cmd, image_index);
+
+        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
 
         self._frameNumber += 1;
     }
@@ -621,11 +630,6 @@ pub const renderer_t = struct {
     }
 
     fn draw_scene(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.scene_t, cmd: c.VkCommandBuffer) void {
-        self.stats.drawcall_count = 0;
-        self.stats.triangle_count = 0;
-
-        const start_time: u128 = @intCast(std.time.nanoTimestamp());
-
         //begin a render pass  connected to our draw image
 	    const color_attachment = c.VkRenderingAttachmentInfo {
             .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -679,21 +683,6 @@ pub const renderer_t = struct {
 
 	    c.vkCmdBeginRendering(cmd, &render_info);
 
-	    //set dynamic viewport and scissor
-	    const viewport = c.VkViewport {
-            .x = 0,
-	        .y = 0,
-	        .width = @floatFromInt(self._draw_extent.width),
-	        .height = @floatFromInt(self._draw_extent.height),
-	        .minDepth = 0.0,
-	        .maxDepth = 1.0,
-        };
-
-	    const scissor = c.VkRect2D {
-            .offset = .{ .x = 0, .y = 0 },
-	        .extent = self._draw_extent,
-        };
-
         // allocate new uniform buffer for the scene
         const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -716,86 +705,9 @@ pub const renderer_t = struct {
         }
 
         // draw meshes
-        var last_pipeline: ?*material.MaterialPipeline = null;
-        var last_material: ?*material.MaterialInstance = null;
-        var last_index_buffer: c.VkBuffer = null;
-
-        for (scene.draw_context.opaque_surfaces.items) |*obj| {
-            if (last_material != obj.material) {
-                last_material = obj.material;
-
-                if (last_pipeline != obj.material.pipeline) {
-                    last_pipeline = obj.material.pipeline;
-
-                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
-                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-
-                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
-                }
-
-                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
-            }
-
-            if (last_index_buffer != obj.index_buffer) {
-                last_index_buffer = obj.index_buffer;
-
-                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
-            }
-
-            const push_constants_mesh = buffers.GPUDrawPushConstants {
-                .world_matrix = obj.transform,
-                .vertex_buffer = obj.vertex_buffer_address,
-            };
-
-            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-
-            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
-
-            self.stats.drawcall_count += 1;
-            self.stats.triangle_count += obj.index_count / 3;
-        }
-
-        for (scene.draw_context.transparent_surfaces.items) |*obj| {
-            if (last_material != obj.material) {
-                last_material = obj.material;
-
-                if (last_pipeline != obj.material.pipeline) {
-                    last_pipeline = obj.material.pipeline;
-
-                    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.pipeline);
-                    c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-
-                    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-                    c.vkCmdSetScissor(cmd, 0, 1, &scissor);
-                }
-
-                c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material.pipeline.layout, 1, 1, &obj.material.material_set, 0, null);
-            }
-
-            if (last_index_buffer != obj.index_buffer) {
-                last_index_buffer = obj.index_buffer;
-                
-                c.vkCmdBindIndexBuffer(cmd, obj.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
-            }
-
-            const push_constants_mesh = buffers.GPUDrawPushConstants {
-                .world_matrix = obj.transform,
-                .vertex_buffer = obj.vertex_buffer_address,
-            };
-
-            c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
-
-            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
-
-            self.stats.drawcall_count += 1;
-            self.stats.triangle_count += obj.index_count / 3;
-        }
+        scene.draw_context.draw(cmd, global_descriptor, self._draw_extent, &self.stats);
 
 	    c.vkCmdEndRendering(cmd);
-
-        const end_time: u128 = @intCast(std.time.nanoTimestamp());
-        self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
     }
 
     // TODO : testing voxel from compute

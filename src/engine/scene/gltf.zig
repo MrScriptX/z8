@@ -243,10 +243,6 @@ pub const LoadedGLTF = struct {
             node.*.draw(top_matrix, ctx);
         }
     }
-
-    pub fn clear(_: *LoadedGLTF) void {
-
-    }
 };
 
 pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.renderer_t) !LoadedGLTF {
