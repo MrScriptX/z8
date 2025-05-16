@@ -106,7 +106,7 @@ pub const Voxel = struct {
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, null, 2, @ptrCast(&barriers), 0, null);
     }
 
-    pub fn update(self: *Voxel, ctx: *assets.DrawContext) void {
+    pub fn update(self: *Voxel, ctx: *scenes.DrawContext) void {
         const object = materials.RenderObject {
             .index_count = self.indices.len,
             .first_index = 0,
@@ -264,3 +264,4 @@ const descriptors = @import("../descriptor.zig");
 const p = @import("../pipeline.zig");
 const renderer = @import("../renderer.zig");
 const assets = @import("../graphics/assets.zig");
+const scenes = @import("../scene/scene.zig");

@@ -105,6 +105,12 @@ pub fn main() !u8 {
         monkey_scene = null;
     };
 
+    var voxels_scene: ?levels.VoxelsScene = null;
+    defer if (voxels_scene) |*scene| {
+        scene.deinit(&renderer);
+        voxels_scene = null;
+    };
+
     // main loop
     var quit = false;
     while (!quit) {
@@ -145,6 +151,11 @@ pub fn main() !u8 {
                 monkey_scene = null;
             }
 
+            if (voxels_scene) |*scene| {
+                scene.deinit(&renderer);
+                voxels_scene = null;
+            }
+
             render_scene = -1; // force rebuild of scene
         }
 
@@ -167,6 +178,11 @@ pub fn main() !u8 {
                 monkey_scene = null;
             }
 
+            if (voxels_scene) |*scene| {
+                scene.deinit(&renderer);
+                voxels_scene = null;
+            }
+
             if (current_scene == 0) {
                 monkey_scene = levels.MonkeyScene.init(gpa.allocator(), &renderer) catch {
                     std.log.err("Failed to load monkey scene", .{});
@@ -182,6 +198,14 @@ pub fn main() !u8 {
                 };
 
                 renderer._scene = &reactor_scene.?.draw_ctx;
+            }
+            else if (current_scene == 2) {
+                voxels_scene = levels.VoxelsScene.init(gpa.allocator(), &renderer) catch {
+                    std.log.err("Failed to load rector scene", .{});
+                    @panic("Fatal error");
+                };
+
+                renderer._scene = &voxels_scene.?.draw_ctx;
             }
 
             render_scene = current_scene;
@@ -260,6 +284,9 @@ pub fn main() !u8 {
             scene.update(&main_camera, &renderer);
         }
         else if (monkey_scene) |*scene| {
+            scene.update(&main_camera, &renderer);
+        }
+        else if (voxels_scene) |*scene| {
             scene.update(&main_camera, &renderer);
         }
         renderer.draw(gpa.allocator());

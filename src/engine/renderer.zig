@@ -18,6 +18,68 @@ const submit_t = struct {
     fence: c.VkFence = undefined,
     cmd: c.VkCommandBuffer = undefined,
     pool: c.VkCommandPool = undefined,
+
+    pub fn start_recording(self: *submit_t, r: *const renderer_t) void {
+        var result = c.vkResetFences(r._device, 1, &self.fence);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkResetFences failed with error {d}", .{ result });
+        }
+
+        result = c.vkResetCommandBuffer(self.cmd, 0);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkResetCommandBuffer failed with error {d}", .{ result });
+        }
+
+        const begin_info = c.VkCommandBufferBeginInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = null,
+            .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+
+        result = c.vkBeginCommandBuffer(self.cmd, &begin_info);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkBeginCommandBuffer failed with error {d}", .{ result });
+        }
+    }
+
+    pub fn submit(self: *submit_t, r: *const renderer_t) void {
+        var result = c.vkEndCommandBuffer(self.cmd);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
+        }
+
+        const cmd_submit_info = c.VkCommandBufferSubmitInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .pNext = null,
+            .commandBuffer = self.cmd,
+            .deviceMask = 0
+        };
+
+        const submit_info = c.VkSubmitInfo2 {
+            .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .pNext = null,
+            .flags = 0,
+
+            .pCommandBufferInfos = &cmd_submit_info,
+            .commandBufferInfoCount = 1,
+
+            .pSignalSemaphoreInfos = null,
+            .signalSemaphoreInfoCount = 0,
+            
+            .pWaitSemaphoreInfos = null,
+            .waitSemaphoreInfoCount = 0,
+        };
+
+        result = c.vkQueueSubmit2(r._queues.graphics, 1, &submit_info, self.fence); // TODO : run it on other queue for multithreading
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
+        }
+
+        result = c.vkWaitForFences(r._device, 1, &self.fence, c.VK_TRUE, 9999999999);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkWaitForFences failed with error {d}", .{ result });
+        }
+    }
 };
 
 pub const renderer_t = struct {
