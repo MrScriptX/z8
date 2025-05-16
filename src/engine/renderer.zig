@@ -726,13 +726,8 @@ const descriptor = @import("descriptor.zig");
 const effects = @import("compute_effect.zig");
 const pipelines = @import("pipeline.zig");
 const buffers = @import("graphics/buffers.zig");
-const loader = @import("scene/gltf.zig");
 const scenes = @import("scene/scene.zig");
 const maths = @import("../utils/maths.zig");
 const material = @import("graphics/materials.zig");
-const m = @import("graphics/assets.zig");
 const cam = @import("scene/camera.zig");
 const assets = @import("graphics/assets.zig");
-
-const voxel = @import("scene/chunk.zig");
-const compute = @import("graphics/compute.zig");
