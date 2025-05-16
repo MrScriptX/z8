@@ -188,7 +188,7 @@ pub const Material = struct {
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
 
         const layouts = [_]c.VkDescriptorSetLayout {
-            r._gpu_scene_data_descriptor_layout,
+            r.scene_descriptor,
             self.layout
         };
 

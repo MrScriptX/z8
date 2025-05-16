@@ -86,12 +86,6 @@ pub const renderer_t = struct {
     var _render_scale: f32 = 1.0;
 
     // pipelines
-    var _gradiant_pipeline: c.VkPipeline = undefined;
-    var _gradiant_pipeline_layout: c.VkPipelineLayout = undefined;
-
-    var _trianglePipelineLayout: c.VkPipelineLayout = undefined;
-    var _trianglePipeline: c.VkPipeline = undefined;
-
     var _gui_context: gui.GuiContext = undefined;
 
     pub var _black_image: vk.image.image_t = undefined;
@@ -134,8 +128,7 @@ pub const renderer_t = struct {
     submit: submit_t,
 
     // scene
-    _gpu_scene_data_descriptor_layout: c.VkDescriptorSetLayout = undefined,
-
+    scene_descriptor: c.VkDescriptorSetLayout = undefined,
     _scene: ?*scenes.DrawContext = null, 
 
     camera: *cam.camera_t,
@@ -160,7 +153,6 @@ pub const renderer_t = struct {
 
         try renderer.init_commands(allocator);
         try renderer.init_descriptors(allocator);
-        try renderer.init_pipelines(allocator);
 
         std.log.info("Initiliazing GUI...", .{});
         _gui_context = gui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
@@ -350,7 +342,7 @@ pub const renderer_t = struct {
             defer builder.deinit();
 
 		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		    self._gpu_scene_data_descriptor_layout = builder.build(self._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
+		    self.scene_descriptor = builder.build(self._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
         }
 
         {
@@ -360,51 +352,6 @@ pub const renderer_t = struct {
 		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		    _single_image_descriptor_layout = builder.build(self._device, c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
         }
-    }
-
-    fn init_pipelines(self: *renderer_t, allocator: std.mem.Allocator) !void {
-        try self.init_triangle_pipeline(allocator);
-    }
-
-    fn init_triangle_pipeline(self: *renderer_t, allocator: std.mem.Allocator) !void {
-        const triangle_frag_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/vkguide/colored_triangle.frag.spv");
-        defer c.vkDestroyShaderModule(self._device, triangle_frag_shader, null);
-
-	    const triangle_vertex_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/vkguide/colored_triangle.vert.spv");
-        defer c.vkDestroyShaderModule(self._device, triangle_vertex_shader, null);
-
-        const pipeline_layout_info = c.VkPipelineLayoutCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        };
-	
-        const result = c.vkCreatePipelineLayout(self._device, &pipeline_layout_info, null, &_trianglePipelineLayout); 
-	    if (result != c.VK_SUCCESS) {
-            std.debug.panic("failed to create pipeline layout!", .{});
-        }
-
-        var pipeline_builder = pipelines.builder_t.init(allocator);
-        defer pipeline_builder.deinit();
-
-        pipeline_builder._pipeline_layout = _trianglePipelineLayout;
-        try pipeline_builder.set_shaders(triangle_vertex_shader, triangle_frag_shader);
-        pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	    //filled triangles
-	    pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
-	    //no backface culling
-	    pipeline_builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
-	    //no multisampling
-	    pipeline_builder.set_multisampling_none();
-	    //no blending
-	    pipeline_builder.disable_blending();
-	    //no depth testing
-	    pipeline_builder.disable_depthtest();
-
-        //connect the image format we will draw into, from draw image
-	    pipeline_builder.set_color_attachment_format(self._draw_image.format);
-	    pipeline_builder.set_depth_format(c.VK_FORMAT_UNDEFINED);
-
-	    //finally build the pipeline
-	    _trianglePipeline = pipeline_builder.build_pipeline(self._device);
     }
 
     fn current_frame(self: *renderer_t) *frames.data_t {
@@ -675,7 +622,7 @@ pub const renderer_t = struct {
         const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
         scene_uniform_data.* = scene.global_data.*;
     
-        const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self._gpu_scene_data_descriptor_layout, null);
+        const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self.scene_descriptor, null);
         {
             var writer = descriptor.Writer.init(allocator);
             defer writer.deinit();
@@ -737,11 +684,6 @@ pub const renderer_t = struct {
             return;
         };
 
-        self.init_pipelines(allocator) catch {
-            std.log.err("Failed to build pipelines !", .{});
-            return;
-        };
-
         for (&self._frames) |*frame| {
             frame._sw_semaphore = try frames.create_semaphore(self._device);
         }
@@ -764,7 +706,7 @@ pub const renderer_t = struct {
         self._descriptor_pool.deinit(self._device);
 	    c.vkDestroyDescriptorSetLayout(self._device, self._draw_image_descriptor, null);
 
-        c.vkDestroyDescriptorSetLayout(self._device, self._gpu_scene_data_descriptor_layout, null);
+        c.vkDestroyDescriptorSetLayout(self._device, self.scene_descriptor, null);
 
         c.vkDestroyDescriptorSetLayout(self._device, _single_image_descriptor_layout, null);
 
@@ -772,15 +714,6 @@ pub const renderer_t = struct {
             frame._frame_descriptors.deinit(self._device);
             c.vkDestroySemaphore(self._device, frame._sw_semaphore, null);
         }
-
-        // destroy pipelines
-        c.vkDestroyPipelineLayout(self._device, _gradiant_pipeline_layout, null);
-
-        c.vkDestroyPipeline(self._device, _trianglePipeline, null);
-        c.vkDestroyPipelineLayout(self._device, _trianglePipelineLayout, null);
-
-        // c.vkDestroyPipeline(self._device, _meshPipeline, null);
-        // c.vkDestroyPipelineLayout(self._device, _meshPipelineLayout, null);
     }
 
     pub fn update_scene(self: *renderer_t, scene: *scenes.scene_t) void {
