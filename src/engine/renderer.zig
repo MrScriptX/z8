@@ -92,18 +92,10 @@ pub const renderer_t = struct {
     var _trianglePipelineLayout: c.VkPipelineLayout = undefined;
     var _trianglePipeline: c.VkPipeline = undefined;
 
-    var _meshPipelineLayout: c.VkPipelineLayout = undefined;
-    var _meshPipeline: c.VkPipeline = undefined;
-
     var _gui_context: gui.GuiContext = undefined;
 
-    pub var _white_image: vk.image.image_t = undefined;
     pub var _black_image: vk.image.image_t = undefined;
     pub var _grey_image: vk.image.image_t = undefined;
-    pub var _error_checker_board_image: vk.image.image_t = undefined;
-
-    pub var _default_sampler_linear: c.VkSampler = undefined;
-    pub var _default_sampler_nearest: c.VkSampler = undefined;
 
     var _single_image_descriptor_layout: c.VkDescriptorSetLayout = undefined;
 
@@ -143,12 +135,6 @@ pub const renderer_t = struct {
 
     // scene
     _gpu_scene_data_descriptor_layout: c.VkDescriptorSetLayout = undefined,
-
-    // data to draw
-    _default_data: material.MaterialInstance = undefined,
-    _metal_rough_material: loader.GLTFMetallic_Roughness = undefined,
-
-    _mat_constants: buffers.AllocatedBuffer = undefined,
 
     _scene: ?*scenes.DrawContext = null, 
 
@@ -206,20 +192,8 @@ pub const renderer_t = struct {
             std.log.warn("Failed to wait for device idle ! Reason {d}.", .{result});
         }
 
-        chunk.deinit(self._vma, self);
-        voxel_shader.deinit(self);
-        voxel_mat.deinit(self._device);
-        std.log.debug("voxel allocator leak : {any}", .{ gpa.deinit() });
-
-        c.vkDestroySampler(self._device, _default_sampler_nearest, null);
-        c.vkDestroySampler(self._device, _default_sampler_linear, null);
-
-        vk.image.destroy_image(self._device, self._vma, &_white_image);
         vk.image.destroy_image(self._device, self._vma, &_grey_image);
         vk.image.destroy_image(self._device, self._vma, &_black_image);
-        vk.image.destroy_image(self._device, self._vma, &_error_checker_board_image);
-
-        self._mat_constants.deinit(self._vma);
 
         for (&self._frames) |*frame| {
             frame.deinit(self._device, self._vma);
@@ -390,10 +364,6 @@ pub const renderer_t = struct {
 
     fn init_pipelines(self: *renderer_t, allocator: std.mem.Allocator) !void {
         try self.init_triangle_pipeline(allocator);
-        try self.init_mesh_pipeline(allocator);
-
-        self._metal_rough_material = loader.GLTFMetallic_Roughness.init(std.heap.page_allocator);
-        try self._metal_rough_material.build_pipeline(allocator, self);
     }
 
     fn init_triangle_pipeline(self: *renderer_t, allocator: std.mem.Allocator) !void {
@@ -435,63 +405,6 @@ pub const renderer_t = struct {
 
 	    //finally build the pipeline
 	    _trianglePipeline = pipeline_builder.build_pipeline(self._device);
-    }
-
-    fn init_mesh_pipeline(self: *renderer_t, allocator: std.mem.Allocator) !void {
-        const frag_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/vkguide/image_texture.frag.spv");
-        defer c.vkDestroyShaderModule(self._device, frag_shader, null);
-
-	    const vertex_shader = try pipelines.load_shader_module(allocator, self._device, "./zig-out/bin/shaders/vkguide/colored_triangle_mesh.vert.spv");
-        defer c.vkDestroyShaderModule(self._device, vertex_shader, null);
-
-        const buffer_range = c.VkPushConstantRange {
-            .offset = 0,
-            .size = @sizeOf(buffers.GPUDrawPushConstants),
-            .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
-        };
-
-        const layout_info = c.VkPipelineLayoutCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext = null,
-            .pPushConstantRanges = &buffer_range,
-            .pushConstantRangeCount = 1,
-            .pSetLayouts = &_single_image_descriptor_layout,
-            .setLayoutCount = 1,
-        };
-	
-        const result = c.vkCreatePipelineLayout(self._device, &layout_info, null, &_meshPipelineLayout); 
-	    if (result != c.VK_SUCCESS) {
-            std.debug.panic("failed to create pipeline layout!", .{});
-        }
-
-        var pipeline_builder = pipelines.builder_t.init(allocator);
-        defer pipeline_builder.deinit();
-
-        //use the triangle layout we created
-	    pipeline_builder._pipeline_layout = _meshPipelineLayout;
-	    //connecting the vertex and pixel shaders to the pipeline
-	    try pipeline_builder.set_shaders(vertex_shader, frag_shader);
-	    //it will draw triangles
-	    pipeline_builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	    //filled triangles
-	    pipeline_builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
-	    //no backface culling
-	    pipeline_builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
-	    //no multisampling
-	    pipeline_builder.set_multisampling_none();
-	    //no blending
-	    pipeline_builder.disable_blending();
-        // pipeline_builder.enable_blending_additive();
-
-	    // pipeline_builder.disable_depthtest();
-        pipeline_builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-	    //connect the image format we will draw into, from draw image
-	    pipeline_builder.set_color_attachment_format(self._draw_image.format);
-	    pipeline_builder.set_depth_format(self._depth_image.format);
-
-	    //finally build the pipeline
-	    _meshPipeline = pipeline_builder.build_pipeline(self._device);
     }
 
     fn current_frame(self: *renderer_t) *frames.data_t {
@@ -776,116 +689,8 @@ pub const renderer_t = struct {
 	    c.vkCmdEndRendering(cmd);
     }
 
-    // TODO : testing voxel from compute
-    var voxel_mat: voxel.Material = undefined;
-    var voxel_shader: compute.Shader = undefined;
-    var chunk: voxel.Voxel = undefined;
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-
-    fn draw_voxel(self: *renderer_t, allocator:std.mem.Allocator, cmd: c.VkCommandBuffer, scene: *scenes.scene_t) void {
-        //begin a render pass  connected to our draw image
-	    const color_attachment = c.VkRenderingAttachmentInfo {
-            .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .pNext = null,
-
-            .imageView = self._draw_image.view,
-            .imageLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-
-            .loadOp = c.VK_ATTACHMENT_LOAD_OP_LOAD,
-            .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-
-            .clearValue = std.mem.zeroes(c.VkClearValue),
-        };
-
-        const depth_attachment = c.VkRenderingAttachmentInfo {
-            .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .pNext = null,
-
-            .imageView = self._depth_image.view,
-            .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-
-            .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-
-            .clearValue = .{
-                .depthStencil = .{
-                    .depth = 0.0,
-                    .stencil = 0
-                }
-            }
-        };
-
-        const render_info = c.VkRenderingInfo {
-            .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .pNext = null,
-            .pColorAttachments = &color_attachment,
-            .colorAttachmentCount = 1,
-            .pDepthAttachment = &depth_attachment,
-            .renderArea = .{
-            .extent = self._draw_extent,
-            .offset = .{
-                    .x = 0,
-                    .y = 0
-                }
-            },
-            .flags = 0,
-            .layerCount = 1,
-            .pStencilAttachment = null,
-            .viewMask = 0,
-        };
-
-	    c.vkCmdBeginRendering(cmd, &render_info);
-
-        //set dynamic viewport and scissor
-	    const viewport = c.VkViewport {
-            .x = 0,
-	        .y = 0,
-	        .width = @floatFromInt(self._draw_extent.width),
-	        .height = @floatFromInt(self._draw_extent.height),
-	        .minDepth = 0.0,
-	        .maxDepth = 1.0,
-        };
-
-	    const scissor = c.VkRect2D {
-            .offset = .{ .x = 0, .y = 0 },
-	        .extent = self._draw_extent,
-        };
-        
-        c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-        c.vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-        // update scene data
-        const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-        self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
-            std.log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
-            @panic("OOM");
-        };
-
-        const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
-        scene_uniform_data.* = scene.data;
-
-        const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self._gpu_scene_data_descriptor_layout, null);
-    
-        {
-            var writer = descriptor.Writer.init(allocator);
-            defer writer.deinit();
-
-            writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-            writer.update_set(self._device, global_descriptor);
-        }
-
-        chunk.draw(cmd, global_descriptor);
-
-        c.vkCmdEndRendering(cmd);
-    }
-
     fn init_default_data(self: *renderer_t, _: std.mem.Allocator) !void {
         // initialize textures
-        const white: u32 align(4) = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
-        _white_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
-
         const grey: u32 align(4) = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
         _grey_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
 
@@ -899,115 +704,6 @@ pub const renderer_t = struct {
                 pixels[(y * 16) + x] = if(((x % 2) ^ (y % 2)) != 0) magenta else black; 
             }
         }
-
-        _error_checker_board_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
-
-        const nearest_sampler_image = c.VkSamplerCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = c.VK_FILTER_NEAREST,
-            .minFilter = c.VK_FILTER_NEAREST,
-        };
-
-        _ = c.vkCreateSampler(self._device, &nearest_sampler_image, null, &_default_sampler_nearest);
-
-        const linear_sampler_image = c.VkSamplerCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = c.VK_FILTER_LINEAR,
-            .minFilter = c.VK_FILTER_LINEAR,
-        };
-
-        _ = c.vkCreateSampler(self._device, &linear_sampler_image, null, &_default_sampler_linear);
-
-        // metal rough mat
-        self._mat_constants = buffers.AllocatedBuffer.init(self._vma, @sizeOf(loader.GLTFMetallic_Roughness.MaterialConstants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-        const scene_uniform_data: *loader.GLTFMetallic_Roughness.MaterialConstants = @alignCast(@ptrCast(self._mat_constants.info.pMappedData));
-        scene_uniform_data.color_factors = maths.vec4{ 1, 1, 1, 1 };
-        scene_uniform_data.metal_rough_factors = maths.vec4{ 1, 0.5, 0, 0 };
-
-        try self.init_mesh_material();
-
-        // voxel
-        voxel_shader = compute.Shader.init(gpa.allocator(), "voxel");
-        try voxel_shader.build(gpa.allocator(), "./zig-out/bin/shaders/aurora/cube.comp.spv", self);
-
-        voxel_mat = voxel.Material.init(gpa.allocator(), self);
-
-        chunk = voxel.Voxel.init(gpa.allocator(), self._vma, &voxel_shader, &voxel_mat, self);
-
-        // dispatch
-        var result = c.vkResetFences(self._device, 1, &self.submit.fence);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkResetFences failed with error {d}", .{ result });
-        }
-
-        result = c.vkResetCommandBuffer(self.submit.cmd, 0);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkResetCommandBuffer failed with error {d}", .{ result });
-        }
-
-        const begin_info = c.VkCommandBufferBeginInfo {
-            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .pNext = null,
-            .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        };
-
-        result = c.vkBeginCommandBuffer(self.submit.cmd, &begin_info);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkBeginCommandBuffer failed with error {d}", .{ result });
-        }
-
-        chunk.dispatch(self.submit.cmd);
-
-        result = c.vkEndCommandBuffer(self.submit.cmd);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
-        }
-
-        const cmd_submit_info = c.VkCommandBufferSubmitInfo {
-            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-            .pNext = null,
-            .commandBuffer = self.submit.cmd,
-            .deviceMask = 0
-        };
-
-        const submit_info = c.VkSubmitInfo2 {
-            .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-            .pNext = null,
-            .flags = 0,
-
-            .pCommandBufferInfos = &cmd_submit_info,
-            .commandBufferInfoCount = 1,
-
-            .pSignalSemaphoreInfos = null,
-            .signalSemaphoreInfoCount = 0,
-            
-            .pWaitSemaphoreInfos = null,
-            .waitSemaphoreInfoCount = 0,
-        };
-
-        result = c.vkQueueSubmit2(self._queues.graphics, 1, &submit_info, self.submit.fence); // TODO : run it on other queue for multithreading
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
-        }
-
-        result = c.vkWaitForFences(self._device, 1, &self.submit.fence, c.VK_TRUE, 9999999999);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkWaitForFences failed with error {d}", .{ result });
-        }
-    }
-
-    fn init_mesh_material(self: *renderer_t) !void {
-        const material_res = loader.GLTFMetallic_Roughness.MaterialResources {
-            .color_image = _white_image,
-            .color_sampler = _default_sampler_linear,
-            .metal_rough_image = _white_image,
-            .metal_rough_sampler = _default_sampler_linear,
-            .data_buffer = self._mat_constants.buffer,
-            .data_buffer_offset = 0,
-        };
-
-        self._default_data = self._metal_rough_material.write_material_compat(self._device, material.MaterialPass.MainColor, &material_res, &self._descriptor_pool);
     }
 
     pub fn render_scale() *f32 {
@@ -1046,15 +742,9 @@ pub const renderer_t = struct {
             return;
         };
 
-        self.init_mesh_material() catch {
-            std.log.err("Failed to init material !", .{});
-            return;
-        };
-
         for (&self._frames) |*frame| {
             frame._sw_semaphore = try frames.create_semaphore(self._device);
         }
-
 
         std.log.info("swapchain rebuilt", .{});
         self.rebuild = false;
@@ -1069,9 +759,6 @@ pub const renderer_t = struct {
 
         c.vkDestroyImageView(self._device, self._depth_image.view, null);
         c.vmaDestroyImage(self._vma, self._depth_image.image, self._depth_image.allocation);
-
-        // destroy materials
-        self._metal_rough_material.deinit(self._device);
 
         // destroy descriptors
         self._descriptor_pool.deinit(self._device);
@@ -1092,8 +779,8 @@ pub const renderer_t = struct {
         c.vkDestroyPipeline(self._device, _trianglePipeline, null);
         c.vkDestroyPipelineLayout(self._device, _trianglePipelineLayout, null);
 
-        c.vkDestroyPipeline(self._device, _meshPipeline, null);
-        c.vkDestroyPipelineLayout(self._device, _meshPipelineLayout, null);
+        // c.vkDestroyPipeline(self._device, _meshPipeline, null);
+        // c.vkDestroyPipelineLayout(self._device, _meshPipelineLayout, null);
     }
 
     pub fn update_scene(self: *renderer_t, scene: *scenes.scene_t) void {

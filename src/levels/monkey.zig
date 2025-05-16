@@ -7,16 +7,21 @@ pub const MonkeyScene = struct {
 
     draw_ctx: scenes.DrawContext,
 
+    metallic_roughness: gltf.GLTFMetallic_Roughness,
+
     pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !MonkeyScene {
         var scene = MonkeyScene {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .model = undefined,
             .global_data = .{},
-            .draw_ctx = undefined
+            .draw_ctx = undefined,
+            .metallic_roughness = gltf.GLTFMetallic_Roughness.init(allocator)
         };
 
+        try scene.metallic_roughness.build_pipeline(allocator, r);
+
         scene.model = try scene.arena.allocator().create(gltf.LoadedGLTF);
-        scene.model.* = try gltf.load_gltf(allocator, "assets/models/basicmesh.glb", r);
+        scene.model.* = try gltf.load_gltf(allocator, "assets/models/basicmesh.glb", &scene.metallic_roughness, r);
         scene.model.deactivate_node("Cube");
         scene.model.deactivate_node("Sphere");
 
@@ -32,6 +37,8 @@ pub const MonkeyScene = struct {
         if (result != c.VK_SUCCESS) {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
+
+        self.metallic_roughness.deinit(r._device);
 
         self.draw_ctx.deinit();
         

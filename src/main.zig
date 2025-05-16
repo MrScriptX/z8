@@ -33,18 +33,13 @@ pub fn main() !u8 {
     };
     defer renderer.deinit();
 
-    // create materials
-    var voxel_material = vox.VoxelMaterial.init(gpa.allocator(), renderer._device);
-    try voxel_material.build_pipeline(gpa.allocator(), &renderer);
-    defer voxel_material.deinit(renderer._device);
-
     // create scenes
     var scene_manager = engine.scene.manager_t.init(gpa.allocator());
     defer scene_manager.deinit(renderer._device, renderer._vma);
 
     // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
     // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
-    _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.MESH);
+    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.MESH);
 
 
     // create effects
@@ -355,6 +350,5 @@ const engine = @import("engine/engine.zig");
 const imgui = @import("imgui");
 const za = @import("zalgebra");
 const maths = @import("utils/maths.zig");
-const vox = @import("voxel.zig");
 const compute = @import("engine/compute_effect.zig");
 const levels = @import("levels/levels.zig");

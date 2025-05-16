@@ -175,6 +175,11 @@ pub const LoadedGLTF = struct {
     top_nodes: std.ArrayList(*m.Node),
     
     samplers: std.ArrayList(c.VkSampler),
+    sampler_linear: c.VkSampler = undefined,
+    sampler_nearest: c.VkSampler = undefined,
+
+    error_checker_board_image: vk.image.image_t,
+    white_image: vk.image.image_t,
 
     descriptor_pool: descriptors.DescriptorAllocator2,
 
@@ -191,6 +196,8 @@ pub const LoadedGLTF = struct {
             .materials = undefined,
             .top_nodes = undefined,
             .samplers = undefined,
+            .error_checker_board_image = undefined,
+            .white_image = undefined,
             .descriptor_pool = undefined,
             .material_data_buffer = undefined,
             .renderer = r,
@@ -202,6 +209,42 @@ pub const LoadedGLTF = struct {
         gltf.materials = std.hash_map.StringHashMap(*mat.MaterialInstance).init(allocator);
         gltf.top_nodes = std.ArrayList(*m.Node).init(allocator);
         gltf.samplers = std.ArrayList(c.VkSampler).init(allocator);
+
+        const white: u32 align(4) = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
+        gltf.white_image = vk.image.create_image_data(r._vma, r._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &r.submit.fence, r.submit.cmd, r._queues.graphics);
+
+        const black: u32 align(4) = maths.pack_unorm4x8(.{ 0, 0, 0, 0 });
+        const magenta: u32 align(4) = maths.pack_unorm4x8(.{ 1, 0, 1, 1 });
+        var pixels: [16 * 16]u32 = [_]u32 { 0 } ** (16 * 16);
+        for (0..16) |x| {
+            for (0..16) |y| {
+                pixels[(y * 16) + x] = if(((x % 2) ^ (y % 2)) != 0) magenta else black; 
+            }
+        }
+
+        gltf.error_checker_board_image = vk.image.create_image_data(r._vma, r._device, @ptrCast(&pixels), .{ .width = 16, .height = 16, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &r.submit.fence, r.submit.cmd, r._queues.graphics);
+
+        const nearest_sampler_image = c.VkSamplerCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = c.VK_FILTER_NEAREST,
+            .minFilter = c.VK_FILTER_NEAREST,
+        };
+
+        var result = c.vkCreateSampler(r._device, &nearest_sampler_image, null, &gltf.sampler_nearest);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("Failed to create nearest sampler. {d}", .{ result });
+        }
+
+        const linear_sampler_image = c.VkSamplerCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = c.VK_FILTER_LINEAR,
+            .minFilter = c.VK_FILTER_LINEAR,
+        };
+
+        result = c.vkCreateSampler(r._device, &linear_sampler_image, null, &gltf.sampler_linear);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("Failed to create linear sampler. {d}", .{ result });
+        }
 
         return gltf;
     }
@@ -230,12 +273,18 @@ pub const LoadedGLTF = struct {
 
         var image_it = self.images.iterator();
         while (image_it.next()) |*image| {
-            vk_images.destroy_image(device, vma, image.value_ptr.*);
+            vk.image.destroy_image(device, vma, image.value_ptr.*);
         }
+
+        vk.image.destroy_image(device, vma, &self.white_image);
+        vk.image.destroy_image(device, vma, &self.error_checker_board_image);
 
         for (self.samplers.items) |sampler| {
             c.vkDestroySampler(device, sampler, null);
         }
+
+        c.vkDestroySampler(device, self.sampler_nearest, null);
+        c.vkDestroySampler(device, self.sampler_linear, null);
     }
 
     pub fn draw(self: *LoadedGLTF, top_matrix: [4][4]f32, ctx: *scenes.DrawContext) void {
@@ -266,7 +315,7 @@ pub const LoadedGLTF = struct {
     }
 };
 
-pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.renderer_t) !LoadedGLTF {
+pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughness: *GLTFMetallic_Roughness, r: *renderer.renderer_t) !LoadedGLTF {
     var scene = LoadedGLTF.init(allocator, r);
 
     var options: cgltf.options = .{};
@@ -279,7 +328,8 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.re
 
     const success = cgltf.cgltf_load_buffers(&options, data, path.ptr);
     if (success != cgltf.result_success) {
-        std.debug.panic("Failed to load buffers!\n", .{});
+        std.log.err("Loading buffers from gltf file failed !", .{});
+        @panic("Failed to load buffers!");
     }
 
     const sizes = [_]descriptors.PoolSizeRatio {
@@ -358,7 +408,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.re
     const alloc = arena.allocator();
 
     // load textures
-    var images = std.hash_map.StringHashMap(*vk_images.image_t).init(allocator);
+    var images = std.hash_map.StringHashMap(*vk.image.image_t).init(allocator);
     defer images.deinit();
 
     if (data.images != null) {
@@ -374,7 +424,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.re
                 std.log.warn("Missing image {s}", .{ std.mem.span(img.name) });
 
                 const name = try alloc.dupe(u8, std.mem.span(img.name));
-                try images.put(name, &renderer.renderer_t._error_checker_board_image);
+                try images.put(name, &scene.error_checker_board_image);
             }
         }
     }
@@ -410,10 +460,10 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.re
         const pass_type = if (material.alpha_mode == cgltf.cgltf_alpha_mode_blend) mat.MaterialPass.Transparent else mat.MaterialPass.MainColor;
 
         var material_ressources = GLTFMetallic_Roughness.MaterialResources {
-            .color_image = renderer.renderer_t._white_image,
-            .color_sampler = renderer.renderer_t._default_sampler_linear,
-            .metal_rough_image = renderer.renderer_t._white_image,
-            .metal_rough_sampler = renderer.renderer_t._default_sampler_linear,
+            .color_image = scene.white_image,
+            .color_sampler = scene.sampler_linear,
+            .metal_rough_image = scene.white_image,
+            .metal_rough_sampler = scene.sampler_linear,
 
             .data_buffer = scene.material_data_buffer.buffer,
             .data_buffer_offset = data_index * @sizeOf(GLTFMetallic_Roughness.MaterialConstants),
@@ -428,7 +478,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.re
             material_ressources.color_sampler = scene.samplers.items[sampler];
         }
 
-        new_mat.* = r._metal_rough_material.write_material(allocator, r._device, pass_type, &material_ressources, &scene.descriptor_pool);
+        new_mat.* = metallic_roughness.write_material(allocator, r._device, pass_type, &material_ressources, &scene.descriptor_pool);
         data_index += 1;
     }
 
@@ -717,6 +767,7 @@ const m = @import("../graphics/assets.zig");
 const descriptors = @import("../descriptor.zig");
 const renderer = @import("../renderer.zig");
 const vk_images = @import("../vulkan/image.zig");
+const vk = @import("../vulkan/vulkan.zig");
 const cgltf = @import("cgltf");
 const stb = @import("stb");
 const pipeline = @import("../pipeline.zig");

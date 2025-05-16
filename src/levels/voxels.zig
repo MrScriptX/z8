@@ -85,9 +85,7 @@ pub const VoxelScene = struct {
 
         self.draw_ctx.global_data = &self.global_data;
 
-        // fill draw ctx with gltf model
-        // const top: [4][4]f32 align(16) = za.Mat4.identity().data;
-        // self.model.draw(top, &self.draw_ctx);
+        // fill draw ctx
         self.model.update(&self.draw_ctx);
     }
 };

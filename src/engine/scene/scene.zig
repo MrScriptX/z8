@@ -19,8 +19,7 @@ pub const scene_t = struct {
     data: ShaderData = undefined,
     draw_context: DrawContext,
     
-    gltf: ?*gltf.LoadedGLTF = null,    
-    voxel: ?vox.Voxel = null,
+    gltf: ?*gltf.LoadedGLTF = null,
 
     pub fn init(alloc: std.mem.Allocator, t: type_e) scene_t {
         const scene = scene_t {
@@ -62,21 +61,11 @@ pub const scene_t = struct {
 
         self.draw_context.opaque_surfaces.clearAndFree();
         self.draw_context.transparent_surfaces.clearAndFree();
-
-        if (self.voxel) |*voxel| {
-            voxel.deinit(vma);
-        }
-
-        self.voxel = null;
     }
 
     pub fn load_gltf(self: *scene_t, alloc: std.mem.Allocator, file: []const u8, r: *renderer.renderer_t) !void {
         self.gltf = try self.allocator().create(gltf.LoadedGLTF);
         self.gltf.?.* = try gltf.load_gltf(alloc, file, r);
-    }
-
-    pub fn load_mesh(self: *scene_t, alloc: std.mem.Allocator, material: *vox.VoxelMaterial, r: *renderer.renderer_t) !void {
-        self.voxel = try vox.Voxel.init(alloc, material, r);
     }
 
     pub fn update(self: *scene_t, cam: *const camera.camera_t, extent: c.VkExtent2D) void {
@@ -318,7 +307,6 @@ const c = @import("../../clibs.zig");
 const mesh = @import("../graphics/assets.zig");
 const gltf = @import("gltf.zig");
 const renderer = @import("../renderer.zig");
-const vox = @import("../../voxel.zig");
 const mat = @import("../graphics/materials.zig"); // TODO : use only one import
 const materials = @import("../graphics/materials.zig");
 const buffers = @import("../graphics/buffers.zig");

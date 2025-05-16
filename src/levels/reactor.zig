@@ -6,16 +6,21 @@ pub const ReactorScene = struct {
 
     draw_ctx: scenes.DrawContext,
 
+    metallic_roughness: gltf.GLTFMetallic_Roughness,
+
     pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !ReactorScene {
         var scene = ReactorScene {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .model = undefined,
             .global_data = .{},
-            .draw_ctx = undefined
+            .draw_ctx = undefined,
+            .metallic_roughness = gltf.GLTFMetallic_Roughness.init(allocator)
         };
 
+        try scene.metallic_roughness.build_pipeline(allocator, r);
+
         scene.model = try scene.arena.allocator().create(gltf.LoadedGLTF);
-        scene.model.* = try gltf.load_gltf(allocator, "assets/models/structure.glb", r);
+        scene.model.* = try gltf.load_gltf(allocator, "assets/models/structure.glb", &scene.metallic_roughness, r);
 
         scene.draw_ctx.global_data = &scene.global_data;
         scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
@@ -29,6 +34,8 @@ pub const ReactorScene = struct {
         if (result != c.VK_SUCCESS) {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
+
+        self.metallic_roughness.deinit(r._device);
 
         self.draw_ctx.deinit();
         
@@ -81,3 +88,5 @@ const renderer = @import("../engine/renderer.zig");
 const scenes = @import("../engine/scene/scene.zig");
 const cameras = @import("../engine/scene/camera.zig");
 const materials = @import("../engine/graphics/materials.zig");
+const vk = @import("../engine/vulkan/vulkan.zig");
+const maths = @import("../utils/maths.zig");
