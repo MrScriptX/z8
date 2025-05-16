@@ -243,6 +243,27 @@ pub const LoadedGLTF = struct {
             node.*.draw(top_matrix, ctx);
         }
     }
+
+    pub fn find_node(self: *LoadedGLTF, name: []const u8) ?*assets.Node {
+        for (self.top_nodes.items) |root| {
+            const node = root.find(name);
+            if (node) |n| {
+                return n;
+            }
+        }
+
+        return null;
+    }
+
+    pub fn deactivate_node(self: *LoadedGLTF, name: []const u8) void {
+        for (self.top_nodes.items) |root| {
+            const node = root.find(name);
+            if (node) |n| {
+                n.active = false;
+                break;
+            }
+        }
+    }
 };
 
 pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, r: *renderer.renderer_t) !LoadedGLTF {

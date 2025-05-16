@@ -1,10 +1,10 @@
 pub const ShaderData = struct {
-    view: [4][4]f32 align(16),
-    proj: [4][4]f32 align(16),
-    viewproj: [4][4]f32 align(16),
-    ambient_color: [4]f32 align(4),
-    sunlight_dir: [4]f32 align(4),
-    sunlight_color: [4]f32 align(4)
+    view: [4][4]f32 align(16) = za.Mat4.identity().data,
+    proj: [4][4]f32 align(16) = za.Mat4.identity().data,
+    viewproj: [4][4]f32 align(16) = za.Mat4.identity().data,
+    ambient_color: [4]f32 align(4) = .{ 0.1, 0.1, 0.1, 0.1 },
+    sunlight_dir: [4]f32 align(4) = .{ 1, 1, 1, 1 },
+    sunlight_color: [4]f32 align(4) = .{ 0, 1, 0.5, 1 }
 };
 
 pub const type_e = enum {

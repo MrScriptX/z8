@@ -42,8 +42,8 @@ pub fn main() !u8 {
     var scene_manager = engine.scene.manager_t.init(gpa.allocator());
     defer scene_manager.deinit(renderer._device, renderer._vma);
 
-    _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
-    _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
+    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
+    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
     _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.MESH);
 
 
@@ -93,6 +93,18 @@ pub fn main() !u8 {
     var current_scene: i32 = 0;
     var render_scene: i32 = -1;
 
+    var reactor_scene: ?levels.ReactorScene = null; 
+    defer if (reactor_scene) |*scene| {
+        scene.deinit(&renderer);
+        reactor_scene = null;
+    };
+
+    var monkey_scene: ?levels.MonkeyScene = null;
+    defer if (monkey_scene) |*scene| {
+        scene.deinit(&renderer);
+        monkey_scene = null;
+    };
+
     // main loop
     var quit = false;
     while (!quit) {
@@ -120,13 +132,17 @@ pub fn main() !u8 {
             }
         }
 
-        const current = scene_manager.scene(@intCast(current_scene));
-
         if (renderer.rebuild) {
             renderer.rebuild_swapchain(gpa.allocator(), window);
 
-            if (current) |s| {
-                s.clear(renderer._device, renderer._vma);
+            if (reactor_scene) |*scene| {
+                scene.deinit(&renderer);
+                reactor_scene = null;
+            }
+
+            if (monkey_scene) |*scene| {
+                scene.deinit(&renderer);
+                monkey_scene = null;
             }
 
             render_scene = -1; // force rebuild of scene
@@ -141,28 +157,31 @@ pub fn main() !u8 {
         if (render_scene != current_scene) {
             std.log.info("loading new scene", .{});
             
-            const rendered_scene = scene_manager.scene(@intCast(current_scene));
-            if (rendered_scene) |s| {
-                s.clear(renderer._device, renderer._vma);
+            if (reactor_scene) |*scene| {
+                scene.deinit(&renderer);
+                reactor_scene = null;
             }
 
-            if (current) |s| {
-                if (current_scene == 0) {
-                    try s.load_gltf(gpa.allocator(), "assets/models/basicmesh.glb", &renderer);
-                    s.deactivate_node("Cube");
-                    s.deactivate_node("Sphere");
-                }
-                else if (current_scene == 1) {
-                    try s.load_gltf(gpa.allocator(), "assets/models/structure.glb", &renderer);
-                }
-                else if (current_scene == 2) {
-                    try s.load_mesh(gpa.allocator(), &voxel_material, &renderer);
-                }
-
-                renderer._scene = &s.draw_context;
+            if (monkey_scene) |*scene| {
+                scene.deinit(&renderer);
+                monkey_scene = null;
             }
-            else {
-                std.log.err("Invalid scene {d}", .{ current_scene });
+
+            if (current_scene == 0) {
+                monkey_scene = levels.MonkeyScene.init(gpa.allocator(), &renderer) catch {
+                    std.log.err("Failed to load monkey scene", .{});
+                    @panic("Fatal error");
+                };
+
+                renderer._scene = &monkey_scene.?.draw_ctx;
+            }
+            else if (current_scene == 1) {
+                reactor_scene = levels.ReactorScene.init(gpa.allocator(), &renderer) catch {
+                    std.log.err("Failed to load rector scene", .{});
+                    @panic("Fatal error");
+                };
+
+                renderer._scene = &reactor_scene.?.draw_ctx;
             }
 
             render_scene = current_scene;
@@ -237,23 +256,13 @@ pub fn main() !u8 {
         // render
         imgui.Render();
 
-        if (current) |s| {
-            if (current_scene == 0) {
-                if (s.find_node("Suzanne")) |node| {
-                    const current_transform = za.Mat4.fromSlice(&maths.linearize(node.local_transform));
-
-                    const rotation_speed: f32 = 45.0; // Degrees per second
-                    const rotation_angle = rotation_speed * (renderer.stats.frame_time / 1_000_000_000.0);
-                    const rot = za.Mat4.identity().rotate(rotation_angle, za.Vec3.new(0, 1, 0)).mul(current_transform).data;
-
-                    node.local_transform = rot;
-                    node.refresh_transform(&rot);
-                }
-            }
-
-            renderer.update_scene(s);
-            renderer.draw(gpa.allocator());
+        if (reactor_scene) |*scene| {
+            scene.update(&main_camera, &renderer);
         }
+        else if (monkey_scene) |*scene| {
+            scene.update(&main_camera, &renderer);
+        }
+        renderer.draw(gpa.allocator());
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         renderer.stats.frame_time = @floatFromInt(end_time - start_time);
@@ -321,3 +330,4 @@ const za = @import("zalgebra");
 const maths = @import("utils/maths.zig");
 const vox = @import("voxel.zig");
 const compute = @import("engine/compute_effect.zig");
+const levels = @import("levels/levels.zig");
