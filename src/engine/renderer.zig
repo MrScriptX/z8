@@ -91,10 +91,6 @@ pub const renderer_t = struct {
     pub var _black_image: vk.image.image_t = undefined;
     pub var _grey_image: vk.image.image_t = undefined;
 
-    var _single_image_descriptor_layout: c.VkDescriptorSetLayout = undefined;
-
-    var _loaded_scenes: std.hash_map.StringHashMap(*loader.LoadedGLTF) = undefined;
-
     // memory allocators
     _arena: std.heap.ArenaAllocator = undefined,
     _vma: c.VmaAllocator = undefined,
@@ -343,14 +339,6 @@ pub const renderer_t = struct {
 
 		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		    self.scene_descriptor = builder.build(self._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
-        }
-
-        {
-            var builder = descriptor.DescriptorLayout.init(allocator);
-            defer builder.deinit();
-
-		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		    _single_image_descriptor_layout = builder.build(self._device, c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
         }
     }
 
@@ -707,8 +695,6 @@ pub const renderer_t = struct {
 	    c.vkDestroyDescriptorSetLayout(self._device, self._draw_image_descriptor, null);
 
         c.vkDestroyDescriptorSetLayout(self._device, self.scene_descriptor, null);
-
-        c.vkDestroyDescriptorSetLayout(self._device, _single_image_descriptor_layout, null);
 
         for (&self._frames) |*frame| {
             frame._frame_descriptors.deinit(self._device);
