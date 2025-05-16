@@ -50,6 +50,7 @@ pub const Shader = struct {
 
         try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
 
@@ -92,6 +93,7 @@ pub const Shader = struct {
         self.writer.clear();
         self.writer.write_buffer(0, resources.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         self.writer.write_buffer(1, resources.index_buffer, @sizeOf(u32) * cube_index_count, resources.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(2, resources.index_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.writer.update_set(r._device, data.descriptor);
 
@@ -104,6 +106,9 @@ pub const Shader = struct {
 
         index_buffer: c.VkBuffer,
         index_buffer_offset: u32,
+
+        indirect_buffer: c.VkBuffer,
+        indirect_buffer_offset: u32,
     };
 };
 

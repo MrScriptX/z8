@@ -4,6 +4,7 @@ pub const Voxel = struct {
     arena: std.heap.ArenaAllocator,
 
     buffer: buffers.GPUMeshBuffers,
+    indirect_buffer: buffers.AllocatedBuffer,
     
     indices: [36]u32 = .{ 0 } ** 36,
     vertices: [36]buffers.Vertex = .{ buffers.Vertex{
@@ -23,12 +24,13 @@ pub const Voxel = struct {
     pub fn init(allocator: std.mem.Allocator, vma: c.VmaAllocator, shader: *compute.Shader, mat: *Material, r: *const renderer.renderer_t) Voxel {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
-            .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 2 }
+            .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 }
         };
 
         var voxel: Voxel = .{
             .arena = std.heap.ArenaAllocator.init(allocator),
             .buffer = undefined,
+            .indirect_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .compute_shader = undefined,
             .material = undefined,
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
@@ -50,6 +52,8 @@ pub const Voxel = struct {
             .index_buffer_offset = 0,
             .vertex_buffer = voxel.buffer.vertex_buffer.buffer,
             .vertex_buffer_offset = 0,
+            .indirect_buffer = voxel.indirect_buffer.buffer,
+            .indirect_buffer_offset = 0,
         };
 
         voxel.compute_shader = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
@@ -60,6 +64,7 @@ pub const Voxel = struct {
 
     pub fn deinit(self: *Voxel, vma: c.VmaAllocator, r: *const renderer.renderer_t) void {
         self.buffer.deinit(vma);
+        self.indirect_buffer.deinit(vma);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
         
@@ -98,12 +103,25 @@ pub const Voxel = struct {
             .size = @sizeOf(u32) * self.indices.len,
         };
 
-        const barriers = [_]c.VkBufferMemoryBarrier {
-            vertex_barrier,
-            index_barrier
+        const indirect_barrier = c.VkBufferMemoryBarrier{
+            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
+            .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .buffer = self.indirect_buffer.buffer,
+            .offset = 0,
+            .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
 
-        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, null, 2, @ptrCast(&barriers), 0, null);
+
+        const barriers = [_]c.VkBufferMemoryBarrier {
+            vertex_barrier,
+            index_barrier,
+            indirect_barrier
+        };
+
+        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
     }
 
     pub fn update(self: *Voxel, ctx: *scenes.DrawContext) void {
@@ -136,7 +154,7 @@ pub const Voxel = struct {
 
         c.vkCmdPushConstants(cmd, self.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &constant);
 
-        c.vkCmdDrawIndexed(cmd, self.indices.len, 1, 0, 0, 0);
+        c.vkCmdDrawIndexedIndirect(cmd, self.indirect_buffer.buffer, 0, 1, 0);
     }
 };
 

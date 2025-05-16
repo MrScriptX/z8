@@ -18,7 +18,23 @@ layout(std430, binding = 1) buffer IndexBuffer {
     uint indices[];
 };
 
+layout(std430, binding = 2) buffer IndirectCommand {
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int  vertexOffset;
+    uint firstInstance;
+};
+
 void main() {
+    if (gl_GlobalInvocationID.x == 0) {
+        indexCount = 36;
+        instanceCount = 1;
+        firstIndex = 0;
+        vertexOffset = 0;
+        firstInstance = 0;
+    }
+
     uint vertex_id = gl_GlobalInvocationID.x;
 
     // Define cube vertices
