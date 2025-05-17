@@ -1,22 +1,3 @@
-pub const DrawContext = struct {
-    opaque_surfaces: std.ArrayList(mat.RenderObject),
-    transparent_surfaces: std.ArrayList(mat.RenderObject),
-
-    pub fn init(allocator: std.mem.Allocator) DrawContext {
-        const ctx = DrawContext {
-            .opaque_surfaces = std.ArrayList(mat.RenderObject).init(allocator),
-            .transparent_surfaces = std.ArrayList(mat.RenderObject).init(allocator),
-        };
-
-        return ctx;
-    }
-
-    pub fn deinit(self: *DrawContext) void {
-        self.opaque_surfaces.deinit();
-        self.transparent_surfaces.deinit();
-    }
-};
-
 pub const NodeType = enum {
     BASE_NODE,
     MESH_NODE,
@@ -63,7 +44,7 @@ pub const Node = struct {
         if (self._type == NodeType.MESH_NODE) {
             const node_matrix = math.mul(top_matrix, self.world_transform);
             for (self.mesh.surfaces.items) |*surface| {
-                const render_object = mat.RenderObject {
+                const render_object = materials.RenderObject {
                     .index_count = surface.count,
                     .first_index = surface.startIndex,
                     .index_buffer = self.mesh.mesh_buffers.index_buffer.buffer,
@@ -72,7 +53,7 @@ pub const Node = struct {
                     .vertex_buffer_address = self.mesh.mesh_buffers.vertex_buffer_address,
                 };
 
-                if (surface.material.pass_type == mat.MaterialPass.Transparent) {
+                if (surface.material.pass_type == materials.MaterialPass.Transparent) {
                     ctx.transparent_surfaces.append(render_object) catch @panic("Failed to append render object ! OOM !");
                 }
                 else {
@@ -105,7 +86,7 @@ pub const Node = struct {
 pub const GeoSurface = struct {
     startIndex: u32,
     count: u32,
-    material: *mat.MaterialInstance = undefined,
+    material: *materials.MaterialInstance = undefined,
 };
 
 pub const MeshAsset = struct {
@@ -136,8 +117,10 @@ pub const MeshAsset = struct {
 };
 
 const std = @import("std");
-const math = @import("../utils/maths.zig");
-const mat = @import("materials.zig");
+const math = @import("../../utils/maths.zig");
+const materials = @import("materials.zig");
 const z = @import("zalgebra");
 const buffers = @import("buffers.zig");
-const gltf = @import("gltf.zig");
+const c = @import("../../clibs.zig");
+const renderer = @import("../renderer.zig");
+const DrawContext = @import("../scene/scene.zig").DrawContext;

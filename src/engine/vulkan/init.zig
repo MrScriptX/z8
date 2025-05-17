@@ -3,6 +3,7 @@ const c = @import("../../clibs.zig");
 const queue = @import("queue_family.zig");
 const sw = @import("swapchain.zig");
 const opt = @import("../../options.zig");
+const sdl = @import("sdl3");
 
 const Error = error{
     Failed,
@@ -27,7 +28,7 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
 
     // get required extensions
     var extension_count: u32 = 0;
-    const required_extensions = c.SDL_Vulkan_GetInstanceExtensions(&extension_count);// VK_EXT_DEBUG_REPORT_EXTENSION_NAME
+    const required_extensions = sdl.SDL_Vulkan_GetInstanceExtensions(&extension_count);// VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 
     var extensions = std.ArrayList([*c]const u8).init(allocator);
     defer extensions.deinit();
@@ -66,11 +67,11 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     return instance;
 }
 
-pub fn create_surface(window: ?*c.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
+pub fn create_surface(window: ?*sdl.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
     var surface: c.VkSurfaceKHR = undefined;
-    const result = c.SDL_Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
+    const result = sdl.SDL_Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
     if (result == false) {
-        std.log.err("Unable to create Vulkan surface: {s}", .{ c.SDL_GetError() });
+        std.log.err("Unable to create Vulkan surface: {s}", .{ sdl.SDL_GetError() });
         return Error.VkSurface;
     }
 

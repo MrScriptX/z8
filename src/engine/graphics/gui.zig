@@ -8,7 +8,7 @@ pub const GuiContext = struct {
 
    context: *imgui.ImGuiContext,
 
-   pub fn init(window: ?*c.SDL_Window, device: c.VkDevice, instance: c.VkInstance,
+   pub fn init(window: ?*sdl.SDL_Window, device: c.VkDevice, instance: c.VkInstance,
       gpu: c.VkPhysicalDevice, queue: c.VkQueue, format: *c.VkFormat) Error!GuiContext {
       const pool_sizes = [_]c.VkDescriptorPoolSize{
          .{ .type = c.VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000 },
@@ -141,6 +141,7 @@ pub fn show_stats_window(r: *renderer.renderer_t) void {
 }
 
 const std = @import("std");
-const c = @import("../clibs.zig");
+const c = @import("../../clibs.zig");
 const imgui = @import("imgui");
-const renderer = @import("renderer.zig");
+const renderer = @import("../renderer.zig");
+const sdl = @import("sdl3");

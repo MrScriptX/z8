@@ -1,6 +1,6 @@
 const std = @import("std");
 const c = @import("../../clibs.zig");
-const buffers = @import("../buffers.zig");
+const buffers = @import("../graphics/buffers.zig");
 const utils = @import("../utils.zig");
 
 pub const image_t = struct {

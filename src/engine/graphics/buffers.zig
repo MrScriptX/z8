@@ -61,7 +61,7 @@ pub const GPUMeshBuffers = struct {
 	    new_surface.vertex_buffer_address = c.vkGetBufferDeviceAddress(r._device, &device_adress_info);
 
         const index_buffer_size = indices.len * @sizeOf(u32);
-        new_surface.index_buffer = AllocatedBuffer.init(r._vma, index_buffer_size, c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT | c.VK_BUFFER_USAGE_TRANSFER_DST_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY);
+        new_surface.index_buffer = AllocatedBuffer.init(r._vma, index_buffer_size, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT | c.VK_BUFFER_USAGE_TRANSFER_DST_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY);
 
         var staging = AllocatedBuffer.init(r._vma, vertex_buffer_size + index_buffer_size, c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT, c.VMA_MEMORY_USAGE_CPU_ONLY);
         defer staging.deinit(r._vma);
@@ -172,5 +172,5 @@ pub const GPUDrawPushConstants = struct {
 };
 
 const std = @import("std");
-const c = @import("../clibs.zig");
-const renderer = @import("renderer.zig");
+const c = @import("../../clibs.zig");
+const renderer = @import("../renderer.zig");

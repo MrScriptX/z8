@@ -23,44 +23,44 @@ pub const camera_t = struct {
         return za.Mat4.mul(za.Quat.toMat4(yaw_rotation), za.Quat.toMat4(pitch_rotation));
     }
 
-    pub fn process_sdl_event(self: *camera_t, e: *c.SDL_Event) void {
-        if (e.type == c.SDL_EVENT_KEY_DOWN) {
-            if (e.key.key == c.SDLK_Z) {
+    pub fn process_sdl_event(self: *camera_t, e: *sdl.SDL_Event) void {
+        if (e.type == sdl.SDL_EVENT_KEY_DOWN) {
+            if (e.key.key == sdl.SDLK_Z) {
                 self.velocity[2] = -1 * self.speed;
             }
 
-            if (e.key.key == c.SDLK_S) {
+            if (e.key.key == sdl.SDLK_S) {
                 self.velocity[2] = 1 * self.speed;
             }
 
-            if (e.key.key == c.SDLK_Q) {
+            if (e.key.key == sdl.SDLK_Q) {
                 self.velocity[0] = -1 * self.speed;
             }
 
-            if (e.key.key == c.SDLK_D) {
+            if (e.key.key == sdl.SDLK_D) {
                 self.velocity[0] = 1 * self.speed;
             }
         }
 
-        if (e.type == c.SDL_EVENT_KEY_UP) {
-            if (e.key.key == c.SDLK_Z) {
+        if (e.type == sdl.SDL_EVENT_KEY_UP) {
+            if (e.key.key == sdl.SDLK_Z) {
                 self.velocity[2] = 0;
             }
 
-            if (e.key.key == c.SDLK_S) {
+            if (e.key.key == sdl.SDLK_S) {
                 self.velocity[2] = 0;
             }
 
-            if (e.key.key == c.SDLK_Q) {
+            if (e.key.key == sdl.SDLK_Q) {
                 self.velocity[0] = 0;
             }
 
-            if (e.key.key == c.SDLK_D) {
+            if (e.key.key == sdl.SDLK_D) {
                 self.velocity[0] = 0;
             }
         }
 
-        if (e.type == c.SDL_EVENT_MOUSE_MOTION) {
+        if (e.type == sdl.SDL_EVENT_MOUSE_MOTION) {
             self.yaw += e.motion.xrel * self.sensitivity;  // / 200.0;
             self.pitch -= e.motion.yrel * self.sensitivity; //  / 200.0;
         }
@@ -79,9 +79,10 @@ pub const camera_t = struct {
 
 const vec4 = @Vector(4, f32);
 
-const c = @import("../clibs.zig");
-const maths = @import("../utils/maths.zig");
+const c = @import("../../clibs.zig");
+const maths = @import("../../utils/maths.zig");
 const za = @import("zalgebra");
+const sdl = @import("sdl3");
 
 test "camera update" {
 

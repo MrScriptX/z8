@@ -26,6 +26,6 @@ pub const MaterialPass = enum(u8) {
     Other,
 };
 
-const c = @import("../clibs.zig");
-const maths = @import("../utils/maths.zig");
-const images = @import("vulkan/image.zig");
+const c = @import("../../clibs.zig");
+const maths = @import("../../utils/maths.zig");
+const images = @import("../vulkan/image.zig");
