@@ -16,8 +16,8 @@ pub const Shader = struct {
     layout: c.VkDescriptorSetLayout = undefined,
     writer: descriptors.Writer,
 
-    const cube_vertex_count: u32 = 12 * 3;
-    const cube_index_count: u32 = 36;
+    const cube_vertex_count: u32 = 16 * 16 * 16 * 12 * 3;
+    const cube_index_count: u32 = 16 * 16 * 16 * 36;
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) Shader {
         std.log.info("Creating compute shader {s}", .{ name });

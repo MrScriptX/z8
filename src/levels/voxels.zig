@@ -21,7 +21,7 @@ pub const VoxelScene = struct {
 
         scene.shader = try scene.arena.allocator().create(compute.Shader);
         scene.shader.* = compute.Shader.init(allocator, "voxel");
-        try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/cube.comp.spv", r);
+        try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/world.comp.spv", r);
 
         scene.material = try scene.arena.allocator().create(chunk.Material);
         scene.material.* = chunk.Material.init(allocator, r);

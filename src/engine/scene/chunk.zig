@@ -1,4 +1,6 @@
-const cube_vertex_count = 36;
+const CHUNK_SIZE = 16;
+const voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+const cube_index_count = voxel_count * 36;
 
 pub const Voxel = struct {
     arena: std.heap.ArenaAllocator,
@@ -6,14 +8,8 @@ pub const Voxel = struct {
     buffer: buffers.GPUMeshBuffers,
     indirect_buffer: buffers.AllocatedBuffer,
     
-    indices: [36]u32 = .{ 0 } ** 36,
-    vertices: [36]buffers.Vertex = .{ buffers.Vertex{
-        .position = std.mem.zeroes([3]f32),
-        .uv_x = 0,
-        .normal = std.mem.zeroes([3]f32),
-        .uv_y = 0,
-        .color = std.mem.zeroes([4]f32)
-    } } ** 36,
+    indices: []u32,
+    vertices: []buffers.Vertex,
 
     compute_shader: *compute.Instance,
     material: *materials.MaterialInstance,
@@ -35,9 +31,14 @@ pub const Voxel = struct {
             .material = undefined,
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
             .material_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(Material.Constants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
+            .indices = undefined,
+            .vertices = undefined,
         };
 
-        voxel.buffer = buffers.GPUMeshBuffers.init(vma, &voxel.indices, &voxel.vertices, r);
+        voxel.indices = voxel.arena.allocator().alloc(u32, cube_index_count) catch @panic("Out of memory");
+        voxel.vertices = voxel.arena.allocator().alloc(buffers.Vertex, cube_index_count) catch @panic("Out of memory");
+
+        voxel.buffer = buffers.GPUMeshBuffers.init(vma, voxel.indices[0..cube_index_count], voxel.vertices[0..cube_index_count], r);
 
         const resources = Material.Resources {
             .data_buffer =  voxel.material_buffer.buffer, 
@@ -75,9 +76,9 @@ pub const Voxel = struct {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.layout, 0, 1, &self.compute_shader.descriptor, 0, null);
 
-        const group_x: u32 = self.indices.len;
-        const group_y: u32 = 1;
-        const group_z: u32 = 1;
+        const group_x: u32 = CHUNK_SIZE / 8;
+        const group_y: u32 = CHUNK_SIZE / 8;
+        const group_z: u32 = CHUNK_SIZE / 8;
         
         c.vkCmdDispatch(cmd, group_x, group_y, group_z);
 
@@ -126,7 +127,7 @@ pub const Voxel = struct {
 
     pub fn update(self: *Voxel, ctx: *scenes.DrawContext) void {
         const object = materials.RenderObject {
-            .index_count = self.indices.len,
+            .index_count = cube_index_count,
             .first_index = 0,
             .index_buffer = self.buffer.index_buffer.buffer,
             .material = self.material,
