@@ -272,6 +272,10 @@ pub fn main() !u8 {
 		    }
         }
 
+        if (voxels_scene) |*scene| {
+            scene.update_ui();
+        }
+
         // render
         imgui.Render();
 
@@ -282,7 +286,7 @@ pub fn main() !u8 {
             scene.update(&main_camera, &renderer);
         }
         else if (voxels_scene) |*scene| {
-            scene.update(&main_camera, &renderer);
+            scene.update(gpa.allocator(), &main_camera, &renderer);
         }
         renderer.draw(gpa.allocator());
 

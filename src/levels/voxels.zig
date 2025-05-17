@@ -1,8 +1,21 @@
+const MaterialPipelines = struct {
+    default: *chunk.Material,
+    polygone: *chunk.Material,
+};
+
+const State = struct {
+    pipeline: i32 = 0,
+    loaded_pipeline: i32 = 0,
+};
+
 // TODO : implement UI to chose which node to display
 pub const VoxelScene = struct {
     arena: std.heap.ArenaAllocator,
-    
-    material: *chunk.Material,
+
+    state: State,
+
+    pipelines: MaterialPipelines,
+
     shader: *compute.Shader,
     model: chunk.Voxel,
     global_data: scenes.ShaderData,
@@ -12,21 +25,35 @@ pub const VoxelScene = struct {
     pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !VoxelScene {
         var scene = VoxelScene {
             .arena = std.heap.ArenaAllocator.init(allocator),
-            .material = undefined,
+            .pipelines = undefined,
             .shader = undefined,
             .model = undefined,
             .global_data = .{},
-            .draw_ctx = undefined
+            .draw_ctx = undefined,
+            .state = .{}
         };
 
         scene.shader = try scene.arena.allocator().create(compute.Shader);
         scene.shader.* = compute.Shader.init(allocator, "voxel");
         try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/world.comp.spv", r);
 
-        scene.material = try scene.arena.allocator().create(chunk.Material);
-        scene.material.* = chunk.Material.init(allocator, r);
+        std.log.info("Build voxel default pipeline", .{});
 
-        scene.model = chunk.Voxel.init(allocator, r._vma, scene.shader, scene.material, r);
+        scene.pipelines.default = try scene.arena.allocator().create(chunk.Material);
+        scene.pipelines.default.* = chunk.Material.init(allocator);        
+        scene.pipelines.default.build(allocator, c.VK_POLYGON_MODE_FILL, r) catch {
+            std.log.err("Failed to build pipeline", .{});
+        };
+
+        std.log.info("Build voxel debug pipeline", .{});
+
+        scene.pipelines.polygone = try scene.arena.allocator().create(chunk.Material);
+        scene.pipelines.polygone.* = chunk.Material.init(allocator);
+        scene.pipelines.polygone.build(allocator, c.VK_POLYGON_MODE_LINE, r) catch {
+            std.log.err("Failed to build pipeline", .{});
+        };
+
+        scene.model = chunk.Voxel.init(allocator, r._vma, scene.shader, scene.pipelines.default, r);
 
         r.submit.start_recording(r);
         scene.model.dispatch(r.submit.cmd);
@@ -49,20 +76,42 @@ pub const VoxelScene = struct {
         
         self.model.deinit(r._vma, r);
 
-        self.material.deinit(r._device);
+        self.pipelines.default.deinit(r._device);
+        self.pipelines.polygone.deinit(r._device);
         self.shader.deinit(r);
 
         self.arena.deinit();
     }
 
-    pub fn update(self: *VoxelScene, cam: *cameras.camera_t, r: *renderer.renderer_t) void {
+    pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.renderer_t) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
+
+        // check if pipeline changed
+        if (self.state.loaded_pipeline != self.state.pipeline) {
+            switch (self.state.pipeline) {
+                0 => self.set_default_pipeline(allocator, r),
+                1 => self.set_debug_pipeline(allocator, r),
+                else => std.log.warn("Invalid pipeline value", .{})
+            }
+
+            self.state.loaded_pipeline = self.state.pipeline;
+        }
 
         cam.update(r.stats.frame_time);
         self.draw(cam, r._draw_extent);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
+    }
+
+    pub fn update_ui(self: *VoxelScene) void {
+        const result = imgui.Begin("Scene", null, 0);
+        if (result) {
+            defer imgui.End();
+
+            const pipeline_list = [_][*:0]const u8{ "default", "debug" };
+            _ = imgui.ImGui_ComboChar("pipeline", &self.state.pipeline, @ptrCast(&pipeline_list), pipeline_list.len);
+        }
     }
 
     pub fn draw(self: *VoxelScene, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D) void {
@@ -88,10 +137,19 @@ pub const VoxelScene = struct {
         // fill draw ctx
         self.model.update(&self.draw_ctx);
     }
+
+    pub fn set_debug_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+        self.model.swap_pipeline(allocator, self.pipelines.polygone, r);
+    }
+
+    pub fn set_default_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+        self.model.swap_pipeline(allocator, self.pipelines.default, r);
+    }
 };
 
 const std = @import("std");
 const za = @import("zalgebra");
+const imgui = @import("imgui");
 const c = @import("../clibs.zig");
 const renderer = @import("../engine/renderer.zig");
 const scenes = @import("../engine/scene/scene.zig");

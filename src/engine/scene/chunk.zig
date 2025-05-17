@@ -157,6 +157,20 @@ pub const Voxel = struct {
 
         c.vkCmdDrawIndexedIndirect(cmd, self.indirect_buffer.buffer, 0, 1, 0);
     }
+
+    pub fn swap_pipeline(self: *Voxel, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
+        // clean old material
+        self.arena.allocator().destroy(self.material);
+        
+        // create new material
+        const resources = Material.Resources {
+            .data_buffer = self.material_buffer.buffer, 
+            .data_buffer_offset = 0,
+        };
+
+        self.material = self.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
+        self.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
+    }
 };
 
 pub const Material = struct {
@@ -164,19 +178,12 @@ pub const Material = struct {
     layout: c.VkDescriptorSetLayout,
     writer: descriptors.Writer,
 
-    pub fn init(allocator: std.mem.Allocator, r: *const renderer.renderer_t) Material {
-        var instance = Material {
+    pub fn init(allocator: std.mem.Allocator) Material {
+        return .{
             .writer = descriptors.Writer.init(allocator),
             .layout = undefined,
             .pipeline = undefined,
         };
-
-        std.log.info("Build voxel graphical pipeline", .{});
-        instance.build_pipeline(allocator, r) catch {
-            std.log.err("Failed to build pipeline", .{});
-        };
-
-        return instance;
     }
 
     pub fn deinit(self: *Material, device: c.VkDevice) void {
@@ -188,7 +195,7 @@ pub const Material = struct {
         self.writer.deinit();
     }
 
-    fn build_pipeline(self: *Material, allocator: std.mem.Allocator, r: *const renderer.renderer_t) !void {
+    pub fn build(self: *Material, allocator: std.mem.Allocator, polygone_mode: c.VkPolygonMode, r: *const renderer.renderer_t) !void {
         const frag_shader = try p.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/aurora/cube.frag.spv");
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
@@ -235,7 +242,7 @@ pub const Material = struct {
 
         try builder.set_shaders(vert_shader, frag_shader);
         builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-        builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
+        builder.set_polygon_mode(polygone_mode);
         builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
         builder.set_multisampling_none();
         builder.disable_blending();
