@@ -132,7 +132,8 @@ pub const Voxel = struct {
             .index_buffer = self.buffer.index_buffer.buffer,
             .material = self.material,
             .transform = za.Mat4.identity().data,
-            .vertex_buffer_address = self.buffer.vertex_buffer_address
+            .vertex_buffer_address = self.buffer.vertex_buffer_address,
+            .indirect_buffer = self.indirect_buffer.buffer,
         };
 
         ctx.opaque_surfaces.append(object) catch {
