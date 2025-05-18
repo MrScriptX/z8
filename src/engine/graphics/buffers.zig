@@ -51,7 +51,7 @@ pub const GPUMeshBuffers = struct {
             .vertex_buffer = undefined,
             .vertex_buffer_address = undefined,
         };
-        new_surface.vertex_buffer = AllocatedBuffer.init(vma, vertex_buffer_size, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_TRANSFER_DST_BIT | c.VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY);
+        new_surface.vertex_buffer = AllocatedBuffer.init(vma, vertex_buffer_size, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_TRANSFER_DST_BIT | c.VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY);
 
         const device_adress_info = c.VkBufferDeviceAddressInfo {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,

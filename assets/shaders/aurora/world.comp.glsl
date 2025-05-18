@@ -56,13 +56,11 @@ void main() {
         }
     }
 
-    if (index == 0) {
-        indexCount = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 36;
-        instanceCount = 1;
-        firstIndex = 0;
-        vertexOffset = 0;
-        firstInstance = 0;
-    }
+    indexCount = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 36;
+    instanceCount = 1;
+    firstIndex = 0;
+    vertexOffset = 0;
+    firstInstance = 0;
 
     // uint vertex_id = gl_GlobalInvocationID.x;
 
