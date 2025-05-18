@@ -19,6 +19,10 @@ layout(set = 0, binding = 0) uniform  SceneData{
 	vec4 sunlightColor;
 } scene_data;
 
+layout(set = 1, binding = 0) readonly buffer VertexBuffer2 {
+    vertex_t vertices[];
+} vertex_buffer;
+
 layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec2 fragUV;
 
@@ -32,7 +36,7 @@ layout(push_constant) uniform PushConstants {
 } pc;
 
 void main() {
-    vertex_t v = pc.vertex_buffer.vertices[gl_VertexIndex];
+    vertex_t v = vertex_buffer.vertices[gl_VertexIndex];
 
     vec4 position = vec4(v.position, 1.0f);
     gl_Position = scene_data.viewproj * pc.render_matrix * position;

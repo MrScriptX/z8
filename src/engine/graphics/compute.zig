@@ -93,7 +93,7 @@ pub const Shader = struct {
         self.writer.clear();
         self.writer.write_buffer(0, resources.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         self.writer.write_buffer(1, resources.index_buffer, @sizeOf(u32) * cube_index_count, resources.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(2, resources.index_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(2, resources.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.writer.update_set(r._device, data.descriptor);
 

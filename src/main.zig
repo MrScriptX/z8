@@ -85,7 +85,7 @@ pub fn main() !u8 {
     var current_shader: u32 = 0;
     renderer.bg_shader = background_effects.items[current_shader];
 
-    var current_scene: i32 = 0;
+    var current_scene: i32 = 2;
     var render_scene: i32 = -1;
 
     var reactor_scene: ?levels.ReactorScene = null; 

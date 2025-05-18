@@ -256,7 +256,16 @@ pub const DrawContext = struct {
 
             c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
 
-            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+            if (obj.vertex_buffer) |buffer| {
+                c.vkCmdBindVertexBuffers(cmd, 0, 1, &buffer, &obj.vertex_buffer_offset);
+            }
+
+            if (obj.indirect_buffer) |buffer| {
+                c.vkCmdDrawIndexedIndirect(cmd, buffer, 0, 1,  @sizeOf(c.VkDrawIndexedIndirectCommand));
+            }
+            else {
+                c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+            }
 
             stats.drawcall_count += 1;
             stats.triangle_count += obj.index_count / 3;

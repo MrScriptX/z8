@@ -2,6 +2,12 @@ pub const RenderObject = struct {
     index_count: u32,
     first_index: u32,
     index_buffer: c.VkBuffer,
+    
+    vertex_buffer: c.VkBuffer = null,
+    vertex_buffer_offset: c.VkDeviceSize = 0,
+
+    indirect_buffer: c.VkBuffer = null,
+    indirect_buffer_offset: u32 = 0,
 
     material: *MaterialInstance,
 

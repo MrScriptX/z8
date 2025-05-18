@@ -41,7 +41,7 @@ pub const Voxel = struct {
         voxel.buffer = buffers.GPUMeshBuffers.init(vma, voxel.indices[0..cube_index_count], voxel.vertices[0..cube_index_count], r);
 
         const resources = Material.Resources {
-            .data_buffer =  voxel.material_buffer.buffer, 
+            .data_buffer =  voxel.buffer.vertex_buffer.buffer, 
             .data_buffer_offset = 0,
         };
 
@@ -132,30 +132,14 @@ pub const Voxel = struct {
             .index_buffer = self.buffer.index_buffer.buffer,
             .material = self.material,
             .transform = za.Mat4.identity().data,
-            .vertex_buffer_address = self.buffer.vertex_buffer_address
+            .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
+            .vertex_buffer = self.buffer.vertex_buffer.buffer,
+            .indirect_buffer = self.indirect_buffer.buffer,
         };
 
         ctx.opaque_surfaces.append(object) catch {
             std.log.err("Failed to register object for draw", .{});
         };
-    }
-
-    pub fn draw(self: *Voxel, cmd: c.VkCommandBuffer, global_descriptor: c.VkDescriptorSet) void {
-        const constant = buffers.GPUDrawPushConstants{
-            .vertex_buffer = self.buffer.vertex_buffer_address,
-            .world_matrix = za.Mat4.identity().data,
-        };
-
-        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.material.pipeline.pipeline);
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.material.pipeline.layout, 0, 1, &global_descriptor, 0, null);
-
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.material.pipeline.layout, 1, 1, &self.material.material_set, 0, null);
-
-        c.vkCmdBindIndexBuffer(cmd, self.buffer.index_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
-
-        c.vkCmdPushConstants(cmd, self.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &constant);
-
-        c.vkCmdDrawIndexedIndirect(cmd, self.indirect_buffer.buffer, 0, 1, 0);
     }
 
     pub fn swap_pipeline(self: *Voxel, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
@@ -164,7 +148,7 @@ pub const Voxel = struct {
         
         // create new material
         const resources = Material.Resources {
-            .data_buffer = self.material_buffer.buffer, 
+            .data_buffer = self.buffer.vertex_buffer.buffer, 
             .data_buffer_offset = 0,
         };
 
@@ -211,6 +195,8 @@ pub const Material = struct {
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER | c.VK_SHADER_STAGE_VERTEX_BIT);
+
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
 
         const layouts = [_]c.VkDescriptorSetLayout {
@@ -256,7 +242,7 @@ pub const Material = struct {
         self.pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
-    pub fn write_material(self: *Material, allocator: std.mem.Allocator, device: c.VkDevice, pass: materials.MaterialPass, _: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2)  materials.MaterialInstance {
+    pub fn write_material(self: *Material, allocator: std.mem.Allocator, device: c.VkDevice, pass: materials.MaterialPass, res: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2)  materials.MaterialInstance {
         const data =  materials.MaterialInstance {
             .pass_type = pass,
             .pipeline = &self.pipeline,
@@ -264,7 +250,8 @@ pub const Material = struct {
         };
 
         self.writer.clear();
-
+        self.writer.write_buffer(0, res.data_buffer, @sizeOf(buffers.Vertex) * cube_index_count, res.data_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        
         self.writer.update_set(device, data.material_set);
 
         return data;
