@@ -16,8 +16,10 @@ pub const VoxelScene = struct {
 
     pipelines: MaterialPipelines,
 
-    shader: *compute.Shader,
-    model: chunk.Voxel,
+    cl_shader: *chunk.ClassificationShader,
+    shader: *chunk.MeshComputeShader,
+    model: chunk.Chunk,
+    world: std.ArrayList(*chunk.Chunk),
     global_data: scenes.ShaderData,
 
     draw_ctx: scenes.DrawContext,
@@ -26,15 +28,21 @@ pub const VoxelScene = struct {
         var scene = VoxelScene {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .pipelines = undefined,
+            .cl_shader = undefined,
             .shader = undefined,
             .model = undefined,
             .global_data = .{},
             .draw_ctx = undefined,
-            .state = .{}
+            .state = .{},
+            .world = std.ArrayList(*chunk.Chunk).init(allocator)
         };
 
-        scene.shader = try scene.arena.allocator().create(compute.Shader);
-        scene.shader.* = compute.Shader.init(allocator, "voxel");
+        scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
+        scene.cl_shader.* = chunk.ClassificationShader.init(allocator);
+        try scene.cl_shader.build(allocator, "./zig-out/bin/shaders/aurora/cl.comp.spv", r);
+
+        scene.shader = try scene.arena.allocator().create(chunk.MeshComputeShader);
+        scene.shader.* = chunk.MeshComputeShader.init(allocator, "voxel");
         try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/world.comp.spv", r);
 
         std.log.info("Build voxel default pipeline", .{});
@@ -53,10 +61,21 @@ pub const VoxelScene = struct {
             std.log.err("Failed to build pipeline", .{});
         };
 
-        scene.model = chunk.Voxel.init(allocator, r._vma, scene.shader, scene.pipelines.default, r);
+        // scene.model = chunk.Chunk.init(allocator, .{0, 0, 0}, scene.cl_shader, scene.shader, scene.pipelines.default, r);
+
+        for (0..4) |x| {
+            for (0..4) |z| {
+                const obj = try scene.arena.allocator().create(chunk.Chunk);
+                obj.* = chunk.Chunk.init(allocator, .{@intCast(x), 0, @intCast(z)}, scene.cl_shader, scene.shader, scene.pipelines.default, r);
+                try scene.world.append(obj);
+            }
+        }
 
         r.submit.start_recording(r);
-        scene.model.dispatch(r.submit.cmd);
+        // scene.model.dispatch(r.submit.cmd);
+        for (scene.world.items) |obj| {
+            obj.dispatch(r.submit.cmd);
+        }
         r.submit.submit(r);
 
         scene.draw_ctx.global_data = &scene.global_data;
@@ -74,10 +93,16 @@ pub const VoxelScene = struct {
 
         self.draw_ctx.deinit();
         
-        self.model.deinit(r._vma, r);
+        // self.model.deinit(r._vma, r);
+        for (self.world.items) |obj| {
+            obj.deinit(r._vma, r);
+        }
+        self.world.deinit();
 
         self.pipelines.default.deinit(r._device);
         self.pipelines.polygone.deinit(r._device);
+
+        self.cl_shader.deinit(r);
         self.shader.deinit(r);
 
         self.arena.deinit();
@@ -135,7 +160,10 @@ pub const VoxelScene = struct {
         self.draw_ctx.global_data = &self.global_data;
 
         // fill draw ctx
-        self.model.update(&self.draw_ctx);
+        // self.model.update(&self.draw_ctx);
+        for (self.world.items) |obj| {
+            obj.update(&self.draw_ctx);
+        }
     }
 
     pub fn set_debug_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {

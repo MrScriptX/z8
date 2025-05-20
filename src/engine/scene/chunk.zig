@@ -1,44 +1,67 @@
-const CHUNK_SIZE = 16;
+const CHUNK_SIZE = 32;
 const voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 const cube_index_count = voxel_count * 36;
+const cube_vertex_count: u32 = voxel_count * 12 * 3;
 
-pub const Voxel = struct {
+pub const Chunk = struct {
     arena: std.heap.ArenaAllocator,
 
+    data_buffer: buffers.AllocatedBuffer,
     buffer: buffers.GPUMeshBuffers,
     indirect_buffer: buffers.AllocatedBuffer,
     
+    data: Data,
     indices: []u32,
     vertices: []buffers.Vertex,
 
+    classification_pass: *compute.Instance,
     compute_shader: *compute.Instance,
     material: *materials.MaterialInstance,
 
     descriptor_pool: descriptors.DescriptorAllocator2,
     material_buffer: buffers.AllocatedBuffer,
 
-    pub fn init(allocator: std.mem.Allocator, vma: c.VmaAllocator, shader: *compute.Shader, mat: *Material, r: *const renderer.renderer_t) Voxel {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, u32), cl_shader: *ClassificationShader, shader: *MeshComputeShader, mat: *Material, r: *const renderer.renderer_t) Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
-            .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 }
+            .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 5 }
         };
 
-        var voxel: Voxel = .{
+        var voxel: Chunk = .{
             .arena = std.heap.ArenaAllocator.init(allocator),
+            .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_TRANSFER_DST_BIT | c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .buffer = undefined,
-            .indirect_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            .classification_pass = undefined,
             .compute_shader = undefined,
             .material = undefined,
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
-            .material_buffer = buffers.AllocatedBuffer.init(vma, @sizeOf(Material.Constants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
+            .material_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Material.Constants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
+            .data = .{
+                .position = pos
+            },
             .indices = undefined,
             .vertices = undefined,
         };
 
+        // Copy initial data into data_buffer using mapped memory
+        {
+            var staging = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT, c.VMA_MEMORY_USAGE_CPU_ONLY);
+            defer staging.deinit(r._vma);
+
+            const dst: *Data = @ptrCast(@alignCast(staging.info.pMappedData));
+            dst.* = voxel.data;
+
+            std.log.debug("data {any}", .{ voxel.data.position });
+            std.log.debug("copy {any}", .{ dst.position });
+
+            voxel.submit(&staging, r);
+        }
+
         voxel.indices = voxel.arena.allocator().alloc(u32, cube_index_count) catch @panic("Out of memory");
         voxel.vertices = voxel.arena.allocator().alloc(buffers.Vertex, cube_index_count) catch @panic("Out of memory");
 
-        voxel.buffer = buffers.GPUMeshBuffers.init(vma, voxel.indices[0..cube_index_count], voxel.vertices[0..cube_index_count], r);
+        voxel.buffer = buffers.GPUMeshBuffers.init(r._vma, voxel.indices[0..cube_index_count], voxel.vertices[0..cube_index_count], r);
 
         const resources = Material.Resources {
             .data_buffer =  voxel.buffer.vertex_buffer.buffer, 
@@ -48,22 +71,36 @@ pub const Voxel = struct {
         voxel.material = voxel.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
         voxel.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &voxel.descriptor_pool);
 
-        const compute_resources: compute.Shader.Resource = .{
+        const compute_resources: MeshComputeShader.Resource = .{
             .index_buffer = voxel.buffer.index_buffer.buffer,
             .index_buffer_offset = 0,
+
             .vertex_buffer = voxel.buffer.vertex_buffer.buffer,
             .vertex_buffer_offset = 0,
+
             .indirect_buffer = voxel.indirect_buffer.buffer,
             .indirect_buffer_offset = 0,
+
+            .chunk_buffer = voxel.data_buffer.buffer,
+            .chunk_buffer_offset = 0
         };
 
         voxel.compute_shader = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
         voxel.compute_shader.* = shader.write(allocator, &voxel.descriptor_pool, &compute_resources, r);
 
+        const cl_res = ClassificationShader.Resource {
+            .chunk_buffer = voxel.data_buffer.buffer,
+            .chunk_buffer_offset = 0
+        };
+
+        voxel.classification_pass = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
+        voxel.classification_pass.* = cl_shader.write(allocator, &voxel.descriptor_pool, &cl_res, r);
+
         return voxel;
     }
 
-    pub fn deinit(self: *Voxel, vma: c.VmaAllocator, r: *const renderer.renderer_t) void {
+    pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const renderer.renderer_t) void {
+        self.data_buffer.deinit(vma);
         self.buffer.deinit(vma);
         self.indirect_buffer.deinit(vma);
         self.material_buffer.deinit(vma);
@@ -72,13 +109,37 @@ pub const Voxel = struct {
         self.arena.deinit();
     }
 
-    pub fn dispatch(self: *Voxel, cmd: c.VkCommandBuffer) void {
-        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.pipeline);
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.layout, 0, 1, &self.compute_shader.descriptor, 0, null);
-
+    pub fn dispatch(self: *Chunk, cmd: c.VkCommandBuffer) void {
         const group_x: u32 = CHUNK_SIZE / 8;
         const group_y: u32 = CHUNK_SIZE / 8;
         const group_z: u32 = CHUNK_SIZE / 8;
+
+        // classification pass
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.pipeline);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.layout, 0, 1, &self.classification_pass.descriptor, 0, null);
+        
+        c.vkCmdDispatch(cmd, group_x, group_y, group_z);
+
+        const chunk_data_barrier = c.VkBufferMemoryBarrier {
+            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
+            .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .buffer = self.data_buffer.buffer,
+            .offset = 0,
+            .size = @sizeOf(Data),
+        };
+
+        const cl_pass_barriers = [_]c.VkBufferMemoryBarrier {
+            chunk_data_barrier,
+        };
+
+        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(cl_pass_barriers.len), @ptrCast(&cl_pass_barriers), 0, null);
+
+        // mesh computation pass
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.pipeline);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.layout, 0, 1, &self.compute_shader.descriptor, 0, null);
         
         c.vkCmdDispatch(cmd, group_x, group_y, group_z);
 
@@ -125,7 +186,7 @@ pub const Voxel = struct {
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
     }
 
-    pub fn update(self: *Voxel, ctx: *scenes.DrawContext) void {
+    pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
         const object = materials.RenderObject {
             .index_count = cube_index_count,
             .first_index = 0,
@@ -142,7 +203,7 @@ pub const Voxel = struct {
         };
     }
 
-    pub fn swap_pipeline(self: *Voxel, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
+    pub fn swap_pipeline(self: *Chunk, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
         // clean old material
         self.arena.allocator().destroy(self.material);
         
@@ -155,6 +216,80 @@ pub const Voxel = struct {
         self.material = self.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
         self.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
     }
+
+    fn submit(self: *Chunk, buffer: *buffers.AllocatedBuffer, r: *const renderer.renderer_t) void {
+        var result = c.vkResetFences(r._device, 1, &r.submit.fence);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkResetFences failed with error {d}", .{ result });
+        }
+
+        result = c.vkResetCommandBuffer(r.submit.cmd, 0);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkResetCommandBuffer failed with error {d}", .{ result });
+        }
+
+        const begin_info = c.VkCommandBufferBeginInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = null,
+            .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+
+        result = c.vkBeginCommandBuffer(r.submit.cmd, &begin_info);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkBeginCommandBuffer failed with error {d}", .{ result });
+        }
+
+        const buffer_copy = c.VkBufferCopy { 
+            .dstOffset = 0,
+		    .srcOffset = 0,
+		    .size = @sizeOf(Data),
+        };
+
+		c.vkCmdCopyBuffer(r.submit.cmd, buffer.buffer, self.data_buffer.buffer, 1, &buffer_copy);
+
+        result = c.vkEndCommandBuffer(r.submit.cmd);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
+        }
+
+        const cmd_submit_info = c.VkCommandBufferSubmitInfo {
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .pNext = null,
+            .commandBuffer = r.submit.cmd,
+            .deviceMask = 0
+        };
+
+        const submit_info = c.VkSubmitInfo2 {
+            .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .pNext = null,
+            .flags = 0,
+
+            .pCommandBufferInfos = &cmd_submit_info,
+            .commandBufferInfoCount = 1,
+
+            .pSignalSemaphoreInfos = null,
+            .signalSemaphoreInfoCount = 0,
+            
+            .pWaitSemaphoreInfos = null,
+            .waitSemaphoreInfoCount = 0,
+        };
+
+        result = c.vkQueueSubmit2(r._queues.graphics, 1, &submit_info, r.submit.fence); // TODO : run it on other queue for multithreading
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
+        }
+
+        result = c.vkWaitForFences(r._device, 1, &r.submit.fence, c.VK_TRUE, 9999999999);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("vkWaitForFences failed with error {d}", .{ result });
+        }
+    }
+
+    pub const Data = struct {
+        active: u32 = 0,
+        position: @Vector(3, u32),
+        voxels: [voxel_count]u32 = .{ 0 } ** voxel_count,
+    };
 };
 
 pub const Material = struct {
@@ -264,6 +399,195 @@ pub const Material = struct {
     pub const Resources = struct {
         data_buffer: c.VkBuffer,
         data_buffer_offset: u32,
+    };
+};
+
+pub const ClassificationShader = struct {
+    pipeline: compute.Pipeline = undefined,
+
+    layout: c.VkDescriptorSetLayout = undefined,
+    writer: descriptors.Writer,
+
+    pub fn init(allocator: std.mem.Allocator) ClassificationShader {
+        std.log.info("Creating voxel classification shader", .{});
+
+        return .{
+            .writer = descriptors.Writer.init(allocator)
+        };
+    }
+
+    pub fn deinit(self: *ClassificationShader, r: *const renderer.renderer_t) void {
+        c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
+        c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
+
+        c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
+
+        self.writer.deinit();
+    }
+
+    pub fn build(self: *ClassificationShader, allocator: std.mem.Allocator, shader: []const u8, r: *const renderer.renderer_t) !void {
+        std.log.info("Building voxel classification shader", .{});
+
+        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        defer layout_builder.deinit();
+
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+
+        const layouts = [_]c.VkDescriptorSetLayout {
+            self.layout
+        };
+
+        const compute_layout = c.VkPipelineLayoutCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = null,
+
+            .pSetLayouts = &layouts,
+            .setLayoutCount = 1,
+        };
+
+        const result = c.vkCreatePipelineLayout(r._device, &compute_layout, null, &self.pipeline.layout);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("Failed to create pipeline layout !", .{});
+        }
+
+        // shader module
+        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
+        defer c.vkDestroyShaderModule(r._device, compute_shader, null);
+
+        // compute
+        var builder = p.compute_builder_t.init();
+        defer builder.deinit();
+
+        builder.layout = self.pipeline.layout;
+        builder.set_shaders(compute_shader);
+        self.pipeline.pipeline = builder.build_pipeline(r._device);
+    }
+
+    pub fn write(self: *ClassificationShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
+        const data =  compute.Instance {
+            .pipeline = &self.pipeline,
+            .descriptor = pool.allocate(allocator, r._device, self.layout, null),
+        };
+
+        self.writer.clear();
+        self.writer.write_buffer(0, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+        self.writer.update_set(r._device, data.descriptor);
+
+        return data;
+    }
+
+    pub const Resource = struct {
+        chunk_buffer: c.VkBuffer,
+        chunk_buffer_offset: u32 = 0
+    };
+};
+
+pub const MeshComputeShader = struct {
+    name: []const u8 = undefined,
+    
+    pipeline: compute.Pipeline = undefined,
+
+    layout: c.VkDescriptorSetLayout = undefined,
+    writer: descriptors.Writer,
+
+    pub fn init(allocator: std.mem.Allocator, name: []const u8) MeshComputeShader {
+        std.log.info("Creating compute shader {s}", .{ name });
+
+        return .{
+            .name = name,
+            .writer = descriptors.Writer.init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *MeshComputeShader, r: *renderer.renderer_t) void {
+        const result = c.vkDeviceWaitIdle(r._device);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("Failed to wait for device idle ! Reason {d}", .{ result });
+        }
+
+        c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
+        c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
+
+        c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
+
+        self.writer.deinit();
+    }
+
+    pub fn build(self: *MeshComputeShader, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.renderer_t) !void { 
+        std.log.info("Building compute shader {s}", .{ self.name });
+
+        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        defer layout_builder.deinit();
+
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+
+        const layouts = [_]c.VkDescriptorSetLayout {
+            self.layout
+        };
+
+        const compute_layout = c.VkPipelineLayoutCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = null,
+
+            .pSetLayouts = &layouts,
+            .setLayoutCount = 1,
+        };
+
+        const result = c.vkCreatePipelineLayout(r._device, &compute_layout, null, &self.pipeline.layout);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("Failed to create pipeline layout !", .{});
+        }
+
+        // shader module
+        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
+        defer c.vkDestroyShaderModule(r._device, compute_shader, null);
+
+        // compute
+        var builder = p.compute_builder_t.init();
+        defer builder.deinit();
+
+        builder.layout = self.pipeline.layout;
+        builder.set_shaders(compute_shader);
+        self.pipeline.pipeline = builder.build_pipeline(r._device);
+    }
+
+    pub fn write(self: *MeshComputeShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
+        const data =  compute.Instance {
+            .pipeline = &self.pipeline,
+            .descriptor = pool.allocate(allocator, r._device, self.layout, null),
+        };
+
+        self.writer.clear();
+        self.writer.write_buffer(0, resources.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(1, resources.index_buffer, @sizeOf(u32) * cube_index_count, resources.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(2, resources.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(3, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+        self.writer.update_set(r._device, data.descriptor);
+
+        return data;
+    }
+
+    pub const Resource = struct {
+        vertex_buffer: c.VkBuffer,
+        vertex_buffer_offset: u32,
+
+        index_buffer: c.VkBuffer,
+        index_buffer_offset: u32,
+
+        indirect_buffer: c.VkBuffer,
+        indirect_buffer_offset: u32,
+
+        chunk_buffer: c.VkBuffer,
+        chunk_buffer_offset: u32,
     };
 };
 
