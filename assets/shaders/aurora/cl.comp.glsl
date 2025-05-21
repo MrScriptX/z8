@@ -11,12 +11,18 @@ layout(std430, binding = 0) buffer ChunkData {
     uint voxels[];
 };
 
+layout( push_constant ) uniform constants {
+    ivec3 position;
+} PushConstant;
+
 void main() {
     uint x = gl_GlobalInvocationID.x;
     uint y = gl_GlobalInvocationID.y;
     uint z = gl_GlobalInvocationID.z;
 
     uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
+
+    position = PushConstant.position;
 
     vec3 chunk_world_pos = vec3(position) * float(CHUNK_SIZE);
     vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;

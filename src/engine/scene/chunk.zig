@@ -10,6 +10,7 @@ pub const Chunk = struct {
     buffer: buffers.GPUMeshBuffers,
     indirect_buffer: buffers.AllocatedBuffer,
     
+    constants: ClassificationShader.PushConstant,
     data: Data,
     indices: []u32,
     vertices: []buffers.Vertex,
@@ -21,7 +22,7 @@ pub const Chunk = struct {
     descriptor_pool: descriptors.DescriptorAllocator2,
     material_buffer: buffers.AllocatedBuffer,
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, u32), cl_shader: *ClassificationShader, shader: *MeshComputeShader, mat: *Material, r: *const renderer.renderer_t) Chunk {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), cl_shader: *ClassificationShader, shader: *MeshComputeShader, mat: *Material, r: *const renderer.renderer_t) Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 5 }
@@ -29,7 +30,7 @@ pub const Chunk = struct {
 
         var voxel: Chunk = .{
             .arena = std.heap.ArenaAllocator.init(allocator),
-            .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_TRANSFER_DST_BIT | c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .buffer = undefined,
             .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .classification_pass = undefined,
@@ -37,26 +38,13 @@ pub const Chunk = struct {
             .material = undefined,
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
             .material_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Material.Constants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
-            .data = .{
+            .constants = .{
                 .position = pos
             },
+            .data = .{},
             .indices = undefined,
             .vertices = undefined,
         };
-
-        // Copy initial data into data_buffer using mapped memory
-        {
-            var staging = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT, c.VMA_MEMORY_USAGE_CPU_ONLY);
-            defer staging.deinit(r._vma);
-
-            const dst: *Data = @ptrCast(@alignCast(staging.info.pMappedData));
-            dst.* = voxel.data;
-
-            std.log.debug("data {any}", .{ voxel.data.position });
-            std.log.debug("copy {any}", .{ dst.position });
-
-            voxel.submit(&staging, r);
-        }
 
         voxel.indices = voxel.arena.allocator().alloc(u32, cube_index_count) catch @panic("Out of memory");
         voxel.vertices = voxel.arena.allocator().alloc(buffers.Vertex, cube_index_count) catch @panic("Out of memory");
@@ -118,12 +106,14 @@ pub const Chunk = struct {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.layout, 0, 1, &self.classification_pass.descriptor, 0, null);
         
+        c.vkCmdPushConstants(cmd, self.classification_pass.pipeline.layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(ClassificationShader.PushConstant), &self.constants);
+
         c.vkCmdDispatch(cmd, group_x, group_y, group_z);
 
         const chunk_data_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+            .dstAccessMask = c.VK_ACCESS_SHADER_READ_BIT,
             .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
             .buffer = self.data_buffer.buffer,
@@ -217,77 +207,9 @@ pub const Chunk = struct {
         self.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
     }
 
-    fn submit(self: *Chunk, buffer: *buffers.AllocatedBuffer, r: *const renderer.renderer_t) void {
-        var result = c.vkResetFences(r._device, 1, &r.submit.fence);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkResetFences failed with error {d}", .{ result });
-        }
-
-        result = c.vkResetCommandBuffer(r.submit.cmd, 0);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkResetCommandBuffer failed with error {d}", .{ result });
-        }
-
-        const begin_info = c.VkCommandBufferBeginInfo {
-            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .pNext = null,
-            .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        };
-
-        result = c.vkBeginCommandBuffer(r.submit.cmd, &begin_info);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkBeginCommandBuffer failed with error {d}", .{ result });
-        }
-
-        const buffer_copy = c.VkBufferCopy { 
-            .dstOffset = 0,
-		    .srcOffset = 0,
-		    .size = @sizeOf(Data),
-        };
-
-		c.vkCmdCopyBuffer(r.submit.cmd, buffer.buffer, self.data_buffer.buffer, 1, &buffer_copy);
-
-        result = c.vkEndCommandBuffer(r.submit.cmd);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
-        }
-
-        const cmd_submit_info = c.VkCommandBufferSubmitInfo {
-            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-            .pNext = null,
-            .commandBuffer = r.submit.cmd,
-            .deviceMask = 0
-        };
-
-        const submit_info = c.VkSubmitInfo2 {
-            .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-            .pNext = null,
-            .flags = 0,
-
-            .pCommandBufferInfos = &cmd_submit_info,
-            .commandBufferInfoCount = 1,
-
-            .pSignalSemaphoreInfos = null,
-            .signalSemaphoreInfoCount = 0,
-            
-            .pWaitSemaphoreInfos = null,
-            .waitSemaphoreInfoCount = 0,
-        };
-
-        result = c.vkQueueSubmit2(r._queues.graphics, 1, &submit_info, r.submit.fence); // TODO : run it on other queue for multithreading
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
-        }
-
-        result = c.vkWaitForFences(r._device, 1, &r.submit.fence, c.VK_TRUE, 9999999999);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkWaitForFences failed with error {d}", .{ result });
-        }
-    }
-
-    pub const Data = struct {
-        active: u32 = 0,
-        position: @Vector(3, u32),
+    pub const Data = struct { // will be fill by GPU
+        active: u32 align(4) = 0,
+        position: @Vector(3, i32) = @splat(0),
         voxels: [voxel_count]u32 = .{ 0 } ** voxel_count,
     };
 };
@@ -439,12 +361,21 @@ pub const ClassificationShader = struct {
             self.layout
         };
 
+        const push_constant = c.VkPushConstantRange {
+            .offset = 0,
+            .size = @sizeOf(PushConstant),
+            .stageFlags = c.VK_SHADER_STAGE_COMPUTE_BIT,
+        };
+
         const compute_layout = c.VkPipelineLayoutCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = null,
 
             .pSetLayouts = &layouts,
             .setLayoutCount = 1,
+
+            .pPushConstantRanges = &push_constant,
+            .pushConstantRangeCount = 1
         };
 
         const result = c.vkCreatePipelineLayout(r._device, &compute_layout, null, &self.pipeline.layout);
@@ -482,6 +413,10 @@ pub const ClassificationShader = struct {
     pub const Resource = struct {
         chunk_buffer: c.VkBuffer,
         chunk_buffer_offset: u32 = 0
+    };
+
+    pub const PushConstant = struct {
+        position: @Vector(3, i32) = @splat(0)
     };
 };
 

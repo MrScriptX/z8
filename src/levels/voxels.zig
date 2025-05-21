@@ -63,8 +63,8 @@ pub const VoxelScene = struct {
 
         // scene.model = chunk.Chunk.init(allocator, .{0, 0, 0}, scene.cl_shader, scene.shader, scene.pipelines.default, r);
 
-        for (0..4) |x| {
-            for (0..4) |z| {
+        for (0..8) |x| {
+            for (0..8) |z| {
                 const obj = try scene.arena.allocator().create(chunk.Chunk);
                 obj.* = chunk.Chunk.init(allocator, .{@intCast(x), 0, @intCast(z)}, scene.cl_shader, scene.shader, scene.pipelines.default, r);
                 try scene.world.append(obj);
@@ -167,11 +167,17 @@ pub const VoxelScene = struct {
     }
 
     pub fn set_debug_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
-        self.model.swap_pipeline(allocator, self.pipelines.polygone, r);
+        // self.model.swap_pipeline(allocator, self.pipelines.polygone, r);
+        for (self.world.items) |obj| {
+            obj.swap_pipeline(allocator, self.pipelines.polygone, r);
+        }
     }
 
     pub fn set_default_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
-        self.model.swap_pipeline(allocator, self.pipelines.default, r);
+        // self.model.swap_pipeline(allocator, self.pipelines.default, r);
+        for (self.world.items) |obj| {
+            obj.swap_pipeline(allocator, self.pipelines.default, r);
+        }
     }
 };
 
