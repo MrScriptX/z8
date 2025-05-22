@@ -2,14 +2,7 @@
 
 #include "constants.glsl"
 #include "simplex_noise.glsl"
-
-struct vertex_t {
-    vec3 position;
-	float uv_x;
-	vec3 normal;
-	float uv_y;
-	vec4 color;
-};
+#include "types.glsl"
 
 layout(std430, binding = 0) buffer VertexBuffer {
     vertex_t vertices[];
@@ -30,7 +23,7 @@ layout(std430, binding = 2) buffer IndirectCommand {
 layout(std430, binding = 3) buffer ChunkData {
     uint active_count;
     ivec3 position;
-    uint voxels[];
+    voxel_t voxels[];
 };
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
@@ -41,13 +34,12 @@ void main() {
     uint z = gl_GlobalInvocationID.z;
 
     uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
-    if (voxels[index] == 0) // AIR
+    if (voxels[index].data.y == 0) // AIR
     {
         return;
     }
 
-    
-    uint vertex_offset = index * 36;
+    uint vertex_offset = voxels[index].data.x * 36;
 
     vec3 chunk_world_pos = vec3(position) * float(CHUNK_SIZE);
     vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;

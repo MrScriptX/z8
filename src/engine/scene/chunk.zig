@@ -1,5 +1,5 @@
 const CHUNK_SIZE = 32;
-const voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+const voxel_count: u32 = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 const cube_index_count = voxel_count * 36;
 const cube_vertex_count: u32 = voxel_count * 12 * 3;
 
@@ -210,7 +210,11 @@ pub const Chunk = struct {
     pub const Data = struct { // will be fill by GPU
         active: u32 align(4) = 0,
         position: @Vector(3, i32) = @splat(0),
-        voxels: [voxel_count]u32 = .{ 0 } ** voxel_count,
+        voxels: [voxel_count]Voxel = @splat(.{}),
+    };
+
+    pub const Voxel = struct {
+        data: @Vector(2, u32) = @splat(0), // type
     };
 };
 
