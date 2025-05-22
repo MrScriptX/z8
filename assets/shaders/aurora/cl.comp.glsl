@@ -28,7 +28,8 @@ void main() {
     vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;
 
     // Instead of absolute position, normalize relative to chunk size
-    vec2 noise_pos = (vec2(cube_pos.x, cube_pos.z) + vec2(0.5 * CHUNK_SIZE)) / CHUNK_SIZE;
+    float noise_scale = 0.09;
+    vec2 noise_pos = (vec2(cube_pos.x, cube_pos.z) + vec2(0.5 * CHUNK_SIZE)) / CHUNK_SIZE * noise_scale;
 
     float n = 0.0;
     float freq = 1.0;
