@@ -17,6 +17,10 @@ layout( push_constant ) uniform constants {
 } PushConstant;
 
 void main() {
+    if (gl_GlobalInvocationID == uvec3(0)) {
+        Chunk.active_count = 0;
+    }
+
     Chunk.position = PushConstant.position;
 
     const uint x = gl_GlobalInvocationID.x;
@@ -44,10 +48,9 @@ void main() {
     const float height = (n + 1.0) * 0.5 * CHUNK_SIZE;
     if (cube_pos.y > height) {
         // no need to store local position, we don't draw it
-        Chunk.voxels[index].data.y = 0; // AIR
+        Chunk.voxels[index].data.x = 0; // AIR
     }
     else {
-        Chunk.voxels[index].data.x = atomicAdd(Chunk.active_count, 1);
-        Chunk.voxels[index].data.y = 1; // SOLID        
+        Chunk.voxels[index].data.x = 1; // SOLID        
     }
 }

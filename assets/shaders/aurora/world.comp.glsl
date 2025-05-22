@@ -34,7 +34,7 @@ void main() {
     const uint z = gl_GlobalInvocationID.z;
  
     const uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
-    if (voxels[index].data.y == 0) { // AIR
+    if (voxels[index].data.x == 0) { // AIR
         return;
     }
 
@@ -53,7 +53,7 @@ void main() {
             v.uv_y = uvs[local_idx].y;
             v.color = colors[face];
 
-            const uint vertex_offset = voxels[index].data.x * 36;
+            const uint vertex_offset = index * 36;
             const uint vtx_id = vertex_offset + face * 6 + tri_vertex;
             vertices[vtx_id] = v;
             indices[vtx_id] = vtx_id; // No reuse
@@ -61,7 +61,7 @@ void main() {
     }
 
     if (gl_GlobalInvocationID == uvec3(0)) {
-        indexCount = active_count * 36;
+        indexCount = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 36;
         instanceCount = 1;
         firstIndex = 0;
         vertexOffset = 0;

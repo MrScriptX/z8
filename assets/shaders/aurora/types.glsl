@@ -1,5 +1,5 @@
 struct voxel_t {
-    uvec2 data; // active index + type
+    uvec2 data; // type
 };
 
 struct vertex_t {
