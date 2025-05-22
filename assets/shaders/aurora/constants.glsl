@@ -1,4 +1,4 @@
-uint CHUNK_SIZE = 16;
+uint CHUNK_SIZE = 32;
 uint CHUNK_SIZE_SQR = CHUNK_SIZE * CHUNK_SIZE;
 
 // Define cube vertices

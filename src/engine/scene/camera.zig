@@ -40,6 +40,14 @@ pub const camera_t = struct {
             if (e.key.key == sdl.SDLK_D) {
                 self.velocity[0] = 1 * self.speed;
             }
+
+            if (e.key.key == sdl.SDLK_SPACE) {
+                self.velocity[1] = 1 * self.speed;
+            }
+
+            if (e.key.key == sdl.SDLK_LSHIFT) {
+                self.velocity[1] = -1 * self.speed;
+            }
         }
 
         if (e.type == sdl.SDL_EVENT_KEY_UP) {
@@ -57,6 +65,14 @@ pub const camera_t = struct {
 
             if (e.key.key == sdl.SDLK_D) {
                 self.velocity[0] = 0;
+            }
+
+            if (e.key.key == sdl.SDLK_SPACE) {
+                self.velocity[1] = 0;
+            }
+
+            if (e.key.key == sdl.SDLK_LSHIFT) {
+                self.velocity[1] = 0;
             }
         }
 
