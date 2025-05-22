@@ -19,29 +19,29 @@ layout( push_constant ) uniform constants {
 void main() {
     Chunk.position = PushConstant.position;
 
-    uint x = gl_GlobalInvocationID.x;
-    uint y = gl_GlobalInvocationID.y;
-    uint z = gl_GlobalInvocationID.z;
+    const uint x = gl_GlobalInvocationID.x;
+    const uint y = gl_GlobalInvocationID.y;
+    const uint z = gl_GlobalInvocationID.z;
 
-    uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
+    const uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
 
-    vec3 chunk_world_pos = vec3(Chunk.position) * float(CHUNK_SIZE);
-    vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;
+    const vec3 chunk_world_pos = vec3(Chunk.position) * float(CHUNK_SIZE);
+    const vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;
 
     // Instead of absolute position, normalize relative to chunk size
-    float noise_scale = 0.09;
-    vec2 noise_pos = (vec2(cube_pos.x, cube_pos.z) + vec2(0.5 * CHUNK_SIZE)) / CHUNK_SIZE * noise_scale;
+    const float noise_scale = 0.09;
+    const vec2 noise_pos = (vec2(cube_pos.x, cube_pos.z) + vec2(0.5 * CHUNK_SIZE)) / CHUNK_SIZE * noise_scale;
 
-    float n = 0.0;
-    float freq = 1.0;
-    float amp = 1.0;
+    const float n = 0.0;
+    const float freq = 1.0;
+    const float amp = 1.0;
     for (int i = 0; i < 4; i++) {
         n += noise2D(noise_pos.x * freq, noise_pos.y * freq) * amp;
         freq *= 2.0;
         amp *= 0.5;
     }
     n = clamp(n, -1.0, 1.0); // optional
-    float height = (n + 1.0) * 0.5 * CHUNK_SIZE;
+    const float height = (n + 1.0) * 0.5 * CHUNK_SIZE;
     if (cube_pos.y > height) {
         // no need to store local position, we don't draw it
         Chunk.voxels[index].data.y = 0; // AIR
