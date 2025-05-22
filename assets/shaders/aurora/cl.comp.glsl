@@ -32,9 +32,9 @@ void main() {
     const float noise_scale = 0.09;
     const vec2 noise_pos = (vec2(cube_pos.x, cube_pos.z) + vec2(0.5 * CHUNK_SIZE)) / CHUNK_SIZE * noise_scale;
 
-    const float n = 0.0;
-    const float freq = 1.0;
-    const float amp = 1.0;
+    float n = 0.0;
+    float freq = 1.0;
+    float amp = 1.0;
     for (int i = 0; i < 4; i++) {
         n += noise2D(noise_pos.x * freq, noise_pos.y * freq) * amp;
         freq *= 2.0;
