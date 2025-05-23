@@ -103,6 +103,8 @@ pub fn main() !u8 {
 
     try scene_manager.scenes.append("voxels");
 
+    var world_seed: u32 = 0;
+
     // main loop
     var quit = false;
     while (!quit) {
@@ -197,6 +199,8 @@ pub fn main() !u8 {
                     @panic("Fatal error");
                 };
 
+                world_seed = voxels_scene.?.state.seed;
+
                 renderer._scene = &voxels_scene.?.draw_ctx;
             }
 
@@ -262,6 +266,14 @@ pub fn main() !u8 {
             scene.update(&main_camera, &renderer);
         }
         else if (voxels_scene) |*scene| {
+            // check if seed changed
+            if (world_seed != scene.state.seed) {
+                scene.clear(&renderer);
+                scene.build_world(gpa.allocator(), &renderer);
+
+                world_seed = scene.state.seed;
+            }
+
             scene.update(gpa.allocator(), &main_camera, &renderer);
         }
         renderer.draw(gpa.allocator());
