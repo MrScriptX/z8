@@ -310,7 +310,7 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     };
     defer allocator.free(message);
 
-    var str_level: []const u8 = undefined; 
+    var str_level: []const u8 = undefined;
     switch (level) {
         std.log.Level.err => str_level = "ERROR",
         std.log.Level.warn => str_level = "WARN",
@@ -318,7 +318,23 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
         std.log.Level.debug => str_level = "DEBUG",
     }
 
-    const log_msg = std.fmt.allocPrint(allocator, "{s}\t: {s}\n", .{ str_level, message }) catch {
+    // Use C interop for timestamp (strftime + time)
+    const c_time = @cImport({
+        @cInclude("time.h");
+        @cInclude("stdio.h");
+    });
+
+    var t: c_time.time_t = c_time.time(null);
+    const tm = c_time.localtime(&t);
+    var timestamp_buf: [32]u8 = undefined;
+    _ = c_time.strftime(&timestamp_buf, timestamp_buf.len, "%Y-%m-%dT%H:%M:%S", tm);
+    const timestamp = std.mem.sliceTo(&timestamp_buf, 0);
+
+    // Get PID
+    const pid = getpid();
+
+    // POSIX log format: <timestamp> <level> [PID]: <message>\n
+    const log_msg = std.fmt.allocPrint(allocator, "{s} {s} [{d}]: {s}\n", .{ timestamp, str_level, pid, message }) catch {
         std.debug.print("Failed to allocate final log message\n", .{});
         return;
     };
@@ -342,6 +358,8 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     //     std.debug.print("{s}\n", .{ log_msg });
     // }
 }
+
+const getpid = if (builtin.os.tag == .windows) std.os.windows.GetCurrentProcessId else std.os.linux.getpid;
 
 test "engine test" {
 }
