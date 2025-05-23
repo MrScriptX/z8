@@ -43,7 +43,7 @@ pub const VoxelScene = struct {
 
         scene.shader = try scene.arena.allocator().create(chunk.MeshComputeShader);
         scene.shader.* = chunk.MeshComputeShader.init(allocator, "voxel");
-        try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/world.comp.spv", r);
+        try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/meshing.comp.spv", r);
 
         std.log.info("Build voxel default pipeline", .{});
 
@@ -60,8 +60,6 @@ pub const VoxelScene = struct {
         scene.pipelines.polygone.build(allocator, c.VK_POLYGON_MODE_LINE, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
-
-        // scene.model = chunk.Chunk.init(allocator, .{0, 0, 0}, scene.cl_shader, scene.shader, scene.pipelines.default, r);
 
         for (0..8) |x| {
             for (0..8) |z| {
