@@ -31,9 +31,7 @@ pub const Manager = struct {
         if (result) {
             defer imgui.End();
 
-            if (!imgui.ImGui_ComboChar("view scene", &self.current_scene, @ptrCast(self.scenes.items), @intCast(self.scenes.items.len))) {
-                std.log.warn("Failed to make scene selection gui", .{});
-            }
+            _ = imgui.ImGui_ComboChar("view scene", &self.current_scene, @ptrCast(self.scenes.items), @intCast(self.scenes.items.len));
 
             // if (scene_manager.scene(@intCast(render_scene))) |scene| {
             //     const data = &scene.data;

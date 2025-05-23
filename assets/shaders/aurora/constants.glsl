@@ -79,3 +79,11 @@ const uint face_indices[6][6] = uint[6][6](
     uint[](16,17,18,16,18,19), // +Y
     uint[](20,21,22,20,22,23)  // -Y
 );
+
+// face bit mask
+const uint FACE_NEG_Z = 0x01; // face 0
+const uint FACE_POS_Z = 0x02; // face 1
+const uint FACE_NEG_X = 0x04; // face 2
+const uint FACE_POS_X = 0x08; // face 3
+const uint FACE_POS_Y = 0x10; // face 4
+const uint FACE_NEG_Y = 0x20; // face 5

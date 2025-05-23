@@ -42,6 +42,13 @@ void main() {
     const vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;
 
     for (uint face = 0; face < 6; face++) {
+        // skip face that are not visible
+        const uint visibility_mask = voxels[index].data.y;
+        const bool hidden = (visibility_mask & (1u << face)) != 0u;
+        if (hidden) {
+            continue;
+        }
+
         for (uint tri_vertex = 0; tri_vertex < 6; tri_vertex++) {
             const uint index_in_face = face_indices[face][tri_vertex];
             const uint local_idx = index_in_face % 4;
@@ -59,6 +66,8 @@ void main() {
             indices[vtx_id] = vtx_id; // No reuse
         }
     }
+
+
 
     if (gl_GlobalInvocationID == uvec3(0)) {
         indexCount = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 36;

@@ -175,8 +175,8 @@ pub const Chunk = struct {
     }
 
     fn dispatch_face_culling(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
-        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.pipeline);
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.layout, 0, 1, &self.classification_pass.descriptor, 0, null);
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.face_culling_pass.pipeline.pipeline);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.face_culling_pass.pipeline.layout, 0, 1, &self.face_culling_pass.descriptor, 0, null);
 
         c.vkCmdDispatch(cmd, x, y, z);
 
