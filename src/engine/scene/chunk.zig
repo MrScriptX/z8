@@ -112,13 +112,49 @@ pub const Chunk = struct {
         const group_y: u32 = CHUNK_SIZE / 8;
         const group_z: u32 = CHUNK_SIZE / 8;
 
-        // classification pass
+        self.dispatch_classification(cmd, group_x, group_y, group_z);
+        self.dispatch_face_culling(cmd, group_x, group_y, group_z);
+        self.dispatch_meshing(cmd, group_x, group_y, group_z);
+    }
+
+    pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
+        const object = materials.RenderObject {
+            .index_count = cube_index_count,
+            .first_index = 0,
+            .index_buffer = self.buffer.index_buffer.buffer,
+            .material = self.material,
+            .transform = za.Mat4.identity().data,
+            .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
+            .vertex_buffer = self.buffer.vertex_buffer.buffer,
+            .indirect_buffer = self.indirect_buffer.buffer,
+        };
+
+        ctx.opaque_surfaces.append(object) catch {
+            std.log.err("Failed to register object for draw", .{});
+        };
+    }
+
+    pub fn swap_pipeline(self: *Chunk, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
+        // clean old material
+        self.arena.allocator().destroy(self.material);
+        
+        // create new material
+        const resources = Material.Resources {
+            .data_buffer = self.buffer.vertex_buffer.buffer, 
+            .data_buffer_offset = 0,
+        };
+
+        self.material = self.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
+        self.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
+    }
+
+    fn dispatch_classification(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.layout, 0, 1, &self.classification_pass.descriptor, 0, null);
         
         c.vkCmdPushConstants(cmd, self.classification_pass.pipeline.layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(ClassificationShader.PushConstant), &self.constants);
 
-        c.vkCmdDispatch(cmd, group_x, group_y, group_z);
+        c.vkCmdDispatch(cmd, x, y, z);
 
         const chunk_data_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -136,12 +172,13 @@ pub const Chunk = struct {
         };
 
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(cl_pass_barriers.len), @ptrCast(&cl_pass_barriers), 0, null);
+    }
 
-        // face culling pass
+    fn dispatch_face_culling(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.layout, 0, 1, &self.classification_pass.descriptor, 0, null);
 
-        c.vkCmdDispatch(cmd, group_x, group_y, group_z);
+        c.vkCmdDispatch(cmd, x, y, z);
 
         const faces_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -159,12 +196,13 @@ pub const Chunk = struct {
         };
 
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(culling_barriers.len), @ptrCast(&culling_barriers), 0, null);
+    }
 
-        // meshing pass
+    fn dispatch_meshing(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.layout, 0, 1, &self.compute_shader.descriptor, 0, null);
         
-        c.vkCmdDispatch(cmd, group_x, group_y, group_z);
+        c.vkCmdDispatch(cmd, x, y, z);
 
         const vertex_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -207,37 +245,6 @@ pub const Chunk = struct {
         };
 
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
-    }
-
-    pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
-        const object = materials.RenderObject {
-            .index_count = cube_index_count,
-            .first_index = 0,
-            .index_buffer = self.buffer.index_buffer.buffer,
-            .material = self.material,
-            .transform = za.Mat4.identity().data,
-            .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
-            .vertex_buffer = self.buffer.vertex_buffer.buffer,
-            .indirect_buffer = self.indirect_buffer.buffer,
-        };
-
-        ctx.opaque_surfaces.append(object) catch {
-            std.log.err("Failed to register object for draw", .{});
-        };
-    }
-
-    pub fn swap_pipeline(self: *Chunk, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
-        // clean old material
-        self.arena.allocator().destroy(self.material);
-        
-        // create new material
-        const resources = Material.Resources {
-            .data_buffer = self.buffer.vertex_buffer.buffer, 
-            .data_buffer_offset = 0,
-        };
-
-        self.material = self.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
-        self.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
     }
 
     pub const Data = struct { // will be fill by GPU
