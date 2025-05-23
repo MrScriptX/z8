@@ -290,7 +290,7 @@ pub const Material = struct {
         try builder.set_shaders(vert_shader, frag_shader);
         builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         builder.set_polygon_mode(polygone_mode);
-        builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
+        builder.set_cull_mode(c.VK_CULL_MODE_BACK_BIT, c.VK_FRONT_FACE_CLOCKWISE);
         builder.set_multisampling_none();
         builder.disable_blending();
         builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
