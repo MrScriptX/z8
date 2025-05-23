@@ -175,7 +175,7 @@ pub fn main() !u8 {
                 voxels_scene = null;
             }
 
-            if (scene_manager.current_scene == 1) {
+            if (scene_manager.is_scene("monkey")) {
                 monkey_scene = levels.MonkeyScene.init(gpa.allocator(), &renderer) catch {
                     std.log.err("Failed to load monkey scene", .{});
                     @panic("Fatal error");
@@ -183,7 +183,7 @@ pub fn main() !u8 {
 
                 renderer._scene = &monkey_scene.?.draw_ctx;
             }
-            else if (scene_manager.current_scene == 0) {
+            else if (scene_manager.is_scene("reactor")) {
                 reactor_scene = levels.ReactorScene.init(gpa.allocator(), &renderer) catch {
                     std.log.err("Failed to load rector scene", .{});
                     @panic("Fatal error");
@@ -191,8 +191,7 @@ pub fn main() !u8 {
 
                 renderer._scene = &reactor_scene.?.draw_ctx;
             }
-            // else if (scene_manager.current_scene == 2) {
-            else if (std.mem.eql(u8, scene_manager.scene_name(), "voxels")) {
+            else if (scene_manager.is_scene("voxels")) {
                 voxels_scene = levels.VoxelsScene.init(gpa.allocator(), &renderer) catch {
                     std.log.err("Failed to load rector scene", .{});
                     @panic("Fatal error");
@@ -228,30 +227,6 @@ pub fn main() !u8 {
 		    }
         }
 
-        // scenes manager
-        // {
-        //     const result = imgui.Begin("Scenes", null, 0);
-        //     if (result) {
-        //         defer imgui.End();
-
-        //         const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "cube" };
-        //         _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 3);
-
-        //         if (scene_manager.scene(@intCast(render_scene))) |scene| {
-        //             const data = &scene.data;
-                    
-        //             imgui.ImGui_Text("sun direction");
-        //             _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
-        //             _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
-        //             _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
-
-        //             _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
-        //             _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
-        //         }
-		//     }
-        // }
-        scene_manager.update_ui();
-
         // background window
         {
             const result = imgui.Begin("background", null, 0);
@@ -270,6 +245,8 @@ pub fn main() !u8 {
 			    _ = imgui.InputFloat4("data4", &shader.data.data4);
 		    }
         }
+
+        scene_manager.update_ui();
 
         if (voxels_scene) |*scene| {
             scene.update_ui();

@@ -228,12 +228,14 @@ pub const Manager = struct {
 		}
     }
 
-    pub fn scene_name(self: *Manager) []const u8 {
+    pub fn is_scene(self: *Manager, name: []const u8) bool {
         if (self.current_scene < 0 or self.current_scene > @as(i32, @intCast(self.scenes.items.len))) {
-            return "";
+            return false;
         }
 
-        return std.mem.span(self.scenes.items[@intCast(self.current_scene)]);
+        const current_scene_name = std.mem.span(self.scenes.items[@intCast(self.current_scene)]);
+
+        return std.mem.eql(u8, current_scene_name, name);
     }
 };
 
