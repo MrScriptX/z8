@@ -16,8 +16,11 @@ pub const VoxelScene = struct {
 
     pipelines: MaterialPipelines,
 
+    // compute shaders
     cl_shader: *chunk.ClassificationShader,
+    culling_shader: *chunk.FaceCullingShader,
     shader: *chunk.MeshComputeShader,
+
     model: chunk.Chunk,
     world: std.ArrayList(*chunk.Chunk),
     global_data: scenes.ShaderData,
@@ -29,6 +32,7 @@ pub const VoxelScene = struct {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .pipelines = undefined,
             .cl_shader = undefined,
+            .culling_shader = undefined,
             .shader = undefined,
             .model = undefined,
             .global_data = .{},
@@ -40,6 +44,10 @@ pub const VoxelScene = struct {
         scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
         scene.cl_shader.* = chunk.ClassificationShader.init(allocator);
         try scene.cl_shader.build(allocator, "./zig-out/bin/shaders/aurora/cl.comp.spv", r);
+
+        scene.culling_shader = try scene.arena.allocator().create(chunk.FaceCullingShader);
+        scene.culling_shader.* = chunk.FaceCullingShader.init(allocator);
+        try scene.culling_shader.build(allocator, "./zig-out/bin/shaders/aurora/face_culling.comp.spv", r);
 
         scene.shader = try scene.arena.allocator().create(chunk.MeshComputeShader);
         scene.shader.* = chunk.MeshComputeShader.init(allocator, "voxel");
@@ -64,7 +72,7 @@ pub const VoxelScene = struct {
         for (0..8) |x| {
             for (0..8) |z| {
                 const obj = try scene.arena.allocator().create(chunk.Chunk);
-                obj.* = chunk.Chunk.init(allocator, .{@intCast(x), 0, @intCast(z)}, scene.cl_shader, scene.shader, scene.pipelines.default, r);
+                obj.* = chunk.Chunk.init(allocator, .{@intCast(x), 0, @intCast(z)}, scene.culling_shader, scene.cl_shader, scene.shader, scene.pipelines.default, r);
                 try scene.world.append(obj);
             }
         }
@@ -101,6 +109,7 @@ pub const VoxelScene = struct {
         self.pipelines.polygone.deinit(r._device);
 
         self.cl_shader.deinit(r);
+        self.culling_shader.deinit(r);
         self.shader.deinit(r);
 
         self.arena.deinit();
