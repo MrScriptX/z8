@@ -186,6 +186,57 @@ pub const manager_t = struct {
     }
 };
 
+pub const Manager = struct {
+    alloc: std.mem.Allocator,
+
+    current_scene: i32 = 0,
+    rendered_scene: i32 = -1,
+    scenes: std.ArrayList([*:0]const u8),
+
+    pub fn init(allocator: std.mem.Allocator, default_scene: u32) Manager {
+        return .{
+            .alloc = allocator,
+            .scenes = std.ArrayList([*:0]const u8).init(allocator),
+            .current_scene = @intCast(default_scene)
+        };
+    }
+
+    pub fn deinit(self: *Manager) void {
+        self.scenes.deinit();
+    }
+
+    pub fn update_ui(self: *Manager) void {
+        const result = imgui.Begin("Scenes", null, 0);
+        if (result) {
+            defer imgui.End();
+
+            if (!imgui.ImGui_ComboChar("view scene", &self.current_scene, @ptrCast(self.scenes.items), @intCast(self.scenes.items.len))) {
+                std.log.warn("Failed to make scene selection gui", .{});
+            }
+
+            // if (scene_manager.scene(@intCast(render_scene))) |scene| {
+            //     const data = &scene.data;
+                    
+            //     imgui.ImGui_Text("sun direction");
+            //     _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
+            //     _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
+            //     _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
+
+            //     _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
+            //     _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
+            // }
+		}
+    }
+
+    pub fn scene_name(self: *Manager) []const u8 {
+        if (self.current_scene < 0 or self.current_scene > @as(i32, @intCast(self.scenes.items.len))) {
+            return "";
+        }
+
+        return std.mem.span(self.scenes.items[@intCast(self.current_scene)]);
+    }
+};
+
 pub const DrawContext = struct {
     global_data: *ShaderData,
     opaque_surfaces: std.ArrayList(materials.RenderObject),
@@ -311,6 +362,7 @@ pub const DrawContext = struct {
 
 const std = @import("std");
 const za = @import("zalgebra");
+const imgui = @import("imgui");
 const camera = @import("camera.zig");
 const c = @import("../../clibs.zig");
 const mesh = @import("../graphics/assets.zig");

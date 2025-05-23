@@ -33,15 +33,6 @@ pub fn main() !u8 {
     };
     defer renderer.deinit();
 
-    // create scenes
-    var scene_manager = engine.scene.manager_t.init(gpa.allocator());
-    defer scene_manager.deinit(renderer._device, renderer._vma);
-
-    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
-    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
-    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.MESH);
-
-
     // create effects
     var background_effects = std.ArrayList(*compute.ComputeEffect).init(gpa.allocator());
     defer background_effects.deinit();
@@ -85,8 +76,8 @@ pub fn main() !u8 {
     var current_shader: u32 = 0;
     renderer.bg_shader = background_effects.items[current_shader];
 
-    var current_scene: i32 = 2;
-    var render_scene: i32 = -1;
+    var scene_manager = engine.scene.Manager.init(gpa.allocator(), 2);
+    defer scene_manager.deinit();
 
     var reactor_scene: ?levels.ReactorScene = null; 
     defer if (reactor_scene) |*scene| {
@@ -94,17 +85,23 @@ pub fn main() !u8 {
         reactor_scene = null;
     };
 
+    try scene_manager.scenes.append("reactor");
+
     var monkey_scene: ?levels.MonkeyScene = null;
     defer if (monkey_scene) |*scene| {
         scene.deinit(&renderer);
         monkey_scene = null;
     };
 
+    try scene_manager.scenes.append("monkey");
+
     var voxels_scene: ?levels.VoxelsScene = null;
     defer if (voxels_scene) |*scene| {
         scene.deinit(&renderer);
         voxels_scene = null;
     };
+
+    try scene_manager.scenes.append("voxels");
 
     // main loop
     var quit = false;
@@ -151,7 +148,7 @@ pub fn main() !u8 {
                 voxels_scene = null;
             }
 
-            render_scene = -1; // force rebuild of scene
+            scene_manager.rendered_scene = -1; // force rebuild of scene
         }
 
         // check if bg shader needs to be rebuilt
@@ -160,7 +157,7 @@ pub fn main() !u8 {
         }
 
         // check if scene needs to be rebuilt
-        if (render_scene != current_scene) {
+        if (scene_manager.rendered_scene != scene_manager.current_scene) {
             std.log.info("loading new scene", .{});
             
             if (reactor_scene) |*scene| {
@@ -178,7 +175,7 @@ pub fn main() !u8 {
                 voxels_scene = null;
             }
 
-            if (current_scene == 0) {
+            if (scene_manager.current_scene == 1) {
                 monkey_scene = levels.MonkeyScene.init(gpa.allocator(), &renderer) catch {
                     std.log.err("Failed to load monkey scene", .{});
                     @panic("Fatal error");
@@ -186,7 +183,7 @@ pub fn main() !u8 {
 
                 renderer._scene = &monkey_scene.?.draw_ctx;
             }
-            else if (current_scene == 1) {
+            else if (scene_manager.current_scene == 0) {
                 reactor_scene = levels.ReactorScene.init(gpa.allocator(), &renderer) catch {
                     std.log.err("Failed to load rector scene", .{});
                     @panic("Fatal error");
@@ -194,7 +191,8 @@ pub fn main() !u8 {
 
                 renderer._scene = &reactor_scene.?.draw_ctx;
             }
-            else if (current_scene == 2) {
+            // else if (scene_manager.current_scene == 2) {
+            else if (std.mem.eql(u8, scene_manager.scene_name(), "voxels")) {
                 voxels_scene = levels.VoxelsScene.init(gpa.allocator(), &renderer) catch {
                     std.log.err("Failed to load rector scene", .{});
                     @panic("Fatal error");
@@ -203,7 +201,7 @@ pub fn main() !u8 {
                 renderer._scene = &voxels_scene.?.draw_ctx;
             }
 
-            render_scene = current_scene;
+            scene_manager.rendered_scene = scene_manager.current_scene;
         }
 
         // create new frame for ui
@@ -231,27 +229,28 @@ pub fn main() !u8 {
         }
 
         // scenes manager
-        {
-            const result = imgui.Begin("Scenes", null, 0);
-            if (result) {
-                defer imgui.End();
+        // {
+        //     const result = imgui.Begin("Scenes", null, 0);
+        //     if (result) {
+        //         defer imgui.End();
 
-                const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "cube" };
-                _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 3);
+        //         const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "cube" };
+        //         _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 3);
 
-                if (scene_manager.scene(@intCast(render_scene))) |scene| {
-                    const data = &scene.data;
+        //         if (scene_manager.scene(@intCast(render_scene))) |scene| {
+        //             const data = &scene.data;
                     
-                    imgui.ImGui_Text("sun direction");
-                    _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
-                    _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
-                    _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
+        //             imgui.ImGui_Text("sun direction");
+        //             _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
+        //             _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
+        //             _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
 
-                    _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
-                    _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
-                }
-		    }
-        }
+        //             _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
+        //             _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
+        //         }
+		//     }
+        // }
+        scene_manager.update_ui();
 
         // background window
         {
