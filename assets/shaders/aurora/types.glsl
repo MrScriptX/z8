@@ -1,5 +1,5 @@
 struct voxel_t {
-    uvec2 data; // type
+    uvec2 data; // x : type, y : faces
 };
 
 struct vertex_t {

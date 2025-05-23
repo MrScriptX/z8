@@ -28,6 +28,7 @@ void main() {
     const uint z = gl_GlobalInvocationID.z;
 
     const uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
+    Chunk.voxels[index].data.y = 0;
 
     const vec3 chunk_world_pos = vec3(Chunk.position) * float(CHUNK_SIZE);
     const vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;
