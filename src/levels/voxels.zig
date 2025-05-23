@@ -21,7 +21,6 @@ pub const VoxelScene = struct {
     culling_shader: *chunk.FaceCullingShader,
     shader: *chunk.MeshComputeShader,
 
-    model: chunk.Chunk,
     world: std.ArrayList(*chunk.Chunk),
     global_data: scenes.ShaderData,
 
@@ -71,8 +70,8 @@ pub const VoxelScene = struct {
             std.log.err("Failed to build pipeline", .{});
         };
 
-        for (0..8) |x| {
-            for (0..8) |z| {
+        for (0..10) |x| {
+            for (0..10) |z| {
                 const obj = try scene.arena.allocator().create(chunk.Chunk);
                 obj.* = chunk.Chunk.init(allocator, .{@intCast(x), 0, @intCast(z)}, scene.culling_shader, scene.cl_shader, scene.shader, scene.pipelines.default, r);
                 try scene.world.append(obj);
@@ -80,7 +79,6 @@ pub const VoxelScene = struct {
         }
 
         r.submit.start_recording(r);
-        // scene.model.dispatch(r.submit.cmd);
         for (scene.world.items) |obj| {
             obj.dispatch(r.submit.cmd);
         }
@@ -101,7 +99,6 @@ pub const VoxelScene = struct {
 
         self.draw_ctx.deinit();
         
-        // self.model.deinit(r._vma, r);
         for (self.world.items) |obj| {
             obj.deinit(r._vma, r);
         }
@@ -169,21 +166,18 @@ pub const VoxelScene = struct {
         self.draw_ctx.global_data = &self.global_data;
 
         // fill draw ctx
-        // self.model.update(&self.draw_ctx);
         for (self.world.items) |obj| {
             obj.update(&self.draw_ctx);
         }
     }
 
     pub fn set_debug_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
-        // self.model.swap_pipeline(allocator, self.pipelines.polygone, r);
         for (self.world.items) |obj| {
             obj.swap_pipeline(allocator, self.pipelines.polygone, r);
         }
     }
 
     pub fn set_default_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
-        // self.model.swap_pipeline(allocator, self.pipelines.default, r);
         for (self.world.items) |obj| {
             obj.swap_pipeline(allocator, self.pipelines.default, r);
         }
