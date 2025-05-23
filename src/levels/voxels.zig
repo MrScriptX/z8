@@ -34,13 +34,14 @@ pub const VoxelScene = struct {
             .cl_shader = undefined,
             .culling_shader = undefined,
             .shader = undefined,
-            .model = undefined,
             .global_data = .{},
             .draw_ctx = undefined,
             .background_ctx = undefined,
             .state = .{},
             .world = std.ArrayList(*chunk.Chunk).init(allocator)
         };
+
+        const seed = 15;
 
         scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
         scene.cl_shader.* = chunk.ClassificationShader.init(allocator);
@@ -73,7 +74,7 @@ pub const VoxelScene = struct {
         for (0..10) |x| {
             for (0..10) |z| {
                 const obj = try scene.arena.allocator().create(chunk.Chunk);
-                obj.* = chunk.Chunk.init(allocator, .{@intCast(x), 0, @intCast(z)}, scene.culling_shader, scene.cl_shader, scene.shader, scene.pipelines.default, r);
+                obj.* = chunk.Chunk.init(allocator, .{@intCast(x), 0, @intCast(z)}, seed, scene.culling_shader, scene.cl_shader, scene.shader, scene.pipelines.default, r);
                 try scene.world.append(obj);
             }
         }
@@ -142,6 +143,15 @@ pub const VoxelScene = struct {
 
             const pipeline_list = [_][*:0]const u8{ "default", "debug" };
             _ = imgui.ImGui_ComboChar("pipeline", &self.state.pipeline, @ptrCast(&pipeline_list), pipeline_list.len);
+            
+            // TODO : global lighting
+            // imgui.ImGui_Text("sun direction");
+            // _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
+            // _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
+            // _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
+
+            // _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
+            // _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
         }
     }
 

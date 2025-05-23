@@ -247,7 +247,7 @@ pub fn main() !u8 {
         }
 
         scene_manager.update_ui();
-
+        
         if (voxels_scene) |*scene| {
             scene.update_ui();
         }

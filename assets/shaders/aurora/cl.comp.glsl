@@ -12,6 +12,10 @@ layout(std430, binding = 0) buffer ChunkData {
     voxel_t voxels[];
 } Chunk;
 
+layout(std430, binding = 1) buffer PermTable {
+    uint perm[256];
+} Perm;
+
 layout( push_constant ) uniform constants {
     ivec3 position;
 } PushConstant;
@@ -41,7 +45,7 @@ void main() {
     float freq = 1.0;
     float amp = 1.0;
     for (int i = 0; i < 4; i++) {
-        n += noise2D(noise_pos.x * freq, noise_pos.y * freq) * amp;
+        n += noise2D(Perm.perm, noise_pos.x * freq, noise_pos.y * freq) * amp;
         freq *= 2.0;
         amp *= 0.5;
     }
@@ -54,4 +58,5 @@ void main() {
     else {
         Chunk.voxels[index].data.x = 1; // SOLID        
     }
+
 }
