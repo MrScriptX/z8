@@ -25,6 +25,7 @@ pub const VoxelScene = struct {
     world: std.ArrayList(*chunk.Chunk),
     global_data: scenes.ShaderData,
 
+    background_ctx: scenes.BackgroundContext,
     draw_ctx: scenes.DrawContext,
 
     pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !VoxelScene {
@@ -37,6 +38,7 @@ pub const VoxelScene = struct {
             .model = undefined,
             .global_data = .{},
             .draw_ctx = undefined,
+            .background_ctx = undefined,
             .state = .{},
             .world = std.ArrayList(*chunk.Chunk).init(allocator)
         };
