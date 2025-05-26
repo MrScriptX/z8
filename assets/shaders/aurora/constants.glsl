@@ -1,5 +1,5 @@
-uint CHUNK_SIZE = 32;
-uint CHUNK_SIZE_SQR = CHUNK_SIZE * CHUNK_SIZE;
+const uint CHUNK_SIZE = 32;
+const uint CHUNK_SIZE_SQR = CHUNK_SIZE * CHUNK_SIZE;
 
 // Define cube vertices
 vec3 positions[6][4] = vec3[][]( // 6 faces * 4 vertices
