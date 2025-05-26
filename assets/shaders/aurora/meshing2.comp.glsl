@@ -49,6 +49,13 @@ void main()
 void greedy_meshing(uint dir, uint slice)
 {
     bool processed[CHUNK_SIZE][CHUNK_SIZE];
+    // Initialize processed array
+    for (uint i = 0; i < CHUNK_SIZE; i++) {
+        for (uint j = 0; j < CHUNK_SIZE; j++) {
+            processed[i][j] = false;
+        }
+    }
+
     for (uint i = 0; i < CHUNK_SIZE; i++) {
         for (uint j = 0; i < CHUNK_SIZE; j++) {
             if (processed[i][j]) {
