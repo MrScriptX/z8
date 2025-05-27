@@ -51,7 +51,7 @@ void main() {
     }
     n = clamp(n, -1.0, 1.0); // optional
     const float height = (n + 1.0) * 0.5 * CHUNK_SIZE;
-    if (cube_pos.y > height && false) {
+    if (cube_pos.y > height) {
         // no need to store local position, we don't draw it
         Chunk.voxels[index].data.x = 0; // AIR
     }

@@ -106,8 +106,8 @@ pub const VoxelScene = struct {
     pub fn build_world(self: *VoxelScene, allocator: std.mem.Allocator, r: *renderer.renderer_t) void {
         std.log.info("building world", .{});
 
-        for (0..1) |x| {
-            for (0..1) |z| {
+        for (0..10) |x| {
+            for (0..10) |z| {
                 const obj = self.arena.allocator().create(chunk.Chunk) catch {
                     std.log.err("Failed to allocate memory for chunk", .{});
                     @panic("Out of memory !");
