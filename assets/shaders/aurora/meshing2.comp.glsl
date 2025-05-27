@@ -27,7 +27,7 @@ layout(std430, binding = 3) buffer ChunkData {
 };
 
 void greedy_meshing(uint dir, uint slice);
-void create_quad(vec3 pos, uvec3 dir, uvec3 size, vec3 normal, vec4 color);
+void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color);
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
@@ -40,6 +40,8 @@ void main()
         vertexOffset = 0;
         firstInstance = 0;
     }
+
+    memoryBarrier();
 
     const uint dir = gl_GlobalInvocationID.y; // 0: X, 1: -X, 2: Y, 3: -Y, 4: Z, 5: -Z
     const uint slice = gl_GlobalInvocationID.x; // slice in the direction of the mesh
@@ -57,7 +59,7 @@ void greedy_meshing(uint dir, uint slice)
     }
 
     for (uint i = 0; i < CHUNK_SIZE; i++) {
-        for (uint j = 0; i < CHUNK_SIZE; j++) {
+        for (uint j = 0; j < CHUNK_SIZE; j++) {
             if (processed[i][j]) {
                 continue;
             }
@@ -129,10 +131,10 @@ void greedy_meshing(uint dir, uint slice)
                         valid = false;
                         break; // stop if we hit air or a hidden face
                     }
+                }
 
-                    if (!valid) {
-                        break;
-                    }
+                if (!valid) {
+                    break;
                 }
             }
 
@@ -146,44 +148,86 @@ void greedy_meshing(uint dir, uint slice)
             // create the mesh
             vec3 normal;
             vec4 color;
+            uvec2 size;
             if (dir == 0) { // X
                 normal = normals[0];
                 color = colors[0];
+                size = uvec2(height, width);
             }
             else if (dir == 1) { // -X
                 normal = normals[1];
                 color = colors[0];
+                size = uvec2(height, width);
             }
             else if (dir == 2) { // Y
                 normal = normals[2];
                 color = colors[0];
+                size = uvec2(width, height);
             }
             else if (dir == 3) { // -Y
                 normal = normals[3];
                 color = colors[0];
+                size = uvec2(width, height);
             }
             else if (dir == 4) { // Z
                 normal = normals[4];
                 color = colors[0];
+                size = uvec2(width, height);
             }
             else { // -Z
                 normal = normals[5];
                 color = colors[0];
+                size = uvec2(width, height);
             }
 
             vec3 world_pos = vec3(pos) + vec3(position) * float(CHUNK_SIZE) + vec3(0.5);
-            create_quad(world_pos, uvec3(dir), uvec3(width, height, 1), normal, color);
+            if (dir != 0 && dir != 1) {
+                continue; // skip if not +X direction
+            }
+            create_quad(world_pos, dir, size, normal, color);
         }
     }
 }
 
-void create_quad(vec3 pos, uvec3 dir, uvec3 size, vec3 normal, vec4 color)
+void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color)
 {
     vertex_t v[4];
-    v[0].position = pos + vec3(0.0, 0.0, 0.0);
-    v[1].position = pos + vec3(size.x, 0.0, 0.0);
-    v[2].position = pos + vec3(size.x, size.y, 0.0);
-    v[3].position = pos + vec3(0.0, size.y, 0.0);
+    if (dir == 0) {
+        v[0].position = pos + vec3(0.0, 0.0, 0.0);
+        v[1].position = pos + vec3(size.x, 0.0, 0.0);
+        v[2].position = pos + vec3(size.x, size.y, 0.0);
+        v[3].position = pos + vec3(0.0, size.y, 0.0);
+    }
+    else if (dir == 1) { // -X
+        v[0].position = pos + vec3(size.x, 0.0, 1.0);
+        v[1].position = pos + vec3(0.0, 0.0, 1.0);
+        v[2].position = pos + vec3(0.0, size.y, 1.0);
+        v[3].position = pos + vec3(size.x, size.y, 1.0);
+    }
+    else if (dir == 2) { // +Y (XZ plane, at Y=slice)
+        v[0].position = pos + vec3(0.0, 0.0, 0.0);
+        v[1].position = pos + vec3(0.0, 0.0, size.y);
+        v[2].position = pos + vec3(size.x, 0.0, size.y);
+        v[3].position = pos + vec3(size.x, 0.0, 0.0);
+    }
+    else if (dir == 3) { // -Y (XZ plane, offset Y=1)
+        v[0].position = pos + vec3(0.0, 1.0, 0.0);
+        v[1].position = pos + vec3(0.0, 1.0, size.y);
+        v[2].position = pos + vec3(size.x, 1.0, size.y);
+        v[3].position = pos + vec3(size.x, 1.0, 0.0);
+    }
+    else if (dir == 4) { // +Z (XY plane)
+        v[0].position = pos + vec3(0.0, 0.0, 0.0);
+        v[1].position = pos + vec3(0.0, 0.0, size.x);
+        v[2].position = pos + vec3(0.0, size.y, size.x);
+        v[3].position = pos + vec3(0.0, size.y, 0.0);
+    }
+    else { // -Z (XY plane, offset Z=1)
+        v[0].position = pos + vec3(1.0, 0.0, size.x);
+        v[1].position = pos + vec3(1.0, 0.0, 0.0);
+        v[2].position = pos + vec3(1.0, size.y, 0);
+        v[3].position = pos + vec3(1.0, size.y, 1.0);
+    }
 
     v[0].normal = normal;
     v[1].normal = normal;
@@ -207,16 +251,19 @@ void create_quad(vec3 pos, uvec3 dir, uvec3 size, vec3 normal, vec4 color)
     v[2].color = color;
     v[3].color = color;
 
-    const uint base_index = atomicAdd(indexCount, 6);
-    vertices[base_index + 0] = v[0];
-    vertices[base_index + 1] = v[1];
-    vertices[base_index + 2] = v[2];
-    vertices[base_index + 3] = v[3];
+    // Allocate space for vertices and indices separately
+    const uint vertex_base = atomicAdd(active_count, 4);
+    const uint index_base = atomicAdd(indexCount, 6);
 
-    indices[base_index + 0] = base_index + 0;
-    indices[base_index + 1] = base_index + 1;
-    indices[base_index + 2] = base_index + 2;
-    indices[base_index + 3] = base_index + 0;
-    indices[base_index + 4] = base_index + 2;
-    indices[base_index + 5] = base_index + 3;
+    vertices[vertex_base + 0] = v[0];
+    vertices[vertex_base + 1] = v[1];
+    vertices[vertex_base + 2] = v[2];
+    vertices[vertex_base + 3] = v[3];
+
+    indices[index_base + 0] = vertex_base + 0;
+    indices[index_base + 1] = vertex_base + 1;
+    indices[index_base + 2] = vertex_base + 2;
+    indices[index_base + 3] = vertex_base + 0;
+    indices[index_base + 4] = vertex_base + 2;
+    indices[index_base + 5] = vertex_base + 3;
 }

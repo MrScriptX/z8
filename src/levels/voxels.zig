@@ -53,7 +53,7 @@ pub const VoxelScene = struct {
 
         scene.shader = try scene.arena.allocator().create(chunk.MeshComputeShader);
         scene.shader.* = chunk.MeshComputeShader.init(allocator, "voxel");
-        try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/meshing.comp.spv", r);
+        try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/meshing2.comp.spv", r);
 
         std.log.info("Build voxel default pipeline", .{});
 
@@ -106,8 +106,8 @@ pub const VoxelScene = struct {
     pub fn build_world(self: *VoxelScene, allocator: std.mem.Allocator, r: *renderer.renderer_t) void {
         std.log.info("building world", .{});
 
-        for (0..10) |x| {
-            for (0..10) |z| {
+        for (0..1) |x| {
+            for (0..1) |z| {
                 const obj = self.arena.allocator().create(chunk.Chunk) catch {
                     std.log.err("Failed to allocate memory for chunk", .{});
                     @panic("Out of memory !");
