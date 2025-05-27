@@ -181,7 +181,7 @@ void greedy_meshing(uint dir, uint slice)
             }
 
             vec3 world_pos = vec3(pos) + vec3(position) * float(CHUNK_SIZE) + vec3(0.5);
-            if (dir != 0 && dir != 1) {
+            if (dir != 0 && dir != 1 && dir != 2 && dir != 3 && dir != 4 && dir != 5) {
                 continue; // skip if not +X direction
             }
             create_quad(world_pos, dir, size, normal, color);
@@ -192,7 +192,7 @@ void greedy_meshing(uint dir, uint slice)
 void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color)
 {
     vertex_t v[4];
-    if (dir == 0) {
+    if (dir == 0) { // +X
         v[0].position = pos + vec3(0.0, 0.0, 0.0);
         v[1].position = pos + vec3(size.x, 0.0, 0.0);
         v[2].position = pos + vec3(size.x, size.y, 0.0);
@@ -204,29 +204,29 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color)
         v[2].position = pos + vec3(0.0, size.y, 1.0);
         v[3].position = pos + vec3(size.x, size.y, 1.0);
     }
-    else if (dir == 2) { // +Y (XZ plane, at Y=slice)
+    else if (dir == 2) { // +Z
+        v[0].position = pos + vec3(0.0, 0.0, 0.0);
+        v[1].position = pos + vec3(0.0, size.x, 0.0);
+        v[2].position = pos + vec3(0.0, size.x, size.y);
+        v[3].position = pos + vec3(0.0, 0.0, size.y);
+    }
+    else if (dir == 3) { // -Z
+        v[0].position = pos + vec3(1.0, 0.0, size.y);
+        v[1].position = pos + vec3(1.0, size.x, size.y);
+        v[2].position = pos + vec3(1.0, size.x, 0.0);
+        v[3].position = pos + vec3(1.0, 0.0, 0.0);
+    }
+    else if (dir == 4) { // +Y
+        v[0].position = pos + vec3(0.0, 1.0, 0.0);
+        v[1].position = pos + vec3(size.x, 1.0, 0.0);
+        v[2].position = pos + vec3(size.x, 1.0, size.y);
+        v[3].position = pos + vec3(0.0, 1.0, size.y);
+    }
+    else { // -Y
         v[0].position = pos + vec3(0.0, 0.0, 0.0);
         v[1].position = pos + vec3(0.0, 0.0, size.y);
         v[2].position = pos + vec3(size.x, 0.0, size.y);
         v[3].position = pos + vec3(size.x, 0.0, 0.0);
-    }
-    else if (dir == 3) { // -Y (XZ plane, offset Y=1)
-        v[0].position = pos + vec3(0.0, 1.0, 0.0);
-        v[1].position = pos + vec3(0.0, 1.0, size.y);
-        v[2].position = pos + vec3(size.x, 1.0, size.y);
-        v[3].position = pos + vec3(size.x, 1.0, 0.0);
-    }
-    else if (dir == 4) { // +Z (XY plane)
-        v[0].position = pos + vec3(0.0, 0.0, 0.0);
-        v[1].position = pos + vec3(0.0, 0.0, size.x);
-        v[2].position = pos + vec3(0.0, size.y, size.x);
-        v[3].position = pos + vec3(0.0, size.y, 0.0);
-    }
-    else { // -Z (XY plane, offset Z=1)
-        v[0].position = pos + vec3(1.0, 0.0, size.x);
-        v[1].position = pos + vec3(1.0, 0.0, 0.0);
-        v[2].position = pos + vec3(1.0, size.y, 0);
-        v[3].position = pos + vec3(1.0, size.y, 1.0);
     }
 
     v[0].normal = normal;

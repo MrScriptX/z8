@@ -6,8 +6,8 @@ pub fn main() !u8 {
     }
     defer sdl.SDL_Quit();
 
-    const width = 1280;
-    const heigh = 960;
+    const width = 1920;
+    const heigh = 1080;
 
     const window = sdl.SDL_CreateWindow("Hello World", width, heigh, sdl.SDL_WINDOW_VULKAN | sdl.SDL_WINDOW_RESIZABLE);
     if (window == null) {
