@@ -88,6 +88,21 @@ pub const VoxelScene = struct {
             std.log.err("Failed to build pipeline", .{});
         };
 
+        // TODO : sky box should be handled from the scene
+        // var sky_shader = compute.ComputeEffect {
+        //     .name = "sky",
+        //     .data = .{
+        //         .data1 = c.vec4{ 0.1, 0.2, 0.4 , 0.97 },
+	    //         .data2 = c.glms_vec4_zero().raw,
+        //         .data3 = c.glms_vec4_zero().raw,
+        //         .data4 = c.glms_vec4_zero().raw 
+        //     },
+        // };
+        // sky_shader.build(allocator, "./zig-out/bin/shaders/vkguide/sky.spv", r) catch {
+        //     std.log.err("Failed to create sky shader", .{});
+        //     @panic("Failed to build the sky box");
+        // };
+
         scene.draw_ctx.global_data = &scene.global_data;
         scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
         scene.draw_ctx.transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
