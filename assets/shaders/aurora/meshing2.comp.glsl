@@ -166,26 +166,7 @@ void greedy_meshing(uint dir, uint slice)
             }
 
             // create the mesh
-            vec3 normal;
-            if (dir == DIR_X_POS) { // X
-                normal = normals[0];
-            }
-            else if (dir == DIR_X_NEG) { // -X
-                normal = normals[1];
-            }
-            else if (dir == DIR_Y_POS) { // Y
-                normal = normals[2];
-            }
-            else if (dir == DIR_Y_NEG) { // -Y
-                normal = normals[3];
-            }
-            else if (dir == DIR_Z_POS) { // Z
-                normal = normals[4];
-            }
-            else { // -Z
-                normal = normals[5];
-            }
-
+            vec3 normal = normals[dir];
             vec3 world_pos = vec3(pos) + vec3(position) * float(CHUNK_SIZE) + vec3(0.5);
             create_quad(world_pos, dir, uvec2(width, height), normal);
         }
