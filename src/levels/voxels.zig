@@ -25,7 +25,7 @@ pub const VoxelScene = struct {
     shader: *chunk.MeshComputeShader,
 
     world: std.ArrayList(Chunk),
-    deletion_queue: std.ArrayList(Chunk),
+    deletion_queue: std.ArrayList(Chunk), // use as a garbage collector
     global_data: scenes.ShaderData,
 
     background_ctx: scenes.BackgroundContext,
