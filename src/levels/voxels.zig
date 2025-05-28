@@ -5,7 +5,6 @@ const MaterialPipelines = struct {
 
 const State = struct {
     pipeline: i32 = 0,
-    loaded_pipeline: i32 = 0,
 
     seed: u32 = 0, // world seed
     radius: u8 = 10,
@@ -189,17 +188,6 @@ pub const VoxelScene = struct {
             }
         }
 
-        // check if pipeline changed
-        if (self.state.loaded_pipeline != self.state.pipeline) {
-            switch (self.state.pipeline) {
-                0 => self.set_default_pipeline(allocator, r),
-                1 => self.set_debug_pipeline(allocator, r),
-                else => std.log.warn("Invalid pipeline value", .{})
-            }
-
-            self.state.loaded_pipeline = self.state.pipeline;
-        }
-
         cam.update(r.stats.frame_time);
         self.draw(cam, r._draw_extent);
 
@@ -207,15 +195,42 @@ pub const VoxelScene = struct {
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
     }
 
-    pub fn update_ui(self: *VoxelScene) void {
+    pub fn update_ui(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
         const result = imgui.Begin("Scene", null, 0);
         if (result) {
             defer imgui.End();
 
-            _ = imgui.InputUint("seed", &self.state.seed);
+            if (imgui.InputUint("seed", &self.state.seed)) {
+                self.clear(r);
+                self.build_world();
+            }
+
+            if (imgui.ImGui_Button("random seed")) {
+                var prng = std.Random.DefaultPrng.init(blk: {
+                    var seed: u64 = undefined;
+                    std.posix.getrandom(std.mem.asBytes(&seed)) catch {
+                        std.log.warn("Failed to get a random number seed", .{});
+                        seed = 751468464;
+                    };
+                    break :blk seed;
+                });
+                const rand = prng.random();
+
+                self.state.seed = rand.int(u32);
+                std.log.info("New random seed {d}", .{ self.state.seed });
+
+                self.clear(r);
+                self.build_world();
+            }
 
             const pipeline_list = [_][*:0]const u8{ "default", "debug" };
-            _ = imgui.ImGui_ComboChar("pipeline", &self.state.pipeline, @ptrCast(&pipeline_list), pipeline_list.len);
+            if (imgui.ImGui_ComboChar("pipeline", &self.state.pipeline, @ptrCast(&pipeline_list), pipeline_list.len)) {
+                switch (self.state.pipeline) {
+                    0 => self.set_default_pipeline(allocator, r),
+                    1 => self.set_debug_pipeline(allocator, r),
+                    else => std.log.warn("Invalid pipeline value", .{})
+                }
+            }
             
             // TODO : global lighting
             // imgui.ImGui_Text("sun direction");

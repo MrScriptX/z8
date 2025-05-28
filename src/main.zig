@@ -253,7 +253,7 @@ pub fn main() !u8 {
         scene_manager.update_ui();
         
         if (voxels_scene) |*scene| {
-            scene.update_ui();
+            scene.update_ui(gpa.allocator(), &renderer);
         }
 
         // render
@@ -266,14 +266,6 @@ pub fn main() !u8 {
             scene.update(&main_camera, &renderer);
         }
         else if (voxels_scene) |*scene| {
-            // check if seed changed
-            if (world_seed != scene.state.seed) {
-                scene.clear(&renderer);
-                scene.build_world();
-
-                world_seed = scene.state.seed;
-            }
-
             scene.update(gpa.allocator(), &main_camera, &renderer);
         }
         renderer.draw(gpa.allocator());
