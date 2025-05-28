@@ -77,33 +77,9 @@ pub fn main() !u8 {
     renderer.bg_shader = background_effects.items[current_shader];
 
     var scene_manager = engine.scene.Manager.init(gpa.allocator(), 2);
-    defer scene_manager.deinit();
+    defer scene_manager.deinit(&renderer);
 
-    var reactor_scene: ?levels.ReactorScene = null; 
-    defer if (reactor_scene) |*scene| {
-        scene.deinit(&renderer);
-        reactor_scene = null;
-    };
-
-    try scene_manager.scenes.append("reactor");
-
-    var monkey_scene: ?levels.MonkeyScene = null;
-    defer if (monkey_scene) |*scene| {
-        scene.deinit(&renderer);
-        monkey_scene = null;
-    };
-
-    try scene_manager.scenes.append("monkey");
-
-    var voxels_scene: ?levels.VoxelsScene = null;
-    defer if (voxels_scene) |*scene| {
-        scene.deinit(&renderer);
-        voxels_scene = null;
-    };
-
-    try scene_manager.scenes.append("voxels");
-
-    var world_seed: u32 = 0;
+    scene_manager.build_scene(&renderer);
 
     // main loop
     var quit = false;
@@ -135,76 +111,13 @@ pub fn main() !u8 {
         if (renderer.rebuild) {
             renderer.rebuild_swapchain(gpa.allocator(), window);
 
-            if (reactor_scene) |*scene| {
-                scene.deinit(&renderer);
-                reactor_scene = null;
-            }
-
-            if (monkey_scene) |*scene| {
-                scene.deinit(&renderer);
-                monkey_scene = null;
-            }
-
-            if (voxels_scene) |*scene| {
-                scene.deinit(&renderer);
-                voxels_scene = null;
-            }
-
-            scene_manager.rendered_scene = -1; // force rebuild of scene
+            scene_manager.clear(&renderer);
+            scene_manager.build_scene(&renderer);
         }
 
         // check if bg shader needs to be rebuilt
         if (renderer.bg_shader != background_effects.items[current_shader]) {
             renderer.bg_shader = background_effects.items[current_shader];
-        }
-
-        // check if scene needs to be rebuilt
-        if (scene_manager.rendered_scene != scene_manager.current_scene) {
-            std.log.info("loading new scene", .{});
-            
-            if (reactor_scene) |*scene| {
-                scene.deinit(&renderer);
-                reactor_scene = null;
-            }
-
-            if (monkey_scene) |*scene| {
-                scene.deinit(&renderer);
-                monkey_scene = null;
-            }
-
-            if (voxels_scene) |*scene| {
-                scene.deinit(&renderer);
-                voxels_scene = null;
-            }
-
-            if (scene_manager.is_scene("monkey")) {
-                monkey_scene = levels.MonkeyScene.init(gpa.allocator(), &renderer) catch {
-                    std.log.err("Failed to load monkey scene", .{});
-                    @panic("Fatal error");
-                };
-
-                renderer._scene = &monkey_scene.?.draw_ctx;
-            }
-            else if (scene_manager.is_scene("reactor")) {
-                reactor_scene = levels.ReactorScene.init(gpa.allocator(), &renderer) catch {
-                    std.log.err("Failed to load rector scene", .{});
-                    @panic("Fatal error");
-                };
-
-                renderer._scene = &reactor_scene.?.draw_ctx;
-            }
-            else if (scene_manager.is_scene("voxels")) {
-                voxels_scene = levels.VoxelsScene.init(gpa.allocator(), &renderer) catch {
-                    std.log.err("Failed to load rector scene", .{});
-                    @panic("Fatal error");
-                };
-
-                world_seed = voxels_scene.?.state.seed;
-
-                renderer._scene = &voxels_scene.?.draw_ctx;
-            }
-
-            scene_manager.rendered_scene = scene_manager.current_scene;
         }
 
         // create new frame for ui
@@ -250,24 +163,12 @@ pub fn main() !u8 {
 		    }
         }
 
-        scene_manager.update_ui();
-        
-        if (voxels_scene) |*scene| {
-            scene.update_ui(gpa.allocator(), &renderer);
-        }
+        scene_manager.update_ui(&renderer);
 
         // render
         imgui.Render();
 
-        if (reactor_scene) |*scene| {
-            scene.update(&main_camera, &renderer);
-        }
-        else if (monkey_scene) |*scene| {
-            scene.update(&main_camera, &renderer);
-        }
-        else if (voxels_scene) |*scene| {
-            scene.update(gpa.allocator(), &main_camera, &renderer);
-        }
+        scene_manager.update(&main_camera, &renderer);
         renderer.draw(gpa.allocator());
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());

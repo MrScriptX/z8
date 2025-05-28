@@ -11,38 +11,95 @@ pub const Manager = struct {
     alloc: std.mem.Allocator,
 
     current_scene: i32 = 0,
-    rendered_scene: i32 = -1,
-    scenes: std.ArrayList([*:0]const u8),
+    scenes: [3][*:0]const u8 = [_][*:0]const u8{ "reactor", "monkey", "voxels" },
+
+    reactor_scene: ?levels.ReactorScene = null,
+    monkey_scene: ?levels.MonkeyScene = null,
+    voxels_scene: ?levels.VoxelsScene = null,
 
     pub fn init(allocator: std.mem.Allocator, default_scene: u32) Manager {
         return .{
             .alloc = allocator,
-            .scenes = std.ArrayList([*:0]const u8).init(allocator),
             .current_scene = @intCast(default_scene)
         };
     }
 
-    pub fn deinit(self: *Manager) void {
-        self.scenes.deinit();
+    pub fn deinit(self: *Manager, r: *renderer.renderer_t) void {
+        self.clear(r);
     }
 
-    pub fn update_ui(self: *Manager) void {
+    pub fn update(self: *Manager, cam: *camera.camera_t, r: *renderer.renderer_t) void {
+        if (self.reactor_scene) |*scene| {
+            scene.update(cam, r);
+        }
+        else if (self.monkey_scene) |*scene| {
+            scene.update(cam, r);
+        }
+        else if (self.voxels_scene) |*scene| {
+            scene.update(self.alloc, cam, r);
+        }
+    }
+
+    pub fn update_ui(self: *Manager, r: *renderer.renderer_t) void {
         const result = imgui.Begin("Scenes Manager", null, 0);
         if (result) {
             defer imgui.End();
 
-            _ = imgui.ImGui_ComboChar("scene", &self.current_scene, @ptrCast(self.scenes.items), @intCast(self.scenes.items.len));
+            if (imgui.ImGui_ComboChar("scene", &self.current_scene, @ptrCast(&self.scenes), @intCast(self.scenes.len))) {
+                std.log.info("Loading new scene", .{});
+            
+                self.clear(r);
+                self.build_scene(r);                
+            }
 		}
+
+        if (self.voxels_scene) |*scene| {
+            scene.update_ui(self.alloc, r);
+        }
     }
 
-    pub fn is_scene(self: *Manager, name: []const u8) bool {
-        if (self.current_scene < 0 or self.current_scene > @as(i32, @intCast(self.scenes.items.len))) {
-            return false;
+    pub fn build_scene(self: *Manager, r: *renderer.renderer_t) void {
+        if (self.current_scene == 0) {
+            self.monkey_scene = levels.MonkeyScene.init(self.alloc, r) catch {
+                std.log.err("Failed to load monkey scene", .{});
+                @panic("Fatal error");
+            };
+
+            r._scene = &self.monkey_scene.?.draw_ctx;
+        }
+        else if (self.current_scene == 1) {
+            self.reactor_scene = levels.ReactorScene.init(self.alloc, r) catch {
+                std.log.err("Failed to load rector scene", .{});
+                @panic("Fatal error");
+            };
+
+            r._scene = &self.reactor_scene.?.draw_ctx;
+        }
+        else if (self.current_scene == 2) {
+            self.voxels_scene = levels.VoxelsScene.init(self.alloc, r) catch {
+                std.log.err("Failed to load rector scene", .{});
+                @panic("Fatal error");
+            };
+
+            r._scene = &self.voxels_scene.?.draw_ctx;
+        }
+    }
+
+    pub fn clear(self: *Manager, r: *renderer.renderer_t) void {
+        if (self.voxels_scene) |*scene| {
+            scene.deinit(r);
+            self.voxels_scene = null;
         }
 
-        const current_scene_name = std.mem.span(self.scenes.items[@intCast(self.current_scene)]);
+        if (self.monkey_scene) |*scene| {
+            scene.deinit(r);
+            self.monkey_scene = null;
+        }
 
-        return std.mem.eql(u8, current_scene_name, name);
+        if (self.reactor_scene) |*scene| {
+            scene.deinit(r);
+            self.reactor_scene = null;
+        }
     }
 };
 
@@ -186,3 +243,4 @@ const materials = @import("../graphics/materials.zig");
 const buffers = @import("../graphics/buffers.zig");
 const descriptors = @import("../descriptor.zig");
 const compute = @import("../compute_effect.zig");
+const levels = @import("../../levels/levels.zig");
