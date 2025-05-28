@@ -29,7 +29,7 @@ layout(std430, binding = 3) buffer ChunkData {
 };
 
 void greedy_meshing(uint dir, uint slice);
-void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color);
+void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal);
 
 const uint DIR_Z_NEG = 0;
 const uint DIR_Z_POS = 1;
@@ -167,46 +167,32 @@ void greedy_meshing(uint dir, uint slice)
 
             // create the mesh
             vec3 normal;
-            vec4 color;
-            uvec2 size;
             if (dir == DIR_X_POS) { // X
                 normal = normals[0];
-                color = colors[0];
-                size = uvec2(width, height);
             }
             else if (dir == DIR_X_NEG) { // -X
                 normal = normals[1];
-                color = colors[0];
-                size = uvec2(width, height);
             }
             else if (dir == DIR_Y_POS) { // Y
                 normal = normals[2];
-                color = colors[0];
-                size = uvec2(width, height);
             }
             else if (dir == DIR_Y_NEG) { // -Y
                 normal = normals[3];
-                color = colors[0];
-                size = uvec2(width, height);
             }
             else if (dir == DIR_Z_POS) { // Z
                 normal = normals[4];
-                color = colors[0];
-                size = uvec2(width, height);
             }
             else { // -Z
                 normal = normals[5];
-                color = colors[0];
-                size = uvec2(width, height);
             }
 
             vec3 world_pos = vec3(pos) + vec3(position) * float(CHUNK_SIZE) + vec3(0.5);
-            create_quad(world_pos, dir, size, normal, color);
+            create_quad(world_pos, dir, uvec2(width, height), normal);
         }
     }
 }
 
-void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color)
+void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal)
 {
     vertex_t v[4];
 
@@ -249,7 +235,6 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color)
 
     for (int i = 0; i < 4; i++) {
         v[i].normal = normal;
-        v[i].color = color;
     }
 
     v[0].uv_x = 0.0; v[0].uv_y = 0.0;
