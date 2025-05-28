@@ -36,6 +36,13 @@ pub const VoxelScene = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !VoxelScene {
+        var prng = std.Random.DefaultPrng.init(blk: {
+            var seed: u64 = undefined;
+            try std.posix.getrandom(std.mem.asBytes(&seed));
+            break :blk seed;
+        });
+        const rand = prng.random();
+        
         var scene = VoxelScene {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .pipelines = undefined,
@@ -45,7 +52,9 @@ pub const VoxelScene = struct {
             .global_data = .{},
             .draw_ctx = undefined,
             .background_ctx = undefined,
-            .state = .{},
+            .state = .{
+                .seed = rand.int(u32)
+            },
             .world = std.ArrayList(Chunk).init(allocator)
         };
 
