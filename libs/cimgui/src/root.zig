@@ -70,6 +70,18 @@ pub fn SliderFloat(label: []const u8, v: *f32, v_min: f32, v_max: f32) bool {
     return c.ImGui_SliderFloat(@ptrCast(label), v, v_min, v_max);
 }
 
+pub fn InputInt(label: []const u8, v: *i32) bool {
+    return c.ImGui_InputInt(@ptrCast(label), @ptrCast(v));
+}
+
+pub fn InputUint(label: []const u8, v: *u32) bool {
+    if (v.* > std.math.maxInt(i32)) { // overflow
+        return false;
+    }
+
+    return c.ImGui_InputInt(@ptrCast(label), @ptrCast(v));
+}
+
 pub fn InputFloat(label: []const u8, v: *f32) bool {
     return c.ImGui_InputFloat(@ptrCast(label), v);
 }

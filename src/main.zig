@@ -6,8 +6,8 @@ pub fn main() !u8 {
     }
     defer sdl.SDL_Quit();
 
-    const width = 1280;
-    const heigh = 960;
+    const width = 1920;
+    const heigh = 1080;
 
     const window = sdl.SDL_CreateWindow("Hello World", width, heigh, sdl.SDL_WINDOW_VULKAN | sdl.SDL_WINDOW_RESIZABLE);
     if (window == null) {
@@ -32,15 +32,6 @@ pub fn main() !u8 {
         return 1;
     };
     defer renderer.deinit();
-
-    // create scenes
-    var scene_manager = engine.scene.manager_t.init(gpa.allocator());
-    defer scene_manager.deinit(renderer._device, renderer._vma);
-
-    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
-    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.GLTF);
-    // _ = scene_manager.create_scene(gpa.allocator(), engine.scene.type_e.MESH);
-
 
     // create effects
     var background_effects = std.ArrayList(*compute.ComputeEffect).init(gpa.allocator());
@@ -85,26 +76,10 @@ pub fn main() !u8 {
     var current_shader: u32 = 0;
     renderer.bg_shader = background_effects.items[current_shader];
 
-    var current_scene: i32 = 2;
-    var render_scene: i32 = -1;
+    var scene_manager = engine.scene.Manager.init(gpa.allocator(), 2);
+    defer scene_manager.deinit(&renderer);
 
-    var reactor_scene: ?levels.ReactorScene = null; 
-    defer if (reactor_scene) |*scene| {
-        scene.deinit(&renderer);
-        reactor_scene = null;
-    };
-
-    var monkey_scene: ?levels.MonkeyScene = null;
-    defer if (monkey_scene) |*scene| {
-        scene.deinit(&renderer);
-        monkey_scene = null;
-    };
-
-    var voxels_scene: ?levels.VoxelsScene = null;
-    defer if (voxels_scene) |*scene| {
-        scene.deinit(&renderer);
-        voxels_scene = null;
-    };
+    scene_manager.build_scene(&renderer);
 
     // main loop
     var quit = false;
@@ -136,74 +111,13 @@ pub fn main() !u8 {
         if (renderer.rebuild) {
             renderer.rebuild_swapchain(gpa.allocator(), window);
 
-            if (reactor_scene) |*scene| {
-                scene.deinit(&renderer);
-                reactor_scene = null;
-            }
-
-            if (monkey_scene) |*scene| {
-                scene.deinit(&renderer);
-                monkey_scene = null;
-            }
-
-            if (voxels_scene) |*scene| {
-                scene.deinit(&renderer);
-                voxels_scene = null;
-            }
-
-            render_scene = -1; // force rebuild of scene
+            scene_manager.clear(&renderer);
+            scene_manager.build_scene(&renderer);
         }
 
         // check if bg shader needs to be rebuilt
         if (renderer.bg_shader != background_effects.items[current_shader]) {
             renderer.bg_shader = background_effects.items[current_shader];
-        }
-
-        // check if scene needs to be rebuilt
-        if (render_scene != current_scene) {
-            std.log.info("loading new scene", .{});
-            
-            if (reactor_scene) |*scene| {
-                scene.deinit(&renderer);
-                reactor_scene = null;
-            }
-
-            if (monkey_scene) |*scene| {
-                scene.deinit(&renderer);
-                monkey_scene = null;
-            }
-
-            if (voxels_scene) |*scene| {
-                scene.deinit(&renderer);
-                voxels_scene = null;
-            }
-
-            if (current_scene == 0) {
-                monkey_scene = levels.MonkeyScene.init(gpa.allocator(), &renderer) catch {
-                    std.log.err("Failed to load monkey scene", .{});
-                    @panic("Fatal error");
-                };
-
-                renderer._scene = &monkey_scene.?.draw_ctx;
-            }
-            else if (current_scene == 1) {
-                reactor_scene = levels.ReactorScene.init(gpa.allocator(), &renderer) catch {
-                    std.log.err("Failed to load rector scene", .{});
-                    @panic("Fatal error");
-                };
-
-                renderer._scene = &reactor_scene.?.draw_ctx;
-            }
-            else if (current_scene == 2) {
-                voxels_scene = levels.VoxelsScene.init(gpa.allocator(), &renderer) catch {
-                    std.log.err("Failed to load rector scene", .{});
-                    @panic("Fatal error");
-                };
-
-                renderer._scene = &voxels_scene.?.draw_ctx;
-            }
-
-            render_scene = current_scene;
         }
 
         // create new frame for ui
@@ -230,29 +144,6 @@ pub fn main() !u8 {
 		    }
         }
 
-        // scenes manager
-        {
-            const result = imgui.Begin("Scenes", null, 0);
-            if (result) {
-                defer imgui.End();
-
-                const scenes_list = [_][*:0]const u8{ "monkey", "reactor", "cube" };
-                _ = imgui.ImGui_ComboChar("view scene", &current_scene, @ptrCast(&scenes_list), 3);
-
-                if (scene_manager.scene(@intCast(render_scene))) |scene| {
-                    const data = &scene.data;
-                    
-                    imgui.ImGui_Text("sun direction");
-                    _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
-                    _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
-                    _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
-
-                    _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
-                    _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
-                }
-		    }
-        }
-
         // background window
         {
             const result = imgui.Begin("background", null, 0);
@@ -272,22 +163,12 @@ pub fn main() !u8 {
 		    }
         }
 
-        if (voxels_scene) |*scene| {
-            scene.update_ui();
-        }
+        scene_manager.update_ui(&renderer);
 
         // render
         imgui.Render();
 
-        if (reactor_scene) |*scene| {
-            scene.update(&main_camera, &renderer);
-        }
-        else if (monkey_scene) |*scene| {
-            scene.update(&main_camera, &renderer);
-        }
-        else if (voxels_scene) |*scene| {
-            scene.update(gpa.allocator(), &main_camera, &renderer);
-        }
+        scene_manager.update(&main_camera, &renderer);
         renderer.draw(gpa.allocator());
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
@@ -310,7 +191,7 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     };
     defer allocator.free(message);
 
-    var str_level: []const u8 = undefined; 
+    var str_level: []const u8 = undefined;
     switch (level) {
         std.log.Level.err => str_level = "ERROR",
         std.log.Level.warn => str_level = "WARN",
@@ -318,7 +199,23 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
         std.log.Level.debug => str_level = "DEBUG",
     }
 
-    const log_msg = std.fmt.allocPrint(allocator, "{s}\t: {s}\n", .{ str_level, message }) catch {
+    // Use C interop for timestamp (strftime + time)
+    const c_time = @cImport({
+        @cInclude("time.h");
+        @cInclude("stdio.h");
+    });
+
+    var t: c_time.time_t = c_time.time(null);
+    const tm = c_time.localtime(&t);
+    var timestamp_buf: [32]u8 = undefined;
+    _ = c_time.strftime(&timestamp_buf, timestamp_buf.len, "%Y-%m-%dT%H:%M:%S", tm);
+    const timestamp = std.mem.sliceTo(&timestamp_buf, 0);
+
+    // Get PID
+    const pid = getpid();
+
+    // POSIX log format: <timestamp> <level> [PID]: <message>\n
+    const log_msg = std.fmt.allocPrint(allocator, "{s} {s} [{d}]: {s}\n", .{ timestamp, str_level, pid, message }) catch {
         std.debug.print("Failed to allocate final log message\n", .{});
         return;
     };
@@ -342,6 +239,8 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     //     std.debug.print("{s}\n", .{ log_msg });
     // }
 }
+
+const getpid = if (builtin.os.tag == .windows) std.os.windows.GetCurrentProcessId else std.os.linux.getpid;
 
 test "engine test" {
 }

@@ -3,26 +3,48 @@ const voxel_count: u32 = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 const cube_index_count = voxel_count * 36;
 const cube_vertex_count: u32 = voxel_count * 12 * 3;
 
+fn seed_perm_table(seed: u32, perm: *[256]u32) void {
+    for (0..256) |i| {
+        perm[i] = @intCast(i);
+    }
+
+    var state: u32 = @intCast(seed);
+    var i: u32 = 255;
+    while (i > 0) {
+        state = state *% 1664525 +% 1013904223;
+        const j = state % (i + 1);
+        const tmp = perm[i];
+        perm[i] = perm[j];
+        perm[j] = tmp;
+
+        i -= 1;
+    }
+}
+
 pub const Chunk = struct {
     arena: std.heap.ArenaAllocator,
 
+    perm_table_buffer: buffers.AllocatedBuffer,
     data_buffer: buffers.AllocatedBuffer,
     buffer: buffers.GPUMeshBuffers,
     indirect_buffer: buffers.AllocatedBuffer,
     
     constants: ClassificationShader.PushConstant,
-    data: Data,
+    perm_table: [256]u32 = @splat(0),
     indices: []u32,
     vertices: []buffers.Vertex,
 
     classification_pass: *compute.Instance,
+    face_culling_pass: *compute.Instance,
     compute_shader: *compute.Instance,
     material: *materials.MaterialInstance,
 
     descriptor_pool: descriptors.DescriptorAllocator2,
     material_buffer: buffers.AllocatedBuffer,
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), cl_shader: *ClassificationShader, shader: *MeshComputeShader, mat: *Material, r: *const renderer.renderer_t) Chunk {
+    updated: bool = false,
+
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, culling_shader: *FaceCullingShader, cl_shader: *ClassificationShader, shader: *MeshComputeShader, mat: *Material, r: *const renderer.renderer_t) Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 5 }
@@ -31,9 +53,11 @@ pub const Chunk = struct {
         var voxel: Chunk = .{
             .arena = std.heap.ArenaAllocator.init(allocator),
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
             .buffer = undefined,
             .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .classification_pass = undefined,
+            .face_culling_pass = undefined,
             .compute_shader = undefined,
             .material = undefined,
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
@@ -41,10 +65,19 @@ pub const Chunk = struct {
             .constants = .{
                 .position = pos
             },
-            .data = .{},
             .indices = undefined,
             .vertices = undefined,
         };
+
+        seed_perm_table(seed, &voxel.perm_table);
+
+        var data_ptr: []u32 = undefined;
+        const result = c.vmaMapMemory(r._vma, voxel.perm_table_buffer.allocation, @ptrCast(&data_ptr));
+        if (result != c.VK_SUCCESS) {
+            @panic("Failed to map perm_table_buffer");
+        }
+        std.mem.copyForwards(u32, data_ptr, &voxel.perm_table);
+        c.vmaUnmapMemory(r._vma, voxel.perm_table_buffer.allocation);
 
         voxel.indices = voxel.arena.allocator().alloc(u32, cube_index_count) catch @panic("Out of memory");
         voxel.vertices = voxel.arena.allocator().alloc(buffers.Vertex, cube_index_count) catch @panic("Out of memory");
@@ -78,16 +111,28 @@ pub const Chunk = struct {
 
         const cl_res = ClassificationShader.Resource {
             .chunk_buffer = voxel.data_buffer.buffer,
-            .chunk_buffer_offset = 0
+            .chunk_buffer_offset = 0,
+
+            .perm_table_buffer = voxel.perm_table_buffer.buffer,
+            .perm_table_buffer_offset = 0,
         };
 
         voxel.classification_pass = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
         voxel.classification_pass.* = cl_shader.write(allocator, &voxel.descriptor_pool, &cl_res, r);
 
+        const face_culling_res = FaceCullingShader.Resource {
+            .chunk_buffer = voxel.data_buffer.buffer,
+            .chunk_buffer_offset = 0
+        };
+
+        voxel.face_culling_pass = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
+        voxel.face_culling_pass.* = culling_shader.write(allocator, &voxel.descriptor_pool, &face_culling_res, r);
+
         return voxel;
     }
 
     pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const renderer.renderer_t) void {
+        self.perm_table_buffer.deinit(vma);
         self.data_buffer.deinit(vma);
         self.buffer.deinit(vma);
         self.indirect_buffer.deinit(vma);
@@ -102,13 +147,50 @@ pub const Chunk = struct {
         const group_y: u32 = CHUNK_SIZE / 8;
         const group_z: u32 = CHUNK_SIZE / 8;
 
-        // classification pass
+        self.dispatch_classification(cmd, group_x, group_y, group_z);
+        self.dispatch_face_culling(cmd, group_x, group_y, group_z);
+        // self.dispatch_meshing(cmd, group_x, group_y, group_z);
+        self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 1);
+    }
+
+    pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
+        const object = materials.RenderObject {
+            .index_count = cube_index_count,
+            .first_index = 0,
+            .index_buffer = self.buffer.index_buffer.buffer,
+            .material = self.material,
+            .transform = za.Mat4.identity().data,
+            .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
+            .vertex_buffer = self.buffer.vertex_buffer.buffer,
+            .indirect_buffer = self.indirect_buffer.buffer,
+        };
+
+        ctx.opaque_surfaces.append(object) catch {
+            std.log.err("Failed to register object for draw", .{});
+        };
+    }
+
+    pub fn swap_pipeline(self: *Chunk, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
+        // clean old material
+        self.arena.allocator().destroy(self.material);
+        
+        // create new material
+        const resources = Material.Resources {
+            .data_buffer = self.buffer.vertex_buffer.buffer, 
+            .data_buffer_offset = 0,
+        };
+
+        self.material = self.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
+        self.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
+    }
+
+    fn dispatch_classification(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.layout, 0, 1, &self.classification_pass.descriptor, 0, null);
         
         c.vkCmdPushConstants(cmd, self.classification_pass.pipeline.layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(ClassificationShader.PushConstant), &self.constants);
 
-        c.vkCmdDispatch(cmd, group_x, group_y, group_z);
+        c.vkCmdDispatch(cmd, x, y, z);
 
         const chunk_data_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -126,12 +208,37 @@ pub const Chunk = struct {
         };
 
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(cl_pass_barriers.len), @ptrCast(&cl_pass_barriers), 0, null);
+    }
 
-        // mesh computation pass
+    fn dispatch_face_culling(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.face_culling_pass.pipeline.pipeline);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.face_culling_pass.pipeline.layout, 0, 1, &self.face_culling_pass.descriptor, 0, null);
+
+        c.vkCmdDispatch(cmd, x, y, z);
+
+        const faces_barrier = c.VkBufferMemoryBarrier {
+            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
+            .dstAccessMask = c.VK_ACCESS_SHADER_READ_BIT,
+            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .buffer = self.data_buffer.buffer,
+            .offset = 0,
+            .size = @sizeOf(Data),
+        };
+
+        const culling_barriers = [_]c.VkBufferMemoryBarrier {
+            faces_barrier,
+        };
+
+        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(culling_barriers.len), @ptrCast(&culling_barriers), 0, null);
+    }
+
+    fn dispatch_meshing(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.layout, 0, 1, &self.compute_shader.descriptor, 0, null);
         
-        c.vkCmdDispatch(cmd, group_x, group_y, group_z);
+        c.vkCmdDispatch(cmd, x, y, z);
 
         const vertex_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -174,37 +281,6 @@ pub const Chunk = struct {
         };
 
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
-    }
-
-    pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
-        const object = materials.RenderObject {
-            .index_count = cube_index_count,
-            .first_index = 0,
-            .index_buffer = self.buffer.index_buffer.buffer,
-            .material = self.material,
-            .transform = za.Mat4.identity().data,
-            .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
-            .vertex_buffer = self.buffer.vertex_buffer.buffer,
-            .indirect_buffer = self.indirect_buffer.buffer,
-        };
-
-        ctx.opaque_surfaces.append(object) catch {
-            std.log.err("Failed to register object for draw", .{});
-        };
-    }
-
-    pub fn swap_pipeline(self: *Chunk, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
-        // clean old material
-        self.arena.allocator().destroy(self.material);
-        
-        // create new material
-        const resources = Material.Resources {
-            .data_buffer = self.buffer.vertex_buffer.buffer, 
-            .data_buffer_offset = 0,
-        };
-
-        self.material = self.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
-        self.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
     }
 
     pub const Data = struct { // will be fill by GPU
@@ -290,7 +366,7 @@ pub const Material = struct {
         try builder.set_shaders(vert_shader, frag_shader);
         builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         builder.set_polygon_mode(polygone_mode);
-        builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
+        builder.set_cull_mode(c.VK_CULL_MODE_BACK_BIT, c.VK_FRONT_FACE_CLOCKWISE);
         builder.set_multisampling_none();
         builder.disable_blending();
         builder.enable_depthtest(true, c.VK_COMPARE_OP_GREATER_OR_EQUAL);
@@ -358,6 +434,7 @@ pub const ClassificationShader = struct {
         defer layout_builder.deinit();
 
         try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
 
@@ -408,6 +485,7 @@ pub const ClassificationShader = struct {
 
         self.writer.clear();
         self.writer.write_buffer(0, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(1, resources.perm_table_buffer, @sizeOf([256]u32), resources.perm_table_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.writer.update_set(r._device, data.descriptor);
 
@@ -416,7 +494,10 @@ pub const ClassificationShader = struct {
 
     pub const Resource = struct {
         chunk_buffer: c.VkBuffer,
-        chunk_buffer_offset: u32 = 0
+        chunk_buffer_offset: u32 = 0,
+
+        perm_table_buffer: c.VkBuffer,
+        perm_table_buffer_offset: u32 = 0,
     };
 
     pub const PushConstant = struct {
@@ -527,6 +608,89 @@ pub const MeshComputeShader = struct {
 
         chunk_buffer: c.VkBuffer,
         chunk_buffer_offset: u32,
+    };
+};
+
+pub const FaceCullingShader = struct {
+    pipeline: compute.Pipeline = undefined,
+
+    layout: c.VkDescriptorSetLayout = undefined,
+    writer: descriptors.Writer,
+
+    pub fn init(allocator: std.mem.Allocator) FaceCullingShader {
+        std.log.info("Creating face culling shader", .{});
+
+        return .{
+            .writer = descriptors.Writer.init(allocator)
+        };
+    }
+
+    pub fn deinit(self: *FaceCullingShader, r: *const renderer.renderer_t) void {
+        c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
+        c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
+
+        c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
+
+        self.writer.deinit();
+    }
+
+    pub fn build(self: *FaceCullingShader, allocator: std.mem.Allocator, shader: []const u8, r: *const renderer.renderer_t) !void {
+        std.log.info("Building voxel face culling shader", .{});
+
+        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        defer layout_builder.deinit();
+
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+
+        const layouts = [_]c.VkDescriptorSetLayout {
+            self.layout
+        };
+
+        const compute_layout = c.VkPipelineLayoutCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = null,
+
+            .pSetLayouts = &layouts,
+            .setLayoutCount = 1,
+        };
+
+        const result = c.vkCreatePipelineLayout(r._device, &compute_layout, null, &self.pipeline.layout);
+        if (result != c.VK_SUCCESS) {
+            std.log.warn("Failed to create pipeline layout !", .{});
+        }
+
+        // shader module
+        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
+        defer c.vkDestroyShaderModule(r._device, compute_shader, null);
+
+        // compute
+        var builder = p.compute_builder_t.init();
+        defer builder.deinit();
+
+        builder.layout = self.pipeline.layout;
+        builder.set_shaders(compute_shader);
+        self.pipeline.pipeline = builder.build_pipeline(r._device);
+    }
+
+    pub fn write(self: *FaceCullingShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
+        const data =  compute.Instance {
+            .pipeline = &self.pipeline,
+            .descriptor = pool.allocate(allocator, r._device, self.layout, null),
+        };
+
+        self.writer.clear();
+        self.writer.write_buffer(0, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+        self.writer.update_set(r._device, data.descriptor);
+
+        return data;
+    }
+
+    pub const Resource = struct {
+        chunk_buffer: c.VkBuffer,
+        chunk_buffer_offset: u32 = 0
     };
 };
 

@@ -7,183 +7,104 @@ pub const ShaderData = struct {
     sunlight_color: [4]f32 align(4) = .{ 0, 1, 0.5, 1 }
 };
 
-pub const type_e = enum {
-    GLTF,
-    MESH,
-};
+pub const Manager = struct {
+    alloc: std.mem.Allocator,
 
-pub const scene_t = struct {
-    mem: std.heap.ArenaAllocator,
-    _type: type_e,
+    current_scene: i32 = 0,
+    scenes: [3][*:0]const u8 = [_][*:0]const u8{ "reactor", "monkey", "voxels" },
 
-    data: ShaderData = undefined,
-    draw_context: DrawContext,
-    
-    gltf: ?*gltf.LoadedGLTF = null,
+    reactor_scene: ?levels.ReactorScene = null,
+    monkey_scene: ?levels.MonkeyScene = null,
+    voxels_scene: ?levels.VoxelsScene = null,
 
-    pub fn init(alloc: std.mem.Allocator, t: type_e) scene_t {
-        const scene = scene_t {
-            .mem = std.heap.ArenaAllocator.init(alloc),
-            .draw_context = DrawContext.init(alloc),
-            ._type = t,
-            .data = .{
-                .view = za.Mat4.identity().data,
-                .proj = za.Mat4.identity().data,
-                .viewproj = za.Mat4.identity().data,
-                .ambient_color = [4]f32 { 0.1, 0.1, 0.1, 0.1 },
-                .sunlight_color = [4]f32 { 1, 1, 1, 1 },
-                .sunlight_dir = [4]f32 { 0, 1, 0.5, 1 },
-            }
+    pub fn init(allocator: std.mem.Allocator, default_scene: u32) Manager {
+        return .{
+            .alloc = allocator,
+            .current_scene = @intCast(default_scene)
         };
-
-        return scene;
     }
 
-    pub fn deinit(self: *scene_t, device: c.VkDevice, vma: c.VmaAllocator) void {
-        self.clear(device, vma);
-
-        self.draw_context.deinit();
-        self.mem.deinit();
+    pub fn deinit(self: *Manager, r: *renderer.renderer_t) void {
+        self.clear(r);
     }
 
-    pub fn clear(self: *scene_t, device: c.VkDevice, vma: c.VmaAllocator) void {
-        const result = c.vkDeviceWaitIdle(device);
-        if (result != c.VK_SUCCESS) {
-            std.log.err("Failed to wait for device idle ! Reason {d}.", .{ result });
+    pub fn update(self: *Manager, cam: *camera.camera_t, r: *renderer.renderer_t) void {
+        if (self.reactor_scene) |*scene| {
+            scene.update(cam, r);
         }
-
-        if (self.gltf) |obj| {
-            obj.deinit(device, vma);
-            self.allocator().destroy(obj);
+        else if (self.monkey_scene) |*scene| {
+            scene.update(cam, r);
         }
-
-        self.gltf = null;
-
-        self.draw_context.opaque_surfaces.clearAndFree();
-        self.draw_context.transparent_surfaces.clearAndFree();
+        else if (self.voxels_scene) |*scene| {
+            scene.update(self.alloc, cam, r);
+        }
     }
 
-    pub fn load_gltf(self: *scene_t, alloc: std.mem.Allocator, file: []const u8, r: *renderer.renderer_t) !void {
-        self.gltf = try self.allocator().create(gltf.LoadedGLTF);
-        self.gltf.?.* = try gltf.load_gltf(alloc, file, r);
-    }
+    pub fn update_ui(self: *Manager, r: *renderer.renderer_t) void {
+        const result = imgui.Begin("Scenes Manager", null, 0);
+        if (result) {
+            defer imgui.End();
 
-    pub fn update(self: *scene_t, cam: *const camera.camera_t, extent: c.VkExtent2D) void {
-        const view = cam.view_matrix();
-        
-        const deg: f32 = 70.0;
-        var proj = za.perspectiveReversedZ(deg, @as(f32, @floatFromInt(extent.width)) / @as(f32, @floatFromInt(extent.height)), 0.1);
-        proj.data[1][1] *= -1.0;
-
-        self.data.view = view.data;
-        self.data.proj = proj.data;
-        self.data.viewproj = za.Mat4.mul(proj, view).data;
-
-        self.draw_context.opaque_surfaces.clearRetainingCapacity();
-        self.draw_context.transparent_surfaces.clearRetainingCapacity();
-
-        self.draw_context.global_data = &self.data;
-
-        switch (self._type) {
-            type_e.GLTF => {
-                self.update_gltf();
-            },
-            type_e.MESH => {
-                self.update_mesh();
+            if (imgui.ImGui_ComboChar("scene", &self.current_scene, @ptrCast(&self.scenes), @intCast(self.scenes.len))) {
+                std.log.info("Loading new scene", .{});
+            
+                self.clear(r);
+                self.build_scene(r);                
             }
+		}
+
+        if (self.voxels_scene) |*scene| {
+            scene.update_ui(self.alloc, r);
         }
     }
 
-    pub fn update_gltf(self: *scene_t) void {
-        const top: [4][4]f32 align(16) = za.Mat4.identity().data;
-        if (self.gltf) |obj| {
-            obj.draw(top, &self.draw_context);
+    pub fn build_scene(self: *Manager, r: *renderer.renderer_t) void {
+        if (self.current_scene == 0) {
+            self.monkey_scene = levels.MonkeyScene.init(self.alloc, r) catch {
+                std.log.err("Failed to load monkey scene", .{});
+                @panic("Fatal error");
+            };
+
+            r._scene = &self.monkey_scene.?.draw_ctx;
+        }
+        else if (self.current_scene == 1) {
+            self.reactor_scene = levels.ReactorScene.init(self.alloc, r) catch {
+                std.log.err("Failed to load rector scene", .{});
+                @panic("Fatal error");
+            };
+
+            r._scene = &self.reactor_scene.?.draw_ctx;
+        }
+        else if (self.current_scene == 2) {
+            self.voxels_scene = levels.VoxelsScene.init(self.alloc, r) catch {
+                std.log.err("Failed to load rector scene", .{});
+                @panic("Fatal error");
+            };
+
+            r._scene = &self.voxels_scene.?.draw_ctx;
         }
     }
 
-    pub fn update_mesh(self: *scene_t) void {
-        if (self.voxel) |*voxel| {
-            for (voxel.meshes.surfaces.items) |*surface| {
-                const render_object = mat.RenderObject {
-                    .index_count = surface.count,
-                    .first_index = surface.startIndex,
-                    .index_buffer = voxel.meshes.mesh_buffers.index_buffer.buffer,
-                    .material = surface.material,
-                    .transform = za.Mat4.identity().data,
-                    .vertex_buffer_address = voxel.meshes.mesh_buffers.vertex_buffer_address,
-                };
-
-                self.draw_context.opaque_surfaces.append(render_object) catch @panic("OOM");
-            }
-        }
-    }
-
-    pub fn find_node(self: *scene_t, name: []const u8) ?*mesh.Node {
-        if (self.gltf) |obj| {
-            for (obj.top_nodes.items) |root| {
-                const node = root.find(name);
-                if (node) |n| {
-                    return n;
-                }
-            }
+    pub fn clear(self: *Manager, r: *renderer.renderer_t) void {
+        if (self.voxels_scene) |*scene| {
+            scene.deinit(r);
+            self.voxels_scene = null;
         }
 
-        return null;
-    }
-
-    pub fn deactivate_node(self: *scene_t, name: []const u8) void {
-        if (self.gltf) |obj| {
-            for (obj.top_nodes.items) |root| {
-                const node = root.find(name);
-                if (node) |n| {
-                    n.active = false;
-                    break;
-                }
-            }
+        if (self.monkey_scene) |*scene| {
+            scene.deinit(r);
+            self.monkey_scene = null;
         }
-    }
 
-    fn allocator(self: *scene_t) std.mem.Allocator {
-        return self.mem.allocator();
+        if (self.reactor_scene) |*scene| {
+            scene.deinit(r);
+            self.reactor_scene = null;
+        }
     }
 };
 
-pub const manager_t = struct {
-    scenes: std.ArrayList(scene_t),
-
-    render_scene: i32 = -1,
-    current_scene: i32 = -1,
-
-    pub fn init(alloc: std.mem.Allocator) manager_t {
-        const manager = manager_t {
-            .scenes = std.ArrayList(scene_t).init(alloc)
-        };
-
-        return manager;
-    }
-
-    pub fn deinit(self: *manager_t, device: c.VkDevice, vma: c.VmaAllocator) void {
-        for (self.scenes.items) |*s| {
-            s.deinit(device, vma);
-        }
-
-        self.scenes.deinit();
-    }
-
-    pub fn create_scene(self: *manager_t, alloc: std.mem.Allocator, t: type_e) *const scene_t {
-        const s = scene_t.init(alloc, t);
-        self.scenes.append(s) catch @panic("Out of memory");
-
-        return &self.scenes.getLast();
-    }
-
-    pub fn scene(self: *manager_t, index: usize) ?*scene_t {
-        for (self.scenes.items, 0..) |*s, i| {
-            if (i == index) return s;
-        }
-
-        return null;
-    }
+pub const BackgroundContext = struct {
+    shader: ?*compute.ComputeEffect
 };
 
 pub const DrawContext = struct {
@@ -311,6 +232,7 @@ pub const DrawContext = struct {
 
 const std = @import("std");
 const za = @import("zalgebra");
+const imgui = @import("imgui");
 const camera = @import("camera.zig");
 const c = @import("../../clibs.zig");
 const mesh = @import("../graphics/assets.zig");
@@ -320,3 +242,5 @@ const mat = @import("../graphics/materials.zig"); // TODO : use only one import
 const materials = @import("../graphics/materials.zig");
 const buffers = @import("../graphics/buffers.zig");
 const descriptors = @import("../descriptor.zig");
+const compute = @import("../compute_effect.zig");
+const levels = @import("../../levels/levels.zig");

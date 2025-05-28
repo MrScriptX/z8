@@ -12,11 +12,19 @@ layout(std430, binding = 0) buffer ChunkData {
     voxel_t voxels[];
 } Chunk;
 
+layout(std430, binding = 1) buffer PermTable {
+    uint perm[256];
+} Perm;
+
 layout( push_constant ) uniform constants {
     ivec3 position;
 } PushConstant;
 
 void main() {
+    if (gl_GlobalInvocationID == uvec3(0)) {
+        Chunk.active_count = 0;
+    }
+
     Chunk.position = PushConstant.position;
 
     const uint x = gl_GlobalInvocationID.x;
@@ -24,6 +32,7 @@ void main() {
     const uint z = gl_GlobalInvocationID.z;
 
     const uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
+    Chunk.voxels[index].data.y = 0u;
 
     const vec3 chunk_world_pos = vec3(Chunk.position) * float(CHUNK_SIZE);
     const vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;
@@ -36,7 +45,7 @@ void main() {
     float freq = 1.0;
     float amp = 1.0;
     for (int i = 0; i < 4; i++) {
-        n += noise2D(noise_pos.x * freq, noise_pos.y * freq) * amp;
+        n += noise2D(Perm.perm, noise_pos.x * freq, noise_pos.y * freq) * amp;
         freq *= 2.0;
         amp *= 0.5;
     }
@@ -44,10 +53,10 @@ void main() {
     const float height = (n + 1.0) * 0.5 * CHUNK_SIZE;
     if (cube_pos.y > height) {
         // no need to store local position, we don't draw it
-        Chunk.voxels[index].data.y = 0; // AIR
+        Chunk.voxels[index].data.x = 0; // AIR
     }
     else {
-        Chunk.voxels[index].data.x = atomicAdd(Chunk.active_count, 1);
-        Chunk.voxels[index].data.y = 1; // SOLID        
+        Chunk.voxels[index].data.x = 1; // SOLID        
     }
+
 }

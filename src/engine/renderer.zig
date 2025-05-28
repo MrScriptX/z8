@@ -505,7 +505,6 @@ pub const renderer_t = struct {
         if (self._scene) |scene| {
             self.draw_scene(allocator, scene, cmd);
         }
-        // self.draw_voxel(allocator, cmd, scene);
 
         utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         utils.transition_image(cmd, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
