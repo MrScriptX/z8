@@ -31,8 +31,12 @@ layout(std430, binding = 3) buffer ChunkData {
 void greedy_meshing(uint dir, uint slice);
 void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color);
 
+const uint DIR_Z_NEG = 0;
+const uint DIR_Z_POS = 1;
 const uint DIR_X_NEG = 2;
 const uint DIR_X_POS = 3;
+const uint DIR_Y_POS = 4;
+const uint DIR_Y_NEG = 5;
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
@@ -50,10 +54,7 @@ void main()
 
     const uint dir = gl_GlobalInvocationID.y; // 0: -Z, 1: +Z, 2: -X, 3: +X, 4: +Y, 5: -Y
     const uint slice = gl_GlobalInvocationID.x; // slice in the direction of the mesh
-
-    if (dir == DIR_X_NEG || dir == DIR_X_POS) {
-        greedy_meshing(dir, slice);
-    }
+    greedy_meshing(dir, slice);
 }
 
 bool is_hidden(uint index, uint dir) {
@@ -82,7 +83,7 @@ void greedy_meshing(uint dir, uint slice)
             if (dir == DIR_X_NEG || dir == DIR_X_POS) { // X direction
                 pos = uvec3(slice, i, j);
             }
-            else if (dir == 4 || dir == 5) { // Y direction
+            else if (dir == DIR_Y_NEG || dir == DIR_Y_POS) { // Y direction
                 pos = uvec3(i, slice, j);
             }
             else { // Z direction
@@ -107,7 +108,7 @@ void greedy_meshing(uint dir, uint slice)
                 if (dir == DIR_X_NEG || dir == DIR_X_POS) { // X direction
                     next_pos = uvec3(slice, i + width, j);
                 }
-                else if (dir == 4 || dir == 5) { // Y direction
+                else if (dir == DIR_Y_NEG || dir == DIR_Y_POS) { // Y direction
                     next_pos = uvec3(i + width, slice, j);
                 }
                 else { // Z direction
@@ -136,7 +137,7 @@ void greedy_meshing(uint dir, uint slice)
                     if (dir == DIR_X_NEG || dir == DIR_X_POS) { // X direction
                         next_pos = uvec3(slice, i + k, j + height);
                     }
-                    else if (dir == 4 || dir == 5) { // Y direction
+                    else if (dir == DIR_Y_NEG || dir == DIR_Y_POS) { // Y direction
                         next_pos = uvec3(i + k, slice, j + height);
                     }
                     else { // Z direction
@@ -178,17 +179,17 @@ void greedy_meshing(uint dir, uint slice)
                 color = colors[0];
                 size = uvec2(height, width);
             }
-            else if (dir == 4) { // Y
+            else if (dir == DIR_Y_POS) { // Y
                 normal = normals[2];
                 color = colors[0];
                 size = uvec2(width, height);
             }
-            else if (dir == 5) { // -Y
+            else if (dir == DIR_Y_NEG) { // -Y
                 normal = normals[3];
                 color = colors[0];
                 size = uvec2(width, height);
             }
-            else if (dir == 1) { // Z
+            else if (dir == DIR_Z_POS) { // Z
                 normal = normals[4];
                 color = colors[0];
                 size = uvec2(width, height);
@@ -209,13 +210,13 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color)
 {
     vertex_t v[4];
 
-    if (dir == 0) { // -Z
+    if (dir == DIR_Z_NEG) { // -Z
         v[0].position = pos + vec3(0.0, 0.0, 0.0);
         v[1].position = pos + vec3(size.x, 0.0, 0.0);
         v[2].position = pos + vec3(size.x, size.y, 0.0);
         v[3].position = pos + vec3(0.0, size.y, 0.0);
     }
-    else if (dir == 1) { // +Z
+    else if (dir == DIR_Z_POS) { // +Z
         v[0].position = pos + vec3(0.0, 0.0, 1.0);
         v[1].position = pos + vec3(0.0, size.y, 1.0);
         v[2].position = pos + vec3(size.x, size.y, 1.0);
@@ -233,17 +234,17 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, vec4 color)
         v[2].position = pos + vec3(1.0, size.x, size.y);
         v[3].position = pos + vec3(1.0, size.x, 0.0);
     }
-    else if (dir == 4) { // +Y
+    else if (dir == DIR_Y_POS) { // +Y
         v[0].position = pos + vec3(0.0, 1.0, 0.0);
-        v[1].position = pos + vec3(0.0, 1.0, size.y);
+        v[1].position = pos + vec3(size.x, 1.0, 0.0);
         v[2].position = pos + vec3(size.x, 1.0, size.y);
-        v[3].position = pos + vec3(size.x, 1.0, 0.0);
+        v[3].position = pos + vec3(0.0, 1.0, size.y);
     }
-    else if (dir == 5) { // -Y
+    else if (dir == DIR_Y_NEG) { // -Y
         v[0].position = pos + vec3(0.0, 0.0, 0.0);
-        v[1].position = pos + vec3(size.x, 0.0, 0.0);
+        v[1].position = pos + vec3(0.0, 0.0, size.y);
         v[2].position = pos + vec3(size.x, 0.0, size.y);
-        v[3].position = pos + vec3(0.0, 0.0, size.y);
+        v[3].position = pos + vec3(size.x, 0.0, 0.0);
     }
 
     for (int i = 0; i < 4; i++) {
