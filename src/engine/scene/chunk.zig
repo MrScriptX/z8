@@ -42,6 +42,8 @@ pub const Chunk = struct {
     descriptor_pool: descriptors.DescriptorAllocator2,
     material_buffer: buffers.AllocatedBuffer,
 
+    updated: bool = false,
+
     pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, culling_shader: *FaceCullingShader, cl_shader: *ClassificationShader, shader: *MeshComputeShader, mat: *Material, r: *const renderer.renderer_t) Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },

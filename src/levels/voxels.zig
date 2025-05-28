@@ -8,6 +8,7 @@ const State = struct {
     loaded_pipeline: i32 = 0,
 
     seed: u32 = 0, // world seed
+    radius: u8 = 10,
 };
 
 // TODO : implement UI to chose which node to display
@@ -23,11 +24,16 @@ pub const VoxelScene = struct {
     culling_shader: *chunk.FaceCullingShader,
     shader: *chunk.MeshComputeShader,
 
-    world: std.ArrayList(*chunk.Chunk),
+    world: std.ArrayList(Chunk),
     global_data: scenes.ShaderData,
 
     background_ctx: scenes.BackgroundContext,
     draw_ctx: scenes.DrawContext,
+
+    const Chunk = struct {
+        ptr: *chunk.Chunk,
+        pos: @Vector(3, i32)
+    };
 
     pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !VoxelScene {
         var scene = VoxelScene {
@@ -40,7 +46,7 @@ pub const VoxelScene = struct {
             .draw_ctx = undefined,
             .background_ctx = undefined,
             .state = .{},
-            .world = std.ArrayList(*chunk.Chunk).init(allocator)
+            .world = std.ArrayList(Chunk).init(allocator)
         };
 
         scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
@@ -75,7 +81,7 @@ pub const VoxelScene = struct {
         scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
         scene.draw_ctx.transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
 
-        scene.build_world(allocator, r);
+        scene.build_world();
 
         return scene;
     }
@@ -88,8 +94,10 @@ pub const VoxelScene = struct {
 
         self.draw_ctx.deinit();
         
-        for (self.world.items) |obj| {
-            obj.deinit(r._vma, r);
+        for (self.world.items) |*it| {
+            if (it.ptr.updated) {
+                it.ptr.deinit(r._vma, r);
+            }
         }
         self.world.deinit();
 
@@ -103,46 +111,60 @@ pub const VoxelScene = struct {
         self.arena.deinit();
     }
 
-    pub fn build_world(self: *VoxelScene, allocator: std.mem.Allocator, r: *renderer.renderer_t) void {
-        std.log.info("building world", .{});
+    pub fn build_world(self: *VoxelScene) void {
+        std.log.info("Intializing world. seed {d}, radius {d}", .{ self.state.seed, self.state.radius });
 
-        for (0..10) |x| {
-            for (0..10) |z| {
-                const obj = self.arena.allocator().create(chunk.Chunk) catch {
+        for (0..self.state.radius) |x| {
+            for (0..self.state.radius) |z| {
+                const ptr = self.arena.allocator().create(chunk.Chunk) catch {
                     std.log.err("Failed to allocate memory for chunk", .{});
                     @panic("Out of memory !");
                 };
-                obj.* = chunk.Chunk.init(allocator, .{@intCast(x), 0, @intCast(z)}, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, r);
-                self.world.append(obj) catch {
-                    std.log.err("Failed to add chunk to map", .{});
-                    @panic("Out of memory !");
+
+                const it = Chunk {
+                    .ptr = ptr,
+                    .pos = .{ @intCast(x), 0, @intCast(z) }
                 };
+
+                self.world.append(it) catch @panic("Out of memory !");
             }
         }
-
-        r.submit.start_recording(r);
-        for (self.world.items) |obj| {
-            obj.dispatch(r.submit.cmd);
-        }
-        r.submit.submit(r);
     }
 
     pub fn clear(self: *VoxelScene, r: *const renderer.renderer_t) void {
-        std.log.info("clearing world", .{});
+        std.log.info("Clearing world", .{});
 
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device {d}", .{result});
         }
 
-        for (self.world.items) |obj| {
-            obj.deinit(r._vma, r);
+        for (self.world.items) |it| {
+            if (it.ptr.updated) {
+                it.ptr.deinit(r._vma, r);
+            }
         }
         self.world.clearRetainingCapacity();
     }
 
     pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.renderer_t) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
+
+        for (self.world.items) |*it| {
+            if (!it.ptr.updated) {
+                std.log.info("Creating chunk {any}", .{ it.pos });
+
+                it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, r);
+                
+                r.submit.start_recording(r);
+                it.ptr.dispatch(r.submit.cmd);
+                r.submit.submit(r);
+
+                it.ptr.updated = true;
+
+                break; // only build one at the time for latency
+            }
+        }
 
         // check if pipeline changed
         if (self.state.loaded_pipeline != self.state.pipeline) {
@@ -204,20 +226,22 @@ pub const VoxelScene = struct {
         self.draw_ctx.global_data = &self.global_data;
 
         // fill draw ctx
-        for (self.world.items) |obj| {
-            obj.update(&self.draw_ctx);
+        for (self.world.items) |*it| {
+            if (it.ptr.updated) {
+                it.ptr.update(&self.draw_ctx);
+            }
         }
     }
 
     pub fn set_debug_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
-        for (self.world.items) |obj| {
-            obj.swap_pipeline(allocator, self.pipelines.polygone, r);
+        for (self.world.items) |it| {
+            it.ptr.swap_pipeline(allocator, self.pipelines.polygone, r);
         }
     }
 
     pub fn set_default_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
-        for (self.world.items) |obj| {
-            obj.swap_pipeline(allocator, self.pipelines.default, r);
+        for (self.world.items) |it| {
+            it.ptr.swap_pipeline(allocator, self.pipelines.default, r);
         }
     }
 };

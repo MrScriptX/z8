@@ -269,7 +269,7 @@ pub fn main() !u8 {
             // check if seed changed
             if (world_seed != scene.state.seed) {
                 scene.clear(&renderer);
-                scene.build_world(gpa.allocator(), &renderer);
+                scene.build_world();
 
                 world_seed = scene.state.seed;
             }
