@@ -25,6 +25,7 @@ pub const VoxelScene = struct {
     shader: *chunk.MeshComputeShader,
 
     world: std.ArrayList(Chunk),
+    deletion_queue: std.ArrayList(Chunk),
     global_data: scenes.ShaderData,
 
     background_ctx: scenes.BackgroundContext,
@@ -55,7 +56,8 @@ pub const VoxelScene = struct {
             .state = .{
                 .seed = rand.int(u32)
             },
-            .world = std.ArrayList(Chunk).init(allocator)
+            .world = std.ArrayList(Chunk).init(allocator),
+            .deletion_queue = std.ArrayList(Chunk).init(allocator)
         };
 
         scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
@@ -103,6 +105,13 @@ pub const VoxelScene = struct {
 
         self.draw_ctx.deinit();
         
+        for (self.deletion_queue.items) |*it| {
+            if (it.ptr.updated) {
+                it.ptr.deinit(r._vma, r);
+            }
+        }
+        self.deletion_queue.deinit();
+
         for (self.world.items) |*it| {
             if (it.ptr.updated) {
                 it.ptr.deinit(r._vma, r);
@@ -149,15 +158,20 @@ pub const VoxelScene = struct {
         }
 
         for (self.world.items) |it| {
-            if (it.ptr.updated) {
-                it.ptr.deinit(r._vma, r);
-            }
+            self.deletion_queue.append(it) catch @panic("OOM");
         }
         self.world.clearRetainingCapacity();
     }
 
     pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.renderer_t) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
+
+        const to_delete = self.deletion_queue.pop();
+        if (to_delete) |*it| {
+            if (it.ptr.updated) {
+                it.ptr.deinit(r._vma, r);
+            }
+        }
 
         for (self.world.items) |*it| {
             if (!it.ptr.updated) {
