@@ -172,12 +172,12 @@ void greedy_meshing(uint dir, uint slice)
             if (dir == DIR_X_POS) { // X
                 normal = normals[0];
                 color = colors[0];
-                size = uvec2(height, width);
+                size = uvec2(width, height);
             }
             else if (dir == DIR_X_NEG) { // -X
                 normal = normals[1];
                 color = colors[0];
-                size = uvec2(height, width);
+                size = uvec2(width, height);
             }
             else if (dir == DIR_Y_POS) { // Y
                 normal = normals[2];
