@@ -42,7 +42,7 @@ pub const Chunk = struct {
     descriptor_pool: descriptors.DescriptorAllocator2,
     material_buffer: buffers.AllocatedBuffer,
 
-    updated: bool = false,
+    ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
     pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, culling_shader: *FaceCullingShader, cl_shader: *ClassificationShader, shader: *MeshComputeShader, mat: *Material, r: *const renderer.renderer_t) Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
@@ -151,6 +151,8 @@ pub const Chunk = struct {
         self.dispatch_face_culling(cmd, group_x, group_y, group_z);
         // self.dispatch_meshing(cmd, group_x, group_y, group_z);
         self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 1);
+
+        self.ready.store(true, std.builtin.AtomicOrder.unordered);
     }
 
     pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {

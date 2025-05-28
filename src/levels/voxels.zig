@@ -32,6 +32,7 @@ pub const VoxelScene = struct {
 
     const Chunk = struct {
         ptr: *chunk.Chunk,
+        update: bool = false,
         pos: @Vector(3, i32)
     };
 
@@ -105,14 +106,14 @@ pub const VoxelScene = struct {
         self.draw_ctx.deinit();
         
         for (self.deletion_queue.items) |*it| {
-            if (it.ptr.updated) {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
             }
         }
         self.deletion_queue.deinit();
 
         for (self.world.items) |*it| {
-            if (it.ptr.updated) {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
             }
         }
@@ -167,22 +168,23 @@ pub const VoxelScene = struct {
 
         const to_delete = self.deletion_queue.pop();
         if (to_delete) |*it| {
-            if (it.ptr.updated) {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
             }
         }
 
         for (self.world.items) |*it| {
-            if (!it.ptr.updated) {
+            if (!it.update) {
                 std.log.info("Creating chunk {any}", .{ it.pos });
 
+                it.update = true; // mark as queued for update (for later use)
+
+                // TODO : enqueue Task in TaskManager and remove the break;
                 it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, r);
                 
                 r.submit.start_recording(r);
                 it.ptr.dispatch(r.submit.cmd);
                 r.submit.submit(r);
-
-                it.ptr.updated = true;
 
                 break; // only build one at the time for latency
             }
@@ -265,7 +267,7 @@ pub const VoxelScene = struct {
 
         // fill draw ctx
         for (self.world.items) |*it| {
-            if (it.ptr.updated) {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.unordered)) {
                 it.ptr.update(&self.draw_ctx);
             }
         }
