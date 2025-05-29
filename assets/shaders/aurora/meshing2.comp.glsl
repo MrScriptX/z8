@@ -150,7 +150,10 @@ void greedy_meshing(uint dir, uint slice)
                         break; // stop if we hit air or a hidden face
                     }
 
-                    if (is_hidden(next_index, dir)) break;
+                    if (is_hidden(next_index, dir)) {
+                        valid = false;
+                        break;
+                    }
                 }
 
                 if (!valid) {
