@@ -70,7 +70,7 @@ const submit_t = struct {
             .waitSemaphoreInfoCount = 0,
         };
 
-        result = c.vkQueueSubmit2(r._queues.graphics, 1, &submit_info, self.fence); // TODO : run it on other queue for multithreading
+        result = c.vkQueueSubmit2(r._queues.present, 1, &submit_info, self.fence); // TODO : run it on other queue for multithreading
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
         }
@@ -289,7 +289,7 @@ pub const renderer_t = struct {
             try frame.init(allocator, self._device, self._queue_indices.graphics);
         }
 
-        self.submit.pool = try frames.create_command_pool(self._device, self._queue_indices.graphics);
+        self.submit.pool = try frames.create_command_pool(self._device, self._queue_indices.present);
         self.submit.cmd = try frames.create_command_buffer(1, self._device, self.submit.pool);
         self.submit.fence = try frames.create_fence(self._device);
     }

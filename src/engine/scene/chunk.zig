@@ -151,8 +151,6 @@ pub const Chunk = struct {
         self.dispatch_face_culling(cmd, group_x, group_y, group_z);
         // self.dispatch_meshing(cmd, group_x, group_y, group_z);
         self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 1);
-
-        self.ready.store(true, std.builtin.AtomicOrder.unordered);
     }
 
     pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {

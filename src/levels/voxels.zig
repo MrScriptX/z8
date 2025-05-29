@@ -30,6 +30,8 @@ pub const VoxelScene = struct {
     background_ctx: scenes.BackgroundContext,
     draw_ctx: scenes.DrawContext,
 
+    task_manager: *tasks.TaskManager,
+
     const Chunk = struct {
         ptr: *chunk.Chunk,
         update: bool = false,
@@ -57,7 +59,8 @@ pub const VoxelScene = struct {
                 .seed = rand.int(u32)
             },
             .world = std.ArrayList(Chunk).init(allocator),
-            .deletion_queue = std.ArrayList(Chunk).init(allocator)
+            .deletion_queue = std.ArrayList(Chunk).init(allocator),
+            .task_manager = tasks.TaskManager.init(allocator)
         };
 
         scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
@@ -109,6 +112,11 @@ pub const VoxelScene = struct {
 
         scene.build_world();
 
+        scene.task_manager.start() catch {
+            std.log.err("Failed to start task manager", .{});
+            @panic("Unrecoverable error");
+        };
+
         return scene;
     }
 
@@ -117,6 +125,9 @@ pub const VoxelScene = struct {
         if (result != c.VK_SUCCESS) {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
+
+        self.task_manager.stop();
+        self.task_manager.deinit();
 
         self.draw_ctx.deinit();
         
@@ -190,8 +201,6 @@ pub const VoxelScene = struct {
 
         for (self.world.items) |*it| {
             if (!it.update) {
-                std.log.info("Creating chunk {any}", .{ it.pos });
-
                 it.update = true; // mark as queued for update (for later use)
 
                 // TODO : enqueue Task in TaskManager and remove the break;
@@ -201,7 +210,26 @@ pub const VoxelScene = struct {
                 it.ptr.dispatch(r.submit.cmd);
                 r.submit.submit(r);
 
+                it.ptr.ready.store(true, std.builtin.AtomicOrder.seq_cst);
+
                 break; // only build one at the time for latency
+
+                // const ctx = allocator.create(Ctx) catch {
+                //     std.log.warn("Failed to allocate memory for chunk context", .{});
+                //     it.update = false;
+                //     continue;
+                // };
+                // ctx.* = .{
+                //     .it = it,
+                //     .r = r,
+                //     .allocator = allocator,
+                //     .self = self
+                // };
+                // self.task_manager.enqueue(&build_chunk, @ptrCast(ctx)) catch {
+                //     std.log.warn("Queuing chunk for build failed", .{});
+                //     it.update = false;
+                //     continue;
+                // };
             }
         }
 
@@ -210,6 +238,33 @@ pub const VoxelScene = struct {
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
+    }
+
+    const Ctx = struct {
+        it: *Chunk,
+        r: *renderer.renderer_t,
+        allocator: std.mem.Allocator,
+        self: *VoxelScene
+    };
+
+    pub fn build_chunk(ctx: *anyopaque) void {
+        const unwrap: *Ctx = @alignCast(@ptrCast(ctx));
+        var it = unwrap.it;
+        var r = unwrap.r;
+        const allocator = unwrap.allocator;
+        const self = unwrap.self;
+
+        std.log.info("Creating chunk {any}", .{ it.pos });
+
+        it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, r);
+                
+        r.submit.start_recording(r);
+        it.ptr.dispatch(r.submit.cmd);
+        r.submit.submit(r);
+
+        it.ptr.ready.store(true, std.builtin.AtomicOrder.seq_cst);
+
+        allocator.destroy(unwrap);
     }
 
     pub fn update_ui(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
@@ -282,7 +337,7 @@ pub const VoxelScene = struct {
 
         // fill draw ctx
         for (self.world.items) |*it| {
-            if (it.ptr.ready.load(std.builtin.AtomicOrder.unordered)) {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.seq_cst)) {
                 it.ptr.update(&self.draw_ctx);
             }
         }
@@ -312,3 +367,4 @@ const materials = @import("../engine/graphics/materials.zig");
 const maths = @import("../utils/maths.zig");
 const chunk = @import("../engine/scene/chunk.zig");
 const compute = @import("../engine/graphics/compute.zig");
+const tasks = @import("../tasks.zig");

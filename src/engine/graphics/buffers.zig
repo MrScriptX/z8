@@ -154,7 +154,7 @@ pub const GPUMeshBuffers = struct {
             .waitSemaphoreInfoCount = 0,
         };
 
-        result = c.vkQueueSubmit2(r._queues.graphics, 1, &submit_info, r.submit.fence); // TODO : run it on other queue for multithreading
+        result = c.vkQueueSubmit2(r._queues.present, 1, &submit_info, r.submit.fence); // TODO : run it on other queue for multithreading
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
         }
