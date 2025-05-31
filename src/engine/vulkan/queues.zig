@@ -1,15 +1,17 @@
-const ComputeQueue = struct {
+pub const SubmitQueue = struct {
     queue: c.VkQueue,
     command_buffer_pool: c.VkCommandPool,
     command_buffer: c.VkCommandBuffer,
     fence: c.VkFence,
+    device: c.VkDevice,
 
-    pub fn init(device: c.VkDevice, queue: c.VkQueue, queue_index: u32) ComputeQueue {
-        const instance: ComputeQueue = .{
+    pub fn init(device: c.VkDevice, queue: c.VkQueue, queue_index: u32) SubmitQueue {
+        var instance: SubmitQueue = .{
             .queue = queue,
             .command_buffer_pool = undefined,
             .command_buffer = undefined,
-            .fence = undefined
+            .fence = undefined,
+            .device = device
         };
 
         instance.command_buffer_pool = try commands.create_command_pool(device, queue_index);
@@ -19,13 +21,13 @@ const ComputeQueue = struct {
         return instance;
     }
 
-    pub fn deinit(self: *ComputeQueue, device: c.VkDevice) void {
+    pub fn deinit(self: *SubmitQueue, device: c.VkDevice) void {
         c.vkDestroyCommandPool(device, self.command_buffer_pool, null);
         c.vkDestroyFence(device, self.fence, null);
     }
 
-    pub fn start_recording(self: *ComputeQueue, device: c.VkDevice) void {
-        var result = c.vkResetFences(device, 1, &self.fence);
+    pub fn start_command(self: *SubmitQueue) void {
+        var result = c.vkResetFences(self.device, 1, &self.fence);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetFences failed with error {d}", .{ result });
         }
@@ -47,7 +49,7 @@ const ComputeQueue = struct {
         }
     }
 
-    pub fn submit(self: *ComputeQueue, device: c.VkDevice) void {
+    pub fn submit_command(self: *SubmitQueue) void {
         var result = c.vkEndCommandBuffer(self.command_buffer);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
@@ -80,7 +82,7 @@ const ComputeQueue = struct {
             std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
         }
 
-        result = c.vkWaitForFences(device, 1, &self.fence, c.VK_TRUE, 9999999999);
+        result = c.vkWaitForFences(self.device, 1, &self.fence, c.VK_TRUE, 9999999999);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkWaitForFences failed with error {d}", .{ result });
         }

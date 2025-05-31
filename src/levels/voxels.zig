@@ -7,7 +7,7 @@ const State = struct {
     pipeline: i32 = 0,
 
     seed: u32 = 0, // world seed
-    radius: u8 = 4,
+    radius: u8 = 10,
 };
 
 // TODO : implement UI to chose which node to display
@@ -30,7 +30,7 @@ pub const VoxelScene = struct {
     background_ctx: scenes.BackgroundContext,
     draw_ctx: scenes.DrawContext,
 
-    task_manager: *tasks.TaskManager,
+    // task_manager: *tasks.TaskManager,
 
     const Chunk = struct {
         ptr: *chunk.Chunk,
@@ -60,7 +60,6 @@ pub const VoxelScene = struct {
             },
             .world = std.ArrayList(Chunk).init(allocator),
             .deletion_queue = std.ArrayList(Chunk).init(allocator),
-            .task_manager = tasks.TaskManager.init(allocator)
         };
 
         scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
@@ -112,11 +111,6 @@ pub const VoxelScene = struct {
 
         scene.build_world();
 
-        scene.task_manager.start() catch {
-            std.log.err("Failed to start task manager", .{});
-            @panic("Unrecoverable error");
-        };
-
         return scene;
     }
 
@@ -126,8 +120,8 @@ pub const VoxelScene = struct {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
 
-        self.task_manager.stop();
-        self.task_manager.deinit();
+        // self.task_manager.stop();
+        // self.task_manager.deinit();
 
         self.draw_ctx.deinit();
         
@@ -225,7 +219,7 @@ pub const VoxelScene = struct {
                 //     .allocator = allocator,
                 //     .self = self
                 // };
-                // self.task_manager.enqueue(&build_chunk, @ptrCast(ctx)) catch {
+                // r.compute_queue.enqueue(&build_chunk, &on_build_success, @ptrCast(ctx)) catch {
                 //     std.log.warn("Queuing chunk for build failed", .{});
                 //     it.update = false;
                 //     continue;
@@ -247,23 +241,25 @@ pub const VoxelScene = struct {
         self: *VoxelScene
     };
 
-    pub fn build_chunk(ctx: *anyopaque) void {
+    pub fn build_chunk(ctx: *anyopaque, cmd: c.VkCommandBuffer) void {
         const unwrap: *Ctx = @alignCast(@ptrCast(ctx));
         var it = unwrap.it;
-        var r = unwrap.r;
+        const r = unwrap.r;
         const allocator = unwrap.allocator;
         const self = unwrap.self;
 
         std.log.info("Creating chunk {any}", .{ it.pos });
 
         it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, r);
-                
-        r.submit.start_recording(r);
-        it.ptr.dispatch(r.submit.cmd);
-        r.submit.submit(r);
+        it.ptr.dispatch(cmd);
+    }
+
+    pub fn on_build_success(ctx: *anyopaque) void {
+        const unwrap: *Ctx = @alignCast(@ptrCast(ctx));
+        var it = unwrap.it;
+        const allocator = unwrap.allocator;
 
         it.ptr.ready.store(true, std.builtin.AtomicOrder.seq_cst);
-
         allocator.destroy(unwrap);
     }
 

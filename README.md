@@ -81,8 +81,10 @@ The following libraries are included in the project (no need to install separate
 
 - [ ] Add a configuration file to load and save settings
 - [ ] Split ImGui into a separate module to build more complex UI
-- [x] Reorganize files and folders
-- [x] Destroy and create swapchain semaphores and fences when resizing the window
+- [ ] Add multithreading support : use a tasks queue system per VkQueue
+- [ ] Handle multiple VkQueues VK_QUEUE_GRAPHICS_BIT for multithreading
+- [ ] Run world generation shader, face culling shader, and other compute shaders in compute queues
+- [ ] Run meshing as a seperate stage on a graphics queue (main thread if no other queues are available)
 
 ### Scenes
 - [ ] Add a scene graph to manage objects in the scene

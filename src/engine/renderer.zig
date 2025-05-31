@@ -70,7 +70,7 @@ const submit_t = struct {
             .waitSemaphoreInfoCount = 0,
         };
 
-        result = c.vkQueueSubmit2(r._queues.present, 1, &submit_info, self.fence); // TODO : run it on other queue for multithreading
+        result = c.vkQueueSubmit2(r._queues.graphics, 1, &submit_info, self.fence); // TODO : run it on other queue for multithreading
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkQueueSubmit2 failed with error {d}", .{ result });
         }
@@ -122,6 +122,7 @@ pub const renderer_t = struct {
 
     // immediate submit structures
     submit: submit_t,
+    compute_queue: *tasks.TaskManager = undefined,
 
     // scene
     scene_descriptor: c.VkDescriptorSetLayout = undefined,
@@ -149,6 +150,13 @@ pub const renderer_t = struct {
 
         try renderer.init_commands(allocator);
         try renderer.init_descriptors(allocator);
+
+        renderer.compute_queue = try renderer._arena.allocator().create(tasks.TaskManager);
+        renderer.compute_queue = tasks.TaskManager.init(allocator, renderer._device, renderer._queues.compute, renderer._queue_indices.compute);
+        renderer.compute_queue.start() catch {
+            std.log.err("Failed to start compute tasks manager", .{});
+            @panic("Unrecoverable error");
+        };
 
         std.log.info("Initiliazing GUI...", .{});
         _gui_context = gui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
@@ -182,6 +190,10 @@ pub const renderer_t = struct {
 
         vk.image.destroy_image(self._device, self._vma, &_grey_image);
         vk.image.destroy_image(self._device, self._vma, &_black_image);
+
+        self.compute_queue.stop();
+        self.compute_queue.deinit();
+        self._arena.allocator().destroy(self.compute_queue);
 
         for (&self._frames) |*frame| {
             frame.deinit(self._device, self._vma);
@@ -290,7 +302,7 @@ pub const renderer_t = struct {
             try frame.init(allocator, self._device, self._queue_indices.graphics);
         }
 
-        self.submit.pool = try vk.commands.create_command_pool(self._device, self._queue_indices.present);
+        self.submit.pool = try vk.commands.create_command_pool(self._device, self._queue_indices.graphics);
         self.submit.cmd = try vk.commands.create_command_buffer(1, self._device, self.submit.pool);
         self.submit.fence = try vk.commands.create_fence(self._device);
     }
@@ -731,3 +743,4 @@ const maths = @import("../utils/maths.zig");
 const material = @import("graphics/materials.zig");
 const cam = @import("scene/camera.zig");
 const assets = @import("graphics/assets.zig");
+const tasks = @import("../tasks.zig");
