@@ -211,6 +211,7 @@ pub const renderer_t = struct {
         self._instance = try vk.init.init_instance(allocator);
         self._surface = try vk.init.create_surface(window, self._instance);
         self._gpu = try vk.init.select_physical_device(allocator, self._instance, self._surface);
+        self._queue_indices = try vk.init.find_queue_family(allocator, self._surface, self._gpu);
         self._device = try vk.init.create_device_interface(allocator, self._gpu, self._queue_indices);
         self._queues = try vk.init.get_device_queue(self._device, self._queue_indices);
 
@@ -289,9 +290,9 @@ pub const renderer_t = struct {
             try frame.init(allocator, self._device, self._queue_indices.graphics);
         }
 
-        self.submit.pool = try frames.create_command_pool(self._device, self._queue_indices.present);
-        self.submit.cmd = try frames.create_command_buffer(1, self._device, self.submit.pool);
-        self.submit.fence = try frames.create_fence(self._device);
+        self.submit.pool = try vk.commands.create_command_pool(self._device, self._queue_indices.present);
+        self.submit.cmd = try vk.commands.create_command_buffer(1, self._device, self.submit.pool);
+        self.submit.fence = try vk.commands.create_fence(self._device);
     }
 
     fn init_descriptors(self: *renderer_t, allocator: std.mem.Allocator) !void {
@@ -672,7 +673,7 @@ pub const renderer_t = struct {
         };
 
         for (&self._frames) |*frame| {
-            frame._sw_semaphore = try frames.create_semaphore(self._device);
+            frame._sw_semaphore = try vk.commands.create_semaphore(self._device);
         }
 
         std.log.info("swapchain rebuilt", .{});
@@ -719,7 +720,7 @@ const sdl = @import("sdl3");
 const gui = @import("graphics/gui.zig");
 const z = @import("zalgebra");
 const vk = @import("vulkan/vulkan.zig");
-const frames = @import("frame.zig");
+const frames = @import("frames.zig");
 const utils = @import("utils.zig");
 const descriptor = @import("descriptor.zig");
 const effects = @import("compute_effect.zig");

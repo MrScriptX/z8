@@ -7,7 +7,7 @@ const State = struct {
     pipeline: i32 = 0,
 
     seed: u32 = 0, // world seed
-    radius: u8 = 10,
+    radius: u8 = 4,
 };
 
 // TODO : implement UI to chose which node to display

@@ -134,14 +134,25 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
     try queue_create_infos.append(graphic_queue_create_info);
 
     if (indices.graphics != indices.present) {
-        const present_qeueu_create_info = c.VkDeviceQueueCreateInfo{
+        const present_queue_create_info = c.VkDeviceQueueCreateInfo{
             .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .queueFamilyIndex = indices.present,
             .queueCount = 1,
             .pQueuePriorities = &queue_priority,
         };
 
-        try queue_create_infos.append(present_qeueu_create_info);
+        try queue_create_infos.append(present_queue_create_info);
+    }
+
+    if (indices.graphics != indices.compute and indices.present != indices.compute) {
+        const compute_queue_create_info = c.VkDeviceQueueCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = indices.compute,
+            .queueCount = 1,
+            .pQueuePriorities = &queue_priority,
+        };
+
+        try queue_create_infos.append(compute_queue_create_info);
     }
 
     // create device info
@@ -189,6 +200,9 @@ pub fn get_device_queue(device: c.VkDevice, indices: queue.indices_t) !queue.que
 
     c.vkGetDeviceQueue(device, indices.graphics, 0, &queues.graphics);
     c.vkGetDeviceQueue(device, indices.present, 0, &queues.present);
+    c.vkGetDeviceQueue(device, indices.compute, 0, &queues.compute);
+
+    std.log.debug("graphic queue {d}, present queue {d}, compute queue {d}", .{ indices.graphics, indices.present, indices.compute });
 
     return queues;
 }
@@ -313,9 +327,11 @@ fn query_swapchain_support(alloc: std.mem.Allocator, device: c.VkPhysicalDevice,
     return sw_details;
 }
 
-fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, physical_device: c.VkPhysicalDevice) !queue.indices_t {
+pub fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, physical_device: c.VkPhysicalDevice) !queue.indices_t {
     var queue_family_count: u32 = 0;
     c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
+
+    std.log.debug("Queue family count: {d}", .{ queue_family_count });
 
     var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
@@ -324,24 +340,34 @@ fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, physical
     const queue_families = try allocator.alloc(c.VkQueueFamilyProperties, queue_family_count);
     c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.ptr);
 
+    var compute_family: ?usize = null;
     var graphics_family: ?usize = null;
     var present_family: ?usize = null;
     for (queue_families, 0..) |family, index| {
-        if (family.queueCount > 0 and family.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
-            graphics_family = index;
+        // find one graphic queue
+        if (graphics_family == null) {
+            if (family.queueCount > 0 and family.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
+                graphics_family = index;
+            }
+
+            var present_support: c.VkBool32 = c.VK_FALSE;
+            const result = c.vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, @intCast(index), surface, &present_support);
+            if (result != c.VK_SUCCESS) {
+                std.log.warn("No present support found ! Reason {d}", .{ result });
+            }
+
+            if (family.queueCount > 0 and present_support == c.VK_TRUE) {
+                present_family = index;
+            }
         }
 
-        var present_support: c.VkBool32 = c.VK_FALSE;
-        const result = c.vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, @intCast(index), surface, &present_support);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("No present support found ! Reason {d}", .{ result });
+        // find present family
+        if (family.queueCount > 0 and family.queueFlags & c.VK_QUEUE_COMPUTE_BIT != 0) {
+            compute_family = index;
         }
 
-        if (family.queueCount > 0 and present_support == c.VK_TRUE) {
-            present_family = index;
-        }
-
-        if (graphics_family != null and present_family != null) {
+        // check if we have found 
+        if (graphics_family != compute_family and graphics_family != null and present_family != null) {
             break;
         }
     }
@@ -349,7 +375,12 @@ fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, physical
     const family_indices = queue.indices_t {
         .graphics = @intCast(graphics_family.?),
         .present = @intCast(present_family.?),
+        .compute = @intCast(compute_family.?)
     };
+
+    std.log.debug("graphics family index {d}", .{ family_indices.graphics });
+    std.log.debug("present family index {d}", .{ family_indices.present });
+    std.log.debug("compute family index {d}", .{ family_indices.compute });
 
     return family_indices;
 }
