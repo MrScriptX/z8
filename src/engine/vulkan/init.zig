@@ -1,10 +1,3 @@
-const std = @import("std");
-const c = @import("../../clibs.zig");
-const queue = @import("queue_family.zig");
-const sw = @import("swapchain.zig");
-const opt = @import("../../options.zig");
-const sdl = @import("sdl3");
-
 const Error = error{
     Failed,
     VkInstance,
@@ -16,7 +9,7 @@ const Error = error{
 };
 
 pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
-    const app_info = c.VkApplicationInfo{
+    const app_info = vk.ApplicationInfo {
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = null,
         .pApplicationName = "vzig",
@@ -46,7 +39,7 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     try layers.append("VK_LAYER_KHRONOS_validation");
     try layers.append("VK_LAYER_KHRONOS_synchronization2");
 
-    const instance_info = c.VkInstanceCreateInfo {
+    const instance_info = vk.InstaceCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = null,
         .flags = 0,
@@ -58,18 +51,17 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     };
 
     var instance: c.VkInstance = undefined;
-    const result = c.vkCreateInstance(&instance_info, null, &instance);
-    if (result != c.VK_SUCCESS) {
-        std.log.err("Unable to create Vulkan instance ! Reason {d}", .{ result });
+    vk.createInstance(&instance_info, null, &instance) catch |err| {
+        std.log.err("Unable to create Vulkan instance ! Reason {any}", .{ err });
         return Error.VkInstance;
-    }
+    };
 
     return instance;
 }
 
 pub fn create_surface(window: ?*sdl.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
     var surface: c.VkSurfaceKHR = undefined;
-    const result = sdl.SDL_Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
+    const result = sdl.Vulkan_CreateSurface(window, @ptrCast(instance), null, &surface);
     if (result == false) {
         std.log.err("Unable to create Vulkan surface: {s}", .{ sdl.SDL_GetError() });
         return Error.VkSurface;
@@ -78,13 +70,14 @@ pub fn create_surface(window: ?*sdl.SDL_Window, instance: c.VkInstance) !c.VkSur
     return surface;
 }
 
-pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.VkPhysicalDevice {
+pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, surface: c.VkSurfaceKHR) !vk.PhysicalDevice {
     var device_count: u32 = 0;
-    const enum_device = c.vkEnumeratePhysicalDevices(instance, &device_count, null);
-    if (enum_device != c.VK_SUCCESS) {
-        std.log.err("Failed to enumerate devices. Reason {d}", .{ enum_device });
-        return Error.EnumDevice;
-    }
+    vk.enumeratePhysicalDevices(instance, &device_count, null) catch |err| {
+        if (err != vk.Error.Incomplete) {
+            std.log.err("Failed to enumerate devices. Reason {any}", .{ err });
+            return Error.EnumDevice;
+        }
+    };
 
     if (device_count == 0) {
         std.log.err("No Vulkan devices found", .{});
@@ -95,14 +88,15 @@ pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, 
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const devices = try allocator.alloc(c.VkPhysicalDevice, device_count);
-    const result = c.vkEnumeratePhysicalDevices(instance, &device_count, devices.ptr);
-    if (result != c.VK_SUCCESS) {
-        std.log.err("Unable to enumerate Vulkan devices: {d}", .{ result });
-        return Error.EnumDevice;
-    }
+    const devices = try allocator.alloc(vk.PhysicalDevice, device_count);
+    vk.enumeratePhysicalDevices(instance, &device_count, devices.ptr) catch |err| {
+        if (err != vk.Error.Incomplete) {
+            std.log.err("Failed to enumerate devices. Reason {any}", .{ err });
+            return Error.EnumDevice;
+        }
+    };
 
-    var physical_device: ?c.VkPhysicalDevice = null;
+    var physical_device: ?vk.PhysicalDevice = null;
     for (devices) |device| {
         if (try check_device(alloc, surface, device)) {
             physical_device = device;
@@ -303,10 +297,10 @@ fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysica
 fn query_swapchain_support(alloc: std.mem.Allocator, device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !sw.details_t {
     var sw_details = sw.details_t.init(alloc);
 
-    const capabilities = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities);
-    if (capabilities != c.VK_SUCCESS) {
-        std.log.err("Failed to get surface capabilities. Reason {d}", .{ capabilities });
-    }
+    vk.getPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities) catch |err| {
+        std.log.err("Failed to get surface capabilities. Reason {any}", .{ err });
+    };
+
 
     var format_count: u32 = 0;
     _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
@@ -384,3 +378,11 @@ pub fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, phys
 
     return family_indices;
 }
+
+const std = @import("std");
+const vk = @import("wrapper.zig");
+const c = @import("../../clibs.zig");
+const queue = @import("queue_family.zig");
+const sw = @import("swapchain.zig");
+const opt = @import("../../options.zig");
+const sdl = @import("sdl3");
