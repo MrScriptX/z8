@@ -1,8 +1,3 @@
-const std = @import("std");
-const c = @import("../../clibs.zig");
-const buffers = @import("../graphics/buffers.zig");
-const utils = @import("../utils.zig");
-
 pub const image_t = struct {
     image: c.VkImage = undefined,
     view: c.VkImageView = undefined,
@@ -166,12 +161,18 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
     const new_image = create_image(vma, device, size, format, usage | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT | c.VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mimapped);
 
     // submit
-    var result = c.vkResetFences(device, 1, fence);
-    if (result != c.VK_SUCCESS) {
-        std.log.warn("vkResetFences failed with error {x}\n", .{ result });
-    }
+    // var result = c.vkResetFences(device, 1, fence);
+    // if (result != c.VK_SUCCESS) {
+    //     std.log.warn("vkResetFences failed with error {x}\n", .{ result });
+    // }
+    const fences = [_]vk.Fence{
+        fence.*
+    };
+    vk.resetFences(device, 1, &fences) catch |err| {
+        std.log.warn("vkResetFences failed with error {any}", .{ err });
+    };
 
-    result = c.vkResetCommandBuffer(cmd, 0);
+    var result = c.vkResetCommandBuffer(cmd, 0);
     if (result != c.VK_SUCCESS) {
         std.log.warn("vkResetCommandBuffer failed with error {x}\n", .{ result });
     }
@@ -253,3 +254,9 @@ pub fn destroy_image(device: c.VkDevice, vma: c.VmaAllocator, image: *const imag
     c.vkDestroyImageView(device, image.view, null);
     c.vmaDestroyImage(vma, image.image, image.allocation);
 }
+
+const std = @import("std");
+const vk = @import("wrapper.zig");
+const c = @import("../../clibs.zig");
+const buffers = @import("../graphics/buffers.zig");
+const utils = @import("../utils.zig");

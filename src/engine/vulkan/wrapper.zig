@@ -2,6 +2,7 @@ const Instance = c.VkInstance;
 pub const PhysicalDevice = c.VkPhysicalDevice;
 pub const SurfaceKHR = c.VkSurfaceKHR;
 pub const Device = c.VkDevice;
+pub const Fence = c.VkFence;
 pub const SurfaceCapabilitiesKHR = c.VkSurfaceCapabilitiesKHR;
 pub const SurfaceFormatKHR = c.VkSurfaceFormatKHR;
 pub const PresentModeKHR = c.VkPresentModeKHR;
@@ -56,6 +57,11 @@ pub fn getPhysicalDeviceSurfaceFormatsKHR(physicalDevice: PhysicalDevice, surfac
 
 pub fn getPhysicalDeviceSurfacePresentModesKHR(physicalDevice: PhysicalDevice, surface: SurfaceKHR, pPresentModeCount: *u32, pPresentModes: ?[*]PresentModeKHR) Error!void {
     const result = c.vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, pPresentModeCount, pPresentModes);
+    try vk_check_result(result);
+}
+
+pub fn resetFences(device: Device, fenceCount: u32, pFences: [*]const Fence) Error!void {
+    const result = c.vkResetFences(device, fenceCount, pFences);
     try vk_check_result(result);
 }
 
