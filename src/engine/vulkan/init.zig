@@ -180,11 +180,10 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
     };
 
     var device: c.VkDevice = undefined;
-    const result = c.vkCreateDevice(physical_device, &device_create_info, null, &device);
-    if (result != c.VK_SUCCESS) {
-        std.log.err("Unable to create Vulkan device ! Reason {d}", .{ result });
+    vk.createDevice(physical_device, &device_create_info, null, &device) catch |err| {
+        std.log.err("Unable to create Vulkan device ! Reason {any}", .{ err });
         return Error.DeviceCreation;
-    }
+    };
 
     return device;
 }
@@ -232,7 +231,7 @@ fn check_device(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, device: c.VkP
 
     var swapchain_supported: bool = false;
     if (extensions_supported) {
-        const swapchain_details = try query_swapchain_support(alloc, device, surface);
+        const swapchain_details = query_swapchain_support(alloc, device, surface);
         defer swapchain_details.deinit();
 
         swapchain_supported = swapchain_details.formats.len != 0 and swapchain_details.present_modes.len != 0;
@@ -255,22 +254,20 @@ fn check_device(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, device: c.VkP
 
 fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysicalDevice) !bool {
     var extension_count: u32 = 0;
-    const count = c.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, null);
-    if (count != c.VK_SUCCESS) {
-        std.log.err("Failed to enumerate device extensions. Reason {d}", .{ count });
+    vk.enumerateDeviceExtensionProperties(device, null, &extension_count, null) catch |err| {
+        std.log.err("Failed to enumerate device extensions. Reason {any}", .{ err });
         return Error.DeviceExtension;
-    }
+    };
 
     var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
     const allocator = arena.allocator();
 
     const available_extensions = try allocator.alloc(c.VkExtensionProperties, extension_count);
-    const result = c.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr);
-    if (result != c.VK_SUCCESS) {
-        std.log.err("Failed to get device extensions. Reason {d}", .{ result });
+    vk.enumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr) catch |err| {
+        std.log.err("Failed to get device extensions. Reason {any}", .{ err });
         return Error.DeviceExtension;
-    }
+    };
 
     const required_extensions = [_][]const u8{
         "VK_KHR_swapchain",
@@ -294,28 +291,40 @@ fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysica
     return match_extensions == required_extensions.len;
 }
 
-fn query_swapchain_support(alloc: std.mem.Allocator, device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !sw.details_t {
-    var sw_details = sw.details_t.init(alloc);
+fn query_swapchain_support(allocator: std.mem.Allocator, device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) sw.details_t {
+    var sw_details = sw.details_t.init(allocator);
 
     vk.getPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities) catch |err| {
-        std.log.err("Failed to get surface capabilities. Reason {any}", .{ err });
+        std.log.warn("Failed to get surface capabilities. Reason {any}", .{ err });
     };
 
 
     var format_count: u32 = 0;
-    _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
+    // _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
+    vk.getPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null) catch |err| {
+        std.log.warn("Failed to retrieve format count. Reason {any}", .{ err });
+    };
 
     if (format_count != 0) {
         sw_details.resize_formats(@intCast(format_count));
-        _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr);
+        // _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr);
+        vk.getPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr) catch |err| {
+            std.log.warn("Failed to retrieve surface format. Reason {any}", .{ err });
+        };
     }
 
     var present_mode_count: u32 = 0;
-    _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null);
+    // _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null);
+    vk.getPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
+        std.log.warn("Failed to retrieve surface present modes count. Reason {any}", .{ err });
+    };
 
     if (present_mode_count != 0) {
         sw_details.resize_present_modes(@intCast(present_mode_count));
-        _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, sw_details.present_modes.ptr);
+        // _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, sw_details.present_modes.ptr);
+        vk.getPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
+            std.log.warn("Failed to retrieve surface present modes. Reason {any}", .{ err });
+        };
     }
 
     return sw_details;
