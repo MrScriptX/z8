@@ -122,6 +122,7 @@ pub const renderer_t = struct {
 
     // immediate submit structures
     submit: submit_t,
+    graphic_queue: *tasks.TaskManager = undefined,
     compute_queue: *tasks.TaskManager = undefined,
 
     // scene
@@ -150,6 +151,13 @@ pub const renderer_t = struct {
 
         try renderer.init_commands(allocator);
         try renderer.init_descriptors(allocator);
+
+        renderer.graphic_queue = try renderer._arena.allocator().create(tasks.TaskManager);
+        renderer.graphic_queue = tasks.TaskManager.init(allocator, renderer._device, renderer._queues.graphics, renderer._queue_indices.graphics);
+        renderer.graphic_queue.start() catch {
+            std.log.err("Failed to start graphics tasks manager", .{});
+            @panic("Unrecoverable error");
+        };
 
         renderer.compute_queue = try renderer._arena.allocator().create(tasks.TaskManager);
         renderer.compute_queue = tasks.TaskManager.init(allocator, renderer._device, renderer._queues.compute, renderer._queue_indices.compute);
@@ -190,6 +198,10 @@ pub const renderer_t = struct {
 
         vk.image.destroy_image(self._device, self._vma, &_grey_image);
         vk.image.destroy_image(self._device, self._vma, &_black_image);
+
+        self.graphic_queue.stop();
+        self.graphic_queue.deinit();
+        self._arena.allocator().destroy(self.graphic_queue);
 
         self.compute_queue.stop();
         self.compute_queue.deinit();
