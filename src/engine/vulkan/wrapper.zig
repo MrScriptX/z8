@@ -7,11 +7,14 @@ pub const SurfaceCapabilitiesKHR = c.VkSurfaceCapabilitiesKHR;
 pub const SurfaceFormatKHR = c.VkSurfaceFormatKHR;
 pub const PresentModeKHR = c.VkPresentModeKHR;
 pub const ExtensionProperties = c.VkExtensionProperties;
+pub const CommandBuffer = c.VkCommandBuffer;
+pub const CommandBufferResetFlags = c.VkCommandBufferResetFlags;
 const Result = c.VkResult;
 
 pub const ApplicationInfo = c.VkApplicationInfo;
 pub const InstaceCreateInfo = c.VkInstanceCreateInfo;
 pub const DeviceCreateInfo = c.VkDeviceCreateInfo;
+pub const CommandBufferBeginInfo = c.VkCommandBufferBeginInfo;
 const AllocationCallbacks = c.VkAllocationCallbacks;
 
 pub const Error = error{
@@ -62,6 +65,21 @@ pub fn getPhysicalDeviceSurfacePresentModesKHR(physicalDevice: PhysicalDevice, s
 
 pub fn resetFences(device: Device, fenceCount: u32, pFences: [*]const Fence) Error!void {
     const result = c.vkResetFences(device, fenceCount, pFences);
+    try vk_check_result(result);
+}
+
+pub fn beginCommandBuffer(commandBuffer: CommandBuffer, pBeginInfo: [*c]const CommandBufferBeginInfo) Error!void {
+    const result = c.vkBeginCommandBuffer(commandBuffer, pBeginInfo);
+    try vk_check_result(result);
+}
+
+pub fn resetCommandBuffer(commandBuffer: CommandBuffer, flags: CommandBufferResetFlags) Error!void {
+    const result = c.vkResetCommandBuffer(commandBuffer, flags);
+    try vk_check_result(result);
+}
+
+pub fn endCommandBuffer(commandBuffer: CommandBuffer) Error!void {
+    const result = c.vkEndCommandBuffer(commandBuffer);
     try vk_check_result(result);
 }
 
