@@ -64,7 +64,7 @@ pub const VoxelScene = struct {
 
         scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
         scene.cl_shader.* = chunk.ClassificationShader.init(allocator);
-        try scene.cl_shader.build(allocator, "./zig-out/bin/shaders/aurora/cl.comp.spv", r);
+        try scene.cl_shader.build(allocator, "./zig-out/bin/shaders/aurora/world.comp.spv", r);
 
         scene.culling_shader = try scene.arena.allocator().create(chunk.FaceCullingShader);
         scene.culling_shader.* = chunk.FaceCullingShader.init(allocator);
