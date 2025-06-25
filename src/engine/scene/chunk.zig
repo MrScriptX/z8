@@ -21,18 +21,45 @@ fn seed_perm_table(seed: u32, perm: *[256]u32) void {
     }
 }
 
+const Mesh = struct {
+    allocator: std.mem.Allocator,
+    indices: []u32,
+    vertices: []buffers.Vertex,
+    buffers: buffers.GPUMeshBuffers = undefined,
+
+    pub fn init(allocator: std.mem.Allocator, r: *const renderer.renderer_t) Mesh {
+        var mesh: Mesh = .{
+            .allocator = allocator,
+            .indices = allocator.alloc(u32, cube_index_count) catch @panic("Out of memory"),
+            .vertices = allocator.alloc(buffers.Vertex, cube_index_count) catch @panic("Out of memory")
+        };
+
+        mesh.buffers = buffers.GPUMeshBuffers.init(r._vma, mesh.indices[0..cube_index_count],  mesh.vertices[0..cube_index_count], r);
+
+        return mesh;
+    }
+
+    pub fn deinit(self: *Mesh, r: *const renderer.renderer_t) void {
+        self.buffers.deinit(r._vma);
+        self.allocator.free(self.indices);
+        self.allocator.free(self.vertices);
+    }
+};
+
 pub const Chunk = struct {
     arena: std.heap.ArenaAllocator,
 
     perm_table_buffer: buffers.AllocatedBuffer,
     data_buffer: buffers.AllocatedBuffer,
-    buffer: buffers.GPUMeshBuffers,
+    // buffer: buffers.GPUMeshBuffers,
     indirect_buffer: buffers.AllocatedBuffer,
     
     constants: ClassificationShader.PushConstant,
     perm_table: [256]u32 = @splat(0),
-    indices: []u32,
-    vertices: []buffers.Vertex,
+    // indices: []u32,
+    // vertices: []buffers.Vertex,
+    solid_mesh: Mesh,
+    water_mesh: Mesh,
 
     classification_pass: *compute.Instance,
     face_culling_pass: *compute.Instance,
@@ -54,7 +81,7 @@ pub const Chunk = struct {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
-            .buffer = undefined,
+            // .buffer = undefined,
             .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .classification_pass = undefined,
             .face_culling_pass = undefined,
@@ -65,8 +92,10 @@ pub const Chunk = struct {
             .constants = .{
                 .position = pos
             },
-            .indices = undefined,
-            .vertices = undefined,
+            // .indices = undefined,
+            // .vertices = undefined,
+            .solid_mesh = undefined,
+            .water_mesh = undefined,
         };
 
         seed_perm_table(seed, &voxel.perm_table);
@@ -79,13 +108,17 @@ pub const Chunk = struct {
         std.mem.copyForwards(u32, data_ptr, &voxel.perm_table);
         c.vmaUnmapMemory(r._vma, voxel.perm_table_buffer.allocation);
 
-        voxel.indices = voxel.arena.allocator().alloc(u32, cube_index_count) catch @panic("Out of memory");
-        voxel.vertices = voxel.arena.allocator().alloc(buffers.Vertex, cube_index_count) catch @panic("Out of memory");
+        // voxel.indices = voxel.arena.allocator().alloc(u32, cube_index_count) catch @panic("Out of memory");
+        // voxel.vertices = voxel.arena.allocator().alloc(buffers.Vertex, cube_index_count) catch @panic("Out of memory");
 
-        voxel.buffer = buffers.GPUMeshBuffers.init(r._vma, voxel.indices[0..cube_index_count], voxel.vertices[0..cube_index_count], r);
+        // voxel.buffer = buffers.GPUMeshBuffers.init(r._vma, voxel.indices[0..cube_index_count], voxel.vertices[0..cube_index_count], r);
+
+        voxel.solid_mesh = Mesh.init(allocator, r);
+        voxel.water_mesh = Mesh.init(allocator, r);
 
         const resources = Material.Resources {
-            .data_buffer =  voxel.buffer.vertex_buffer.buffer, 
+            // .data_buffer =  voxel.buffer.vertex_buffer.buffer,
+            .data_buffer = voxel.solid_mesh.buffers.vertex_buffer.buffer,
             .data_buffer_offset = 0,
         };
 
@@ -93,10 +126,12 @@ pub const Chunk = struct {
         voxel.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &voxel.descriptor_pool);
 
         const compute_resources: MeshComputeShader.Resource = .{
-            .index_buffer = voxel.buffer.index_buffer.buffer,
+            // .index_buffer = voxel.buffer.index_buffer.buffer,
+            .index_buffer = voxel.solid_mesh.buffers.index_buffer.buffer,
             .index_buffer_offset = 0,
 
-            .vertex_buffer = voxel.buffer.vertex_buffer.buffer,
+            // .vertex_buffer = voxel.buffer.vertex_buffer.buffer,
+            .vertex_buffer = voxel.solid_mesh.buffers.vertex_buffer.buffer,
             .vertex_buffer_offset = 0,
 
             .indirect_buffer = voxel.indirect_buffer.buffer,
@@ -134,7 +169,9 @@ pub const Chunk = struct {
     pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const renderer.renderer_t) void {
         self.perm_table_buffer.deinit(vma);
         self.data_buffer.deinit(vma);
-        self.buffer.deinit(vma);
+        self.solid_mesh.deinit(r);
+        self.water_mesh.deinit(r);
+        // self.buffer.deinit(vma);
         self.indirect_buffer.deinit(vma);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
@@ -157,11 +194,13 @@ pub const Chunk = struct {
         const object = materials.RenderObject {
             .index_count = cube_index_count,
             .first_index = 0,
-            .index_buffer = self.buffer.index_buffer.buffer,
+            // .index_buffer = self.buffer.index_buffer.buffer,
+            .index_buffer = self.solid_mesh.buffers.index_buffer.buffer,
             .material = self.material,
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
-            .vertex_buffer = self.buffer.vertex_buffer.buffer,
+            // .vertex_buffer = self.buffer.vertex_buffer.buffer,
+            .vertex_buffer = self.solid_mesh.buffers.vertex_buffer.buffer,
             .indirect_buffer = self.indirect_buffer.buffer,
         };
 
@@ -176,7 +215,8 @@ pub const Chunk = struct {
         
         // create new material
         const resources = Material.Resources {
-            .data_buffer = self.buffer.vertex_buffer.buffer, 
+            // .data_buffer = self.buffer.vertex_buffer.buffer,
+            .data_buffer = self.solid_mesh.buffers.vertex_buffer.buffer,
             .data_buffer_offset = 0,
         };
 
@@ -246,9 +286,11 @@ pub const Chunk = struct {
             .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
             .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .buffer = self.buffer.vertex_buffer.buffer,
+            // .buffer = self.buffer.vertex_buffer.buffer,
+            .buffer = self.solid_mesh.buffers.vertex_buffer.buffer,
             .offset = 0,
-            .size = @sizeOf(buffers.Vertex) * self.vertices.len,
+            // .size = @sizeOf(buffers.Vertex) * self.vertices.len,
+            .size = @sizeOf(buffers.Vertex) * self.solid_mesh.vertices.len,
         };
 
         const index_barrier = c.VkBufferMemoryBarrier {
@@ -257,9 +299,11 @@ pub const Chunk = struct {
             .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
             .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .buffer = self.buffer.index_buffer.buffer,
+            // .buffer = self.buffer.index_buffer.buffer,
+            .buffer = self.solid_mesh.buffers.index_buffer.buffer,
             .offset = 0,
-            .size = @sizeOf(u32) * self.indices.len,
+            // .size = @sizeOf(u32) * self.indices.len,
+            .size = @sizeOf(u32) * self.solid_mesh.indices.len,
         };
 
         const indirect_barrier = c.VkBufferMemoryBarrier{
