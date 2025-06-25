@@ -51,13 +51,11 @@ pub const Chunk = struct {
 
     perm_table_buffer: buffers.AllocatedBuffer,
     data_buffer: buffers.AllocatedBuffer,
-    // buffer: buffers.GPUMeshBuffers,
     indirect_buffer: buffers.AllocatedBuffer,
     
     constants: ClassificationShader.PushConstant,
     perm_table: [256]u32 = @splat(0),
-    // indices: []u32,
-    // vertices: []buffers.Vertex,
+
     solid_mesh: Mesh,
     water_mesh: Mesh,
 
@@ -81,7 +79,6 @@ pub const Chunk = struct {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
-            // .buffer = undefined,
             .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .classification_pass = undefined,
             .face_culling_pass = undefined,
@@ -92,8 +89,7 @@ pub const Chunk = struct {
             .constants = .{
                 .position = pos
             },
-            // .indices = undefined,
-            // .vertices = undefined,
+
             .solid_mesh = undefined,
             .water_mesh = undefined,
         };
@@ -107,11 +103,6 @@ pub const Chunk = struct {
         }
         std.mem.copyForwards(u32, data_ptr, &voxel.perm_table);
         c.vmaUnmapMemory(r._vma, voxel.perm_table_buffer.allocation);
-
-        // voxel.indices = voxel.arena.allocator().alloc(u32, cube_index_count) catch @panic("Out of memory");
-        // voxel.vertices = voxel.arena.allocator().alloc(buffers.Vertex, cube_index_count) catch @panic("Out of memory");
-
-        // voxel.buffer = buffers.GPUMeshBuffers.init(r._vma, voxel.indices[0..cube_index_count], voxel.vertices[0..cube_index_count], r);
 
         voxel.solid_mesh = Mesh.init(allocator, r);
         voxel.water_mesh = Mesh.init(allocator, r);
@@ -171,7 +162,6 @@ pub const Chunk = struct {
         self.data_buffer.deinit(vma);
         self.solid_mesh.deinit(r);
         self.water_mesh.deinit(r);
-        // self.buffer.deinit(vma);
         self.indirect_buffer.deinit(vma);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);

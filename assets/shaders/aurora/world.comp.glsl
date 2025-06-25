@@ -20,6 +20,8 @@ layout( push_constant ) uniform constants {
     ivec3 position;
 } PushConstant;
 
+const float WATER_LEVEL = 0.3 * CHUNK_SIZE; // Define water level as 30% of chunk height
+
 void main() {
     if (gl_GlobalInvocationID == uvec3(0)) {
         Chunk.active_count = 0;
@@ -59,4 +61,8 @@ void main() {
         Chunk.voxels[index].data.x = 1; // SOLID        
     }
 
+    // Add water below the water level
+    if (cube_pos.y < WATER_LEVEL && Chunk.voxels[index].data.x == 0) {
+        Chunk.voxels[index].data.x = 2; // WATER
+    }
 }
