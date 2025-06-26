@@ -18,38 +18,38 @@ void main() {
 
     const uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
 
-    if (Chunk.voxels[index].data.x == 0) { // is not active
+    if (Chunk.voxels[index].data.x == 0 || Chunk.voxels[index].data.x == 2) { // is not active
         return;
     }
 
     // encode faces in y
     const uint x_plus = (x + 1) + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
-    if (x < CHUNK_SIZE - 1 && Chunk.voxels[x_plus].data.x != 0) {
+    if (x < CHUNK_SIZE - 1 && Chunk.voxels[x_plus].data.x != 0 && Chunk.voxels[x_plus].data.x != 2) {
         Chunk.voxels[index].data.y |= FACE_POS_X; // +X
     }
 
     const uint x_minus = (x - 1) + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
-    if (x > 0 && Chunk.voxels[x_minus].data.x != 0) {
+    if (x > 0 && Chunk.voxels[x_minus].data.x != 0 && Chunk.voxels[x_minus].data.x != 2) {
         Chunk.voxels[index].data.y |= FACE_NEG_X; // -X
     }
 
     const uint y_plus = x + ((y + 1) * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
-    if (y < CHUNK_SIZE - 1 && Chunk.voxels[y_plus].data.x != 0) {
+    if (y < CHUNK_SIZE - 1 && Chunk.voxels[y_plus].data.x != 0 && Chunk.voxels[y_plus].data.x != 2) {
         Chunk.voxels[index].data.y |= FACE_POS_Y; // +Y
     }
 
     const uint y_minus = x + ((y - 1) * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
-    if (y > 0 && Chunk.voxels[y_minus].data.x != 0) {
+    if (y > 0 && Chunk.voxels[y_minus].data.x != 0 && Chunk.voxels[y_minus].data.x != 2) {
         Chunk.voxels[index].data.y |= FACE_NEG_Y; // -Y
     }
 
     const uint z_plus = x + (y * CHUNK_SIZE) + ((z + 1) * CHUNK_SIZE_SQR);
-    if (z < CHUNK_SIZE - 1 && Chunk.voxels[z_plus].data.x != 0) {
+    if (z < CHUNK_SIZE - 1 && Chunk.voxels[z_plus].data.x != 0 && Chunk.voxels[z_plus].data.x != 2) {
         Chunk.voxels[index].data.y |= FACE_POS_Z; // +Z
     }
 
     const uint z_minus = x + (y * CHUNK_SIZE) + ((z - 1) * CHUNK_SIZE_SQR);
-    if (z > 0 && Chunk.voxels[z_minus].data.x != 0) {
+    if (z > 0 && Chunk.voxels[z_minus].data.x != 0 && Chunk.voxels[z_minus].data.x != 2) {
         Chunk.voxels[index].data.y |= FACE_NEG_Z; // -Z
     }
 }

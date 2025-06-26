@@ -1,5 +1,6 @@
 const MaterialPipelines = struct {
     default: *chunk.Material,
+    water: *chunk.Material,
     polygone: *chunk.Material,
 };
 
@@ -78,7 +79,15 @@ pub const VoxelScene = struct {
 
         scene.pipelines.default = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.default.* = chunk.Material.init(allocator);        
-        scene.pipelines.default.build(allocator, c.VK_POLYGON_MODE_FILL, r) catch {
+        scene.pipelines.default.build(allocator, "./zig-out/bin/shaders/aurora/cube.vert.spv", "./zig-out/bin/shaders/aurora/cube.frag.spv", c.VK_POLYGON_MODE_FILL, false, r) catch {
+            std.log.err("Failed to build pipeline", .{});
+        };
+
+        std.log.info("Build voxel water pipeline", .{});
+
+        scene.pipelines.water = try scene.arena.allocator().create(chunk.Material);
+        scene.pipelines.water.* = chunk.Material.init(allocator);        
+        scene.pipelines.water.build(allocator, "./zig-out/bin/shaders/aurora/cube.vert.spv", "./zig-out/bin/shaders/aurora/water.frag.spv", c.VK_POLYGON_MODE_FILL, true, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
 
@@ -86,7 +95,7 @@ pub const VoxelScene = struct {
 
         scene.pipelines.polygone = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.polygone.* = chunk.Material.init(allocator);
-        scene.pipelines.polygone.build(allocator, c.VK_POLYGON_MODE_LINE, r) catch {
+        scene.pipelines.polygone.build(allocator, "./zig-out/bin/shaders/aurora/cube.vert.spv", "./zig-out/bin/shaders/aurora/cube.frag.spv", c.VK_POLYGON_MODE_LINE, false, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
 
@@ -140,6 +149,7 @@ pub const VoxelScene = struct {
         self.world.deinit();
 
         self.pipelines.default.deinit(r._device);
+        self.pipelines.water.deinit(r._device);
         self.pipelines.polygone.deinit(r._device);
 
         self.cl_shader.deinit(r);
@@ -198,7 +208,7 @@ pub const VoxelScene = struct {
                 it.update = true; // mark as queued for update (for later use)
 
                 // TODO : enqueue Task in TaskManager and remove the break;
-                it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, r);
+                it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, self.pipelines.water, r);
                 
                 r.submit.start_recording(r);
                 it.ptr.dispatch(r.submit.cmd);
