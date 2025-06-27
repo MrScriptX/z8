@@ -87,7 +87,7 @@ pub const VoxelScene = struct {
 
         scene.pipelines.water = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.water.* = chunk.Material.init(allocator);        
-        scene.pipelines.water.build(allocator, "./zig-out/bin/shaders/aurora/cube.vert.spv", "./zig-out/bin/shaders/aurora/water.frag.spv", c.VK_POLYGON_MODE_FILL, true, r) catch {
+        scene.pipelines.water.build(allocator, "./zig-out/bin/shaders/aurora/water.vert.spv", "./zig-out/bin/shaders/aurora/water.frag.spv", c.VK_POLYGON_MODE_FILL, true, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
 
@@ -100,19 +100,6 @@ pub const VoxelScene = struct {
         };
 
         // TODO : sky box should be handled from the scene
-        // var sky_shader = compute.ComputeEffect {
-        //     .name = "sky",
-        //     .data = .{
-        //         .data1 = c.vec4{ 0.1, 0.2, 0.4 , 0.97 },
-	    //         .data2 = c.glms_vec4_zero().raw,
-        //         .data3 = c.glms_vec4_zero().raw,
-        //         .data4 = c.glms_vec4_zero().raw 
-        //     },
-        // };
-        // sky_shader.build(allocator, "./zig-out/bin/shaders/vkguide/sky.spv", r) catch {
-        //     std.log.err("Failed to create sky shader", .{});
-        //     @panic("Failed to build the sky box");
-        // };
 
         scene.draw_ctx.global_data = &scene.global_data;
         scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
@@ -238,7 +225,7 @@ pub const VoxelScene = struct {
         }
 
         cam.update(r.stats.frame_time);
-        self.draw(cam, r._draw_extent);
+        self.draw(cam, r._draw_extent, r.stats.frame_time / 1_000_000_000.0);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
@@ -278,7 +265,8 @@ pub const VoxelScene = struct {
         if (result) {
             defer imgui.End();
 
-            if (imgui.InputUint("seed", &self.state.seed)) {
+            
+            if (imgui.ImGui_InputScalar("seed", imgui.ImGuiDataType_U32, &self.state.seed)) {
                 self.clear(r);
                 self.build_world();
             }
@@ -321,7 +309,7 @@ pub const VoxelScene = struct {
         }
     }
 
-    pub fn draw(self: *VoxelScene, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D) void {
+    pub fn draw(self: *VoxelScene, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D, delta_time: f32) void {
         // reset draw ctx
         // TODO : this should be done by the renderer
         self.draw_ctx.opaque_surfaces.clearRetainingCapacity();
@@ -338,6 +326,8 @@ pub const VoxelScene = struct {
         self.global_data.view = view.data;
         self.global_data.proj = proj.data;
         self.global_data.viewproj = za.Mat4.mul(proj, view).data;
+        self.global_data.time += delta_time;
+        self.global_data.time = @mod(self.global_data.time, 120);
 
         self.draw_ctx.global_data = &self.global_data;
 
