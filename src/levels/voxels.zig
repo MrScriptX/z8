@@ -266,7 +266,7 @@ pub const VoxelScene = struct {
             defer imgui.End();
 
             
-            if (imgui.ImGui_InputScalar("seed", imgui.ImGuiDataType_U32, &self.state.seed)) {
+            if (imgui.InputU32("seed", &self.state.seed)) {
                 self.clear(r);
                 self.build_world();
             }
