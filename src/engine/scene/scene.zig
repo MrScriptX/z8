@@ -4,7 +4,8 @@ pub const ShaderData = struct {
     viewproj: [4][4]f32 align(16) = za.Mat4.identity().data,
     ambient_color: [4]f32 align(4) = .{ 0.1, 0.1, 0.1, 0.1 },
     sunlight_dir: [4]f32 align(4) = .{ 1, 1, 1, 1 },
-    sunlight_color: [4]f32 align(4) = .{ 0, 1, 0.5, 1 }
+    sunlight_color: [4]f32 align(4) = .{ 0, 1, 0.5, 1 },
+    time: f32 align(4) = 0
 };
 
 pub const Manager = struct {
