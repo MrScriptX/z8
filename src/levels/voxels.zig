@@ -310,15 +310,15 @@ pub const VoxelScene = struct {
             }
             
             if (imgui.ImGui_ColorEdit4("sun color", &self.global_data.sunlight_color, 0)) {
-                std.log.debug("update sun color {any}", self.global_data.sunlight_color);
+                // std.log.debug("update sun color {any}", self.global_data.sunlight_color);
             }
 
             if (imgui.ImGui_ColorEdit4("ambient color", &self.global_data.ambient_color, 0)) {
-                std.log.debug("update ambient color {any}", self.global_data.sunlight_color);
+                // std.log.debug("update ambient color {any}", self.global_data.ambient_color);
             }
 
             if (imgui.ImGui_SliderFloat3("sun dir", &self.global_data.sunlight_dir, -1, 1)) {
-                std.log.debug("update sun direction {any}", self.global_data.sunlight_color);
+                // std.log.debug("update sun direction {any}", self.global_data.sunlight_dir);
             }
         }
     }

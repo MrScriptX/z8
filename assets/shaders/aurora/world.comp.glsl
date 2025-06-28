@@ -21,7 +21,7 @@ layout( push_constant ) uniform constants {
 } PushConstant;
 
 const float WATER_LEVEL = CHUNK_SIZE - 22;
-const float BEACH_LEVEL_MIN = WATER_LEVEL - 2.0; // Slightly below water level
+const float BEACH_LEVEL_MIN = WATER_LEVEL - 5.0; // Slightly below water level
 const float BEACH_LEVEL_MAX = WATER_LEVEL + 2.0; // Slightly above water level
 
 void main() {

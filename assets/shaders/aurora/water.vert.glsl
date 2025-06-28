@@ -36,8 +36,8 @@ void main() {
     vertex_t v = vertex_buffer.vertices[gl_VertexIndex];
 
     // Animate water surface slightly (fake wave)
-    float wave = sin(scene_data.time * 2.0 + v.position.x * 0.5 + v.position.z * 0.5) * 0.05;
-    vec4 position = vec4(v.position.x, v.position.y + wave, v.position.z, 1.0);
+    float wave = sin(scene_data.time * 2.0 + v.position.x * 0.5 + v.position.z * 0.5) * 0.085;
+    vec4 position = vec4(v.position.x, v.position.y - 0.15 + wave, v.position.z, 1.0);
 
     gl_Position = scene_data.viewproj * pc.render_matrix * position;
 
