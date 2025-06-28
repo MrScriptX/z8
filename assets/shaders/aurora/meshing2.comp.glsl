@@ -45,7 +45,7 @@ layout(std430, binding = 6) buffer ChunkData {
 };
 
 void greedy_meshing(uint dir, uint slice);
-void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water);
+void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint type);
 
 const uint DIR_Z_NEG = 0;
 const uint DIR_Z_POS = 1;
@@ -140,7 +140,7 @@ void greedy_meshing(uint dir, uint slice)
                 {
                     vec3 normal = normals[dir];
                     vec3 world_pos = vec3(pos) + vec3(position) * float(CHUNK_SIZE) + vec3(0.5);
-                    create_quad(world_pos, dir, uvec2(1, 1), normal, true);
+                    create_quad(world_pos, dir, uvec2(1, 1), normal, true, voxels[index].data.x);
 
                     // processed[i][j] = true;
                 }
@@ -170,7 +170,7 @@ void greedy_meshing(uint dir, uint slice)
                 }
 
                 const uint next_index = next_pos.x + (next_pos.y * CHUNK_SIZE) + (next_pos.z * CHUNK_SIZE_SQR);
-                if (voxels[next_index].data.x == 0 || voxels[next_index].data.x == 2) {
+                if (voxels[next_index].data.x == AIR || voxels[next_index].data.x == WATER) {
                     break; // stop if we hit air or a hidden face
                 }
 
@@ -199,7 +199,7 @@ void greedy_meshing(uint dir, uint slice)
                     }
 
                     const uint next_index = next_pos.x + (next_pos.y * CHUNK_SIZE) + (next_pos.z * CHUNK_SIZE_SQR);
-                    if (voxels[next_index].data.x == 0 || voxels[next_index].data.x == 2) {
+                    if (voxels[next_index].data.x == AIR || voxels[next_index].data.x == WATER) {
                         valid = false;
                         break; // stop if we hit air or a hidden face
                     }
@@ -225,12 +225,12 @@ void greedy_meshing(uint dir, uint slice)
             // create the mesh
             vec3 normal = normals[dir];
             vec3 world_pos = vec3(pos) + vec3(position) * float(CHUNK_SIZE) + vec3(0.5);
-            create_quad(world_pos, dir, uvec2(width, height), normal, false);
+            create_quad(world_pos, dir, uvec2(width, height), normal, false, voxels[index].data.x);
         }
     }
 }
 
-void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water)
+void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint type)
 {
     vertex_t v[4];
 
@@ -279,6 +279,19 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water)
     v[1].uv_x = 1.0; v[1].uv_y = 0.0;
     v[2].uv_x = 1.0; v[2].uv_y = 1.0;
     v[3].uv_x = 0.0; v[3].uv_y = 1.0;
+
+    if (type == GRASS) {
+        v[0].color = vec4(0.09, 0.59, 0.21, 1);
+        v[1].color = vec4(0.09, 0.59, 0.21, 1);
+        v[2].color = vec4(0.09, 0.59, 0.21, 1);
+        v[3].color = vec4(0.09, 0.59, 0.21, 1);
+    }
+    else if (type == SAND) {
+        v[0].color = vec4(0.85, 0.82, 0.44, 1);
+        v[1].color = vec4(0.85, 0.82, 0.44, 1);
+        v[2].color = vec4(0.85, 0.82, 0.44, 1);
+        v[3].color = vec4(0.85, 0.82, 0.44, 1);
+    }
 
     const uint vertex_base = atomicAdd(active_count, 4);
     uint index_base = atomicAdd(water_cmd.index_count, 6);

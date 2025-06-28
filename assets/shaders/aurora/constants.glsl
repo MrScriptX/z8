@@ -87,3 +87,8 @@ const uint FACE_NEG_X = 0x04; // face 2
 const uint FACE_POS_X = 0x08; // face 3
 const uint FACE_POS_Y = 0x10; // face 4
 const uint FACE_NEG_Y = 0x20; // face 5
+
+const uint AIR      = 0;
+const uint GRASS    = 1;
+const uint WATER    = 2;
+const uint SAND     = 3;

@@ -21,6 +21,8 @@ layout( push_constant ) uniform constants {
 } PushConstant;
 
 const float WATER_LEVEL = CHUNK_SIZE - 22;
+const float BEACH_LEVEL_MIN = WATER_LEVEL - 2.0; // Slightly below water level
+const float BEACH_LEVEL_MAX = WATER_LEVEL + 2.0; // Slightly above water level
 
 void main() {
     if (gl_GlobalInvocationID == uvec3(0)) {
@@ -55,15 +57,18 @@ void main() {
     const float height = (n + 1.0) * 0.5 * CHUNK_SIZE;
     if (cube_pos.y > height) {
         // no need to store local position, we don't draw it
-        Chunk.voxels[index].data.x = 0; // AIR
+        Chunk.voxels[index].data.x = AIR; // AIR
+    }
+    else if (cube_pos.y >= BEACH_LEVEL_MIN && cube_pos.y <= BEACH_LEVEL_MAX) {
+        Chunk.voxels[index].data.x = SAND; // BEACH
     }
     else {
-        Chunk.voxels[index].data.x = 1; // SOLID        
+        Chunk.voxels[index].data.x = GRASS; // SOLID        
     }
 
     // Add water below the water level
     if (cube_pos.y < WATER_LEVEL && Chunk.voxels[index].data.x == 0)
     {
-        Chunk.voxels[index].data.x = 2; // WATER
+        Chunk.voxels[index].data.x = WATER; // WATER
     }
 }

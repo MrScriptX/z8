@@ -1,5 +1,6 @@
 const MaterialPipelines = struct {
     default: *chunk.Material,
+    normals: *chunk.Material,
     water: *chunk.Material,
     polygone: *chunk.Material,
 };
@@ -79,7 +80,15 @@ pub const VoxelScene = struct {
 
         scene.pipelines.default = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.default.* = chunk.Material.init(allocator);        
-        scene.pipelines.default.build(allocator, "./zig-out/bin/shaders/aurora/cube.vert.spv", "./zig-out/bin/shaders/aurora/cube.frag.spv", c.VK_POLYGON_MODE_FILL, false, r) catch {
+        scene.pipelines.default.build(allocator, "./zig-out/bin/shaders/aurora/block.vert.spv", "./zig-out/bin/shaders/aurora/block.frag.spv", c.VK_POLYGON_MODE_FILL, false, r) catch {
+            std.log.err("Failed to build pipeline", .{});
+        };
+
+        std.log.info("Build voxel normals debug pipeline", .{});
+
+        scene.pipelines.normals = try scene.arena.allocator().create(chunk.Material);
+        scene.pipelines.normals.* = chunk.Material.init(allocator);        
+        scene.pipelines.normals.build(allocator, "./zig-out/bin/shaders/aurora/cube.vert.spv", "./zig-out/bin/shaders/aurora/cube.frag.spv", c.VK_POLYGON_MODE_FILL, false, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
 
@@ -136,6 +145,7 @@ pub const VoxelScene = struct {
         self.world.deinit();
 
         self.pipelines.default.deinit(r._device);
+        self.pipelines.normals.deinit(r._device);
         self.pipelines.water.deinit(r._device);
         self.pipelines.polygone.deinit(r._device);
 
@@ -289,23 +299,27 @@ pub const VoxelScene = struct {
                 self.build_world();
             }
 
-            const pipeline_list = [_][*:0]const u8{ "default", "debug" };
+            const pipeline_list = [_][*:0]const u8{ "default", "debug", "normals" };
             if (imgui.ImGui_ComboChar("pipeline", &self.state.pipeline, @ptrCast(&pipeline_list), pipeline_list.len)) {
                 switch (self.state.pipeline) {
                     0 => self.set_default_pipeline(allocator, r),
                     1 => self.set_debug_pipeline(allocator, r),
+                    2 => self.set_debug_normals_pipeline(allocator, r),
                     else => std.log.warn("Invalid pipeline value", .{})
                 }
             }
             
-            // TODO : global lighting
-            // imgui.ImGui_Text("sun direction");
-            // _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
-            // _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
-            // _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
+            if (imgui.ImGui_ColorEdit4("sun color", &self.global_data.sunlight_color, 0)) {
+                std.log.debug("update sun color {any}", self.global_data.sunlight_color);
+            }
 
-            // _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
-            // _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
+            if (imgui.ImGui_ColorEdit4("ambient color", &self.global_data.ambient_color, 0)) {
+                std.log.debug("update ambient color {any}", self.global_data.sunlight_color);
+            }
+
+            if (imgui.ImGui_SliderFloat3("sun dir", &self.global_data.sunlight_dir, -1, 1)) {
+                std.log.debug("update sun direction {any}", self.global_data.sunlight_color);
+            }
         }
     }
 
@@ -348,6 +362,12 @@ pub const VoxelScene = struct {
     pub fn set_default_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
         for (self.world.items) |it| {
             it.ptr.swap_pipeline(allocator, self.pipelines.default, r);
+        }
+    }
+
+    pub fn set_debug_normals_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+        for (self.world.items) |it| {
+            it.ptr.swap_pipeline(allocator, self.pipelines.normals, r);
         }
     }
 };
