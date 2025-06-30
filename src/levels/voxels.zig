@@ -24,6 +24,7 @@ pub const VoxelScene = struct {
     cl_shader: *chunk.ClassificationShader,
     culling_shader: *chunk.FaceCullingShader,
     shader: *chunk.MeshComputeShader,
+    frustrum_shader: *chunk.FrustrumCulling,
 
     world: std.ArrayList(Chunk),
     deletion_queue: std.ArrayList(Chunk), // use as a garbage collector
@@ -54,6 +55,7 @@ pub const VoxelScene = struct {
             .cl_shader = undefined,
             .culling_shader = undefined,
             .shader = undefined,
+            .frustrum_shader = undefined,
             .global_data = .{},
             .draw_ctx = undefined,
             .background_ctx = undefined,
@@ -77,6 +79,10 @@ pub const VoxelScene = struct {
         try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/meshing2.comp.spv", r);
 
         std.log.info("Build voxel default pipeline", .{});
+
+        scene.frustrum_shader = try scene.arena.allocator().create(chunk.FrustrumCulling);
+        scene.frustrum_shader.* = chunk.FrustrumCulling.init(allocator);
+        try scene.frustrum_shader.build(allocator, "./zig-out/bin/shaders/aurora/frustrum_culling.comp.spv", r);
 
         scene.pipelines.default = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.default.* = chunk.Material.init(allocator);        
@@ -152,6 +158,7 @@ pub const VoxelScene = struct {
         self.cl_shader.deinit(r);
         self.culling_shader.deinit(r);
         self.shader.deinit(r);
+        self.frustrum_shader.deinit(r);
 
         self.arena.deinit();
     }
@@ -205,7 +212,7 @@ pub const VoxelScene = struct {
                 it.update = true; // mark as queued for update (for later use)
 
                 // TODO : enqueue Task in TaskManager and remove the break;
-                it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, self.pipelines.water, r);
+                it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.frustrum_shader, self.pipelines.default, self.pipelines.water, r);
                 
                 r.submit.start_recording(r);
                 it.ptr.dispatch(r.submit.cmd);

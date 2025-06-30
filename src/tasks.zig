@@ -46,7 +46,7 @@ pub const TaskManager = struct {
 
     fn worker(self: *TaskManager) void {
         while (self.running) {
-            if (self.queue.readItem()) |task| {
+            if (self.queue.readItem()) |task| { // TODO : batch task call, make a list of called task, and call their on finish
                 self.submit.start_command();
                 task.func(task.ctx, self.submit.command_buffer);
                 self.submit.submit_command();
