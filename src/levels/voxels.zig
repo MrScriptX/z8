@@ -66,23 +66,48 @@ pub const VoxelScene = struct {
             .deletion_queue = std.ArrayList(Chunk).init(allocator),
         };
 
+        // get local directory (exe)
+        const dir = try std.fs.selfExeDirPathAlloc(allocator);
+        defer allocator.free(dir);
+
+        // build classification shader
         scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
         scene.cl_shader.* = chunk.ClassificationShader.init(allocator);
-        try scene.cl_shader.build(allocator, "./zig-out/bin/shaders/aurora/world.comp.spv", r);
+        
+        const world_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/world.comp.spv" });
+        defer allocator.free(world_comp);
 
+        try scene.cl_shader.build(allocator, world_comp, r);
+
+        // build face culling shader
         scene.culling_shader = try scene.arena.allocator().create(chunk.FaceCullingShader);
         scene.culling_shader.* = chunk.FaceCullingShader.init(allocator);
-        try scene.culling_shader.build(allocator, "./zig-out/bin/shaders/aurora/face_culling.comp.spv", r);
 
+        const face_culling_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/face_culling.comp.spv" });
+        defer allocator.free(face_culling_comp);
+
+        try scene.culling_shader.build(allocator, face_culling_comp, r);
+
+        // meshing shader
         scene.shader = try scene.arena.allocator().create(chunk.MeshComputeShader);
         scene.shader.* = chunk.MeshComputeShader.init(allocator, "voxel");
-        try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/meshing2.comp.spv", r);
 
-        std.log.info("Build voxel default pipeline", .{});
+        const meshing_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/meshing2.comp.spv" });
+        defer allocator.free(meshing_comp);
 
+        try scene.shader.build(allocator, meshing_comp, r);
+
+        // frustrum shader
         scene.frustrum_shader = try scene.arena.allocator().create(chunk.FrustrumCulling);
         scene.frustrum_shader.* = chunk.FrustrumCulling.init(allocator);
-        try scene.frustrum_shader.build(allocator, "./zig-out/bin/shaders/aurora/frustrum_culling.comp.spv", r);
+
+        const frustrum_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/frustrum_culling.comp.spv" });
+        defer allocator.free(frustrum_comp);
+
+        try scene.frustrum_shader.build(allocator, frustrum_comp, r);
+
+
+        std.log.info("Build voxel default pipeline", .{});
 
         scene.pipelines.default = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.default.* = chunk.Material.init(allocator);        

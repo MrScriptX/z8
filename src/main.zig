@@ -1,4 +1,7 @@
 pub fn main() !u8 {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
+
     const init = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
     if (!init) {
         sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s", sdl.SDL_GetError());
@@ -9,7 +12,7 @@ pub fn main() !u8 {
     const width = 1920;
     const heigh = 1080;
 
-    const window = sdl.SDL_CreateWindow("Hello World", width, heigh, sdl.SDL_WINDOW_VULKAN | sdl.SDL_WINDOW_RESIZABLE);
+    const window = sdl.SDL_CreateWindow("Z8 Engine", width, heigh, sdl.SDL_WINDOW_VULKAN | sdl.SDL_WINDOW_RESIZABLE);
     if (window == null) {
         sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to create window: %s", sdl.SDL_GetError());
         return 1;
@@ -23,9 +26,6 @@ pub fn main() !u8 {
         .speed = 50,
         .sensitivity = 0.02,
     };
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
     var renderer = engine.renderer.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
         sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
