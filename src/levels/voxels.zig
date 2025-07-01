@@ -127,9 +127,13 @@ pub const VoxelScene = struct {
         scene.pipelines.normals = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.normals.* = chunk.Material.init(allocator);
 
-        // 
+        const normals_vert = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/cube.vert.spv" });
+        defer allocator.free(normals_vert);
 
-        scene.pipelines.normals.build(allocator, "./zig-out/bin/shaders/aurora/cube.vert.spv", "./zig-out/bin/shaders/aurora/cube.frag.spv", c.VK_POLYGON_MODE_FILL, false, r) catch {
+        const normals_frag = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/cube.frag.spv" });
+        defer allocator.free(normals_frag);
+
+        scene.pipelines.normals.build(allocator, normals_vert, normals_frag, c.VK_POLYGON_MODE_FILL, false, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
 
@@ -138,9 +142,13 @@ pub const VoxelScene = struct {
         scene.pipelines.water = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.water.* = chunk.Material.init(allocator);
 
-        // 
+        const water_vert = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.vert.spv" });
+        defer allocator.free(water_vert);
 
-        scene.pipelines.water.build(allocator, "./zig-out/bin/shaders/aurora/water.vert.spv", "./zig-out/bin/shaders/aurora/water.frag.spv", c.VK_POLYGON_MODE_FILL, true, r) catch {
+        const water_frag = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.frag.spv" });
+        defer allocator.free(water_frag);
+
+        scene.pipelines.water.build(allocator, water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
 
@@ -149,9 +157,7 @@ pub const VoxelScene = struct {
         scene.pipelines.polygone = try scene.arena.allocator().create(chunk.Material);
         scene.pipelines.polygone.* = chunk.Material.init(allocator);
 
-        // 
-
-        scene.pipelines.polygone.build(allocator, "./zig-out/bin/shaders/aurora/cube.vert.spv", "./zig-out/bin/shaders/aurora/cube.frag.spv", c.VK_POLYGON_MODE_LINE, false, r) catch {
+        scene.pipelines.polygone.build(allocator, default_vert, default_frag, c.VK_POLYGON_MODE_LINE, false, r) catch {
             std.log.err("Failed to build pipeline", .{});
         };
 
