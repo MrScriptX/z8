@@ -46,7 +46,27 @@ const Mesh = struct {
     }
 };
 
+pub const Shaders = struct {
+    classification: *ClassificationShader,
+    face_culling: *FaceCullingShader,
+    meshing: *MeshComputeShader,
+    frustrum_culling: *FrustrumCulling
+};
+
+pub const ComputePass = struct {
+    classification: *compute.Instance,
+    face_culling: *compute.Instance,
+    meshing: *compute.Instance,
+    frustrum_culling: *compute.Instance,
+};
+
+pub const Materials = struct {
+    block: *materials.MaterialInstance,
+    water: *materials.MaterialInstance
+};
+
 pub const Chunk = struct {
+    allocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
 
     perm_table_buffer: buffers.AllocatedBuffer,
@@ -61,10 +81,7 @@ pub const Chunk = struct {
     solid_mesh: Mesh,
     water_mesh: Mesh,
 
-    classification_pass: *compute.Instance,
-    face_culling_pass: *compute.Instance,
-    compute_shader: *compute.Instance,
-    frustrum_culling_pass: *compute.Instance,
+    compute_passes: ComputePass,
     material: *materials.MaterialInstance,
     water_material: *materials.MaterialInstance,
 
@@ -73,26 +90,31 @@ pub const Chunk = struct {
 
     ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32,
-        culling_shader: *FaceCullingShader, cl_shader: *ClassificationShader, shader: *MeshComputeShader, frustrum: *FrustrumCulling,
-        mat: *Material, water_mat: *Material, r: *const renderer.renderer_t) Chunk {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders,
+        mat: *Material, water_mat: *Material, r: *const renderer.renderer_t) !Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 8 }
         };
 
         var voxel: Chunk = .{
+            .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
+            
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
             .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .water_indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
-            .classification_pass = undefined,
-            .face_culling_pass = undefined,
-            .compute_shader = undefined,
-            .frustrum_culling_pass = undefined,
-            .material = undefined,
-            .water_material = undefined,
+            
+            .compute_passes = .{
+                .classification = try allocator.create(compute.Instance),
+                .face_culling = try allocator.create(compute.Instance),
+                .meshing = try allocator.create(compute.Instance),
+                .frustrum_culling = try allocator.create(compute.Instance)
+            },
+            .material = try allocator.create(materials.MaterialInstance),
+            .water_material = try allocator.create(materials.MaterialInstance),
+            
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
             .material_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Material.Constants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
             .constants = .{
@@ -108,6 +130,7 @@ pub const Chunk = struct {
         var data_ptr: []u32 = undefined;
         const result = c.vmaMapMemory(r._vma, voxel.perm_table_buffer.allocation, @ptrCast(&data_ptr));
         if (result != c.VK_SUCCESS) {
+            std.log.err("Failed to map permutation table", .{});
             @panic("Failed to map perm_table_buffer");
         }
         std.mem.copyForwards(u32, data_ptr, &voxel.perm_table);
@@ -120,20 +143,31 @@ pub const Chunk = struct {
             .data_buffer = voxel.solid_mesh.buffers.vertex_buffer.buffer,
             .data_buffer_offset = 0,
         };
-
-        voxel.material = voxel.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
         voxel.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &voxel.descriptor_pool);
 
-        // _ = water_mat;
         const water_resources = Material.Resources {
             .data_buffer = voxel.water_mesh.buffers.vertex_buffer.buffer,
             .data_buffer_offset = 0,
         };
-
-        voxel.water_material = voxel.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
         voxel.water_material.* = water_mat.write_material(allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &voxel.descriptor_pool);
 
-        const compute_resources: MeshComputeShader.Resource = .{
+        // create compute passes
+        const cl_res = ClassificationShader.Resource {
+            .chunk_buffer = voxel.data_buffer.buffer,
+            .chunk_buffer_offset = 0,
+
+            .perm_table_buffer = voxel.perm_table_buffer.buffer,
+            .perm_table_buffer_offset = 0,
+        };
+        voxel.compute_passes.classification.* = shaders.classification.write(allocator, &voxel.descriptor_pool, &cl_res, r);
+
+        const face_culling_res = FaceCullingShader.Resource {
+            .chunk_buffer = voxel.data_buffer.buffer,
+            .chunk_buffer_offset = 0
+        };
+        voxel.compute_passes.face_culling.* = shaders.face_culling.write(allocator, &voxel.descriptor_pool, &face_culling_res, r);
+
+         const compute_resources: MeshComputeShader.Resource = .{
             .index_buffer = voxel.solid_mesh.buffers.index_buffer.buffer,
             .index_buffer_offset = 0,
 
@@ -155,28 +189,7 @@ pub const Chunk = struct {
             .chunk_buffer = voxel.data_buffer.buffer,
             .chunk_buffer_offset = 0
         };
-
-        voxel.compute_shader = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
-        voxel.compute_shader.* = shader.write(allocator, &voxel.descriptor_pool, &compute_resources, r);
-
-        const cl_res = ClassificationShader.Resource {
-            .chunk_buffer = voxel.data_buffer.buffer,
-            .chunk_buffer_offset = 0,
-
-            .perm_table_buffer = voxel.perm_table_buffer.buffer,
-            .perm_table_buffer_offset = 0,
-        };
-
-        voxel.classification_pass = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
-        voxel.classification_pass.* = cl_shader.write(allocator, &voxel.descriptor_pool, &cl_res, r);
-
-        const face_culling_res = FaceCullingShader.Resource {
-            .chunk_buffer = voxel.data_buffer.buffer,
-            .chunk_buffer_offset = 0
-        };
-
-        voxel.face_culling_pass = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
-        voxel.face_culling_pass.* = culling_shader.write(allocator, &voxel.descriptor_pool, &face_culling_res, r);
+        voxel.compute_passes.meshing.* = shaders.meshing.write(allocator, &voxel.descriptor_pool, &compute_resources, r);
 
         const frustrum_resources: FrustrumCulling.Resource = .{
             .index_buffer = voxel.solid_mesh.buffers.index_buffer.buffer,
@@ -201,8 +214,7 @@ pub const Chunk = struct {
             .chunk_buffer_offset = 0
         };
 
-        voxel.frustrum_culling_pass = voxel.arena.allocator().create(compute.Instance) catch @panic("OOM");
-        voxel.frustrum_culling_pass.* = frustrum.write(allocator, &voxel.descriptor_pool, &frustrum_resources, r);
+        voxel.compute_passes.frustrum_culling.* = shaders.frustrum_culling.write(allocator, &voxel.descriptor_pool, &frustrum_resources, r);
 
         return voxel;
     }
@@ -216,7 +228,15 @@ pub const Chunk = struct {
         self.water_indirect_buffer.deinit(vma);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
+
+        self.allocator.destroy(self.compute_passes.classification);
+        self.allocator.destroy(self.compute_passes.face_culling);
+        self.allocator.destroy(self.compute_passes.meshing);
+        self.allocator.destroy(self.compute_passes.frustrum_culling);
         
+        self.allocator.destroy(self.material);
+        self.allocator.destroy(self.water_material);
+
         self.arena.deinit();
     }
 
@@ -228,7 +248,7 @@ pub const Chunk = struct {
         self.dispatch_classification(cmd, group_x, group_y, group_z);
         self.dispatch_face_culling(cmd, group_x, group_y, group_z);
         // self.dispatch_meshing(cmd, group_x, group_y, group_z);
-        self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 1);
+        self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 1); // x : chunk slice, y : direction, TODO : z : per voxel type
     }
 
     pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
@@ -278,10 +298,10 @@ pub const Chunk = struct {
     }
 
     fn dispatch_classification(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
-        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.pipeline);
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.classification_pass.pipeline.layout, 0, 1, &self.classification_pass.descriptor, 0, null);
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.classification.pipeline.pipeline);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.classification.pipeline.layout, 0, 1, &self.compute_passes.classification.descriptor, 0, null);
         
-        c.vkCmdPushConstants(cmd, self.classification_pass.pipeline.layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(ClassificationShader.PushConstant), &self.constants);
+        c.vkCmdPushConstants(cmd, self.compute_passes.classification.pipeline.layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(ClassificationShader.PushConstant), &self.constants);
 
         c.vkCmdDispatch(cmd, x, y, z);
 
@@ -304,8 +324,8 @@ pub const Chunk = struct {
     }
 
     fn dispatch_face_culling(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
-        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.face_culling_pass.pipeline.pipeline);
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.face_culling_pass.pipeline.layout, 0, 1, &self.face_culling_pass.descriptor, 0, null);
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.face_culling.pipeline.pipeline);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.face_culling.pipeline.layout, 0, 1, &self.compute_passes.face_culling.descriptor, 0, null);
 
         c.vkCmdDispatch(cmd, x, y, z);
 
@@ -328,8 +348,8 @@ pub const Chunk = struct {
     }
 
     fn dispatch_meshing(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
-        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.pipeline);
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_shader.pipeline.layout, 0, 1, &self.compute_shader.descriptor, 0, null);
+        c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.meshing.pipeline.pipeline);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.meshing.pipeline.layout, 0, 1, &self.compute_passes.meshing.descriptor, 0, null);
         
         c.vkCmdDispatch(cmd, x, y, z);
 

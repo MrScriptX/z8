@@ -14,6 +14,7 @@ const State = struct {
 
 // TODO : implement UI to chose which node to display
 pub const VoxelScene = struct {
+    allocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
 
     state: State,
@@ -21,10 +22,7 @@ pub const VoxelScene = struct {
     pipelines: MaterialPipelines,
 
     // compute shaders
-    cl_shader: *chunk.ClassificationShader,
-    culling_shader: *chunk.FaceCullingShader,
-    shader: *chunk.MeshComputeShader,
-    frustrum_shader: *chunk.FrustrumCulling,
+    shaders: chunk.Shaders,
 
     world: std.ArrayList(Chunk),
     deletion_queue: std.ArrayList(Chunk), // use as a garbage collector
@@ -50,12 +48,15 @@ pub const VoxelScene = struct {
         const rand = prng.random();
         
         var scene = VoxelScene {
+            .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
             .pipelines = undefined,
-            .cl_shader = undefined,
-            .culling_shader = undefined,
-            .shader = undefined,
-            .frustrum_shader = undefined,
+            .shaders = .{
+                .classification = try allocator.create(chunk.ClassificationShader),
+                .face_culling = try allocator.create(chunk.FaceCullingShader),
+                .meshing = try allocator.create(chunk.MeshComputeShader),
+                .frustrum_culling = try allocator.create(chunk.FrustrumCulling)
+            },
             .global_data = .{},
             .draw_ctx = undefined,
             .background_ctx = undefined,
@@ -71,41 +72,32 @@ pub const VoxelScene = struct {
         defer allocator.free(dir);
 
         // build classification shader
-        scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
-        scene.cl_shader.* = chunk.ClassificationShader.init(allocator);
-        
         const world_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/world.comp.spv" });
         defer allocator.free(world_comp);
 
-        try scene.cl_shader.build(allocator, world_comp, r);
+        scene.shaders.classification.* = chunk.ClassificationShader.init(allocator);
+        try scene.shaders.classification.build(allocator, world_comp, r);
 
-        // build face culling shader
-        scene.culling_shader = try scene.arena.allocator().create(chunk.FaceCullingShader);
-        scene.culling_shader.* = chunk.FaceCullingShader.init(allocator);
-
+        // build face culling shader 
         const face_culling_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/face_culling.comp.spv" });
         defer allocator.free(face_culling_comp);
 
-        try scene.culling_shader.build(allocator, face_culling_comp, r);
+        scene.shaders.face_culling.* = chunk.FaceCullingShader.init(allocator);
+        try scene.shaders.face_culling.build(allocator, face_culling_comp, r);
 
         // meshing shader
-        scene.shader = try scene.arena.allocator().create(chunk.MeshComputeShader);
-        scene.shader.* = chunk.MeshComputeShader.init(allocator, "voxel");
-
         const meshing_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/meshing2.comp.spv" });
         defer allocator.free(meshing_comp);
 
-        try scene.shader.build(allocator, meshing_comp, r);
+        scene.shaders.meshing.* = chunk.MeshComputeShader.init(allocator, "voxel");
+        try scene.shaders.meshing.build(allocator, meshing_comp, r);
 
         // frustrum shader
-        scene.frustrum_shader = try scene.arena.allocator().create(chunk.FrustrumCulling);
-        scene.frustrum_shader.* = chunk.FrustrumCulling.init(allocator);
-
         const frustrum_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/frustrum_culling.comp.spv" });
         defer allocator.free(frustrum_comp);
 
-        try scene.frustrum_shader.build(allocator, frustrum_comp, r);
-
+        scene.shaders.frustrum_culling.* = chunk.FrustrumCulling.init(allocator);
+        try scene.shaders.frustrum_culling.build(allocator, frustrum_comp, r);
 
         std.log.info("Build voxel default pipeline", .{});
 
@@ -202,10 +194,15 @@ pub const VoxelScene = struct {
         self.pipelines.water.deinit(r._device);
         self.pipelines.polygone.deinit(r._device);
 
-        self.cl_shader.deinit(r);
-        self.culling_shader.deinit(r);
-        self.shader.deinit(r);
-        self.frustrum_shader.deinit(r);
+        self.shaders.classification.deinit(r);
+        self.shaders.face_culling.deinit(r);
+        self.shaders.meshing.deinit(r);
+        self.shaders.frustrum_culling.deinit(r);
+
+        self.allocator.destroy(self.shaders.classification);
+        self.allocator.destroy(self.shaders.face_culling);
+        self.allocator.destroy(self.shaders.meshing);
+        self.allocator.destroy(self.shaders.frustrum_culling);
 
         self.arena.deinit();
     }
@@ -259,7 +256,10 @@ pub const VoxelScene = struct {
                 it.update = true; // mark as queued for update (for later use)
 
                 // TODO : enqueue Task in TaskManager and remove the break;
-                it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.frustrum_shader, self.pipelines.default, self.pipelines.water, r);
+                it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, self.pipelines.default, self.pipelines.water, r) catch {
+                    std.log.err("Failed to create chunk : Out of memory", .{});
+                    @panic("Out Of Memory !");
+                };
                 
                 r.submit.start_recording(r);
                 it.ptr.dispatch(r.submit.cmd);
@@ -311,7 +311,10 @@ pub const VoxelScene = struct {
 
         std.log.info("Creating chunk {any}", .{ it.pos });
 
-        it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, r);
+        it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, self.pipelines.default, self.pipelines.water, r) catch {
+            std.log.err("Failed to create chunk : Out of memory", .{});
+            @panic("Out Of Memory !");
+        };
         it.ptr.dispatch(cmd);
     }
 
