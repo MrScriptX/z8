@@ -21,7 +21,7 @@ fn seed_perm_table(seed: u32, perm: *[256]u32) void {
     }
 }
 
-const Mesh = struct {
+const Mesh = struct { // TODO : delete indices and vertices. Replace GPUMeshBuffers with regular AllocatedBuffers (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT and VK_DESCRIPTOR_TYPE_STORAGE_BUFFER).
     allocator: std.mem.Allocator,
     indices: []u32,
     vertices: []buffers.Vertex,
