@@ -44,7 +44,7 @@ layout(std430, binding = 6) buffer ChunkData {
     voxel_t voxels[];
 };
 
-void greedy_meshing(uint dir, uint slice);
+void greedy_meshing(uint dir, uint slice, uint type);
 void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint type);
 
 const uint DIR_Z_NEG = 0;
@@ -76,7 +76,14 @@ void main()
 
     const uint dir = gl_GlobalInvocationID.y; // 0: -Z, 1: +Z, 2: -X, 3: +X, 4: +Y, 5: -Y
     const uint slice = gl_GlobalInvocationID.x; // slice in the direction of the mesh
-    greedy_meshing(dir, slice);
+    const uint type = gl_GlobalInvocationID.z; // type of mesh (grass, sand, sandstone, etc.)
+
+    
+    if (type == 0) { // skip, we don't process air
+        return;
+    }
+
+    greedy_meshing(dir, slice, type);
 }
 
 bool is_hidden(uint index, uint dir) {
@@ -85,7 +92,7 @@ bool is_hidden(uint index, uint dir) {
     return hidden;
 }
 
-void greedy_meshing(uint dir, uint slice)
+void greedy_meshing(uint dir, uint slice, uint type)
 {
     bool processed[CHUNK_SIZE][CHUNK_SIZE];
     // Initialize processed array
@@ -113,7 +120,7 @@ void greedy_meshing(uint dir, uint slice)
             }
 
             const uint index = pos.x + (pos.y * CHUNK_SIZE) + (pos.z * CHUNK_SIZE_SQR);
-            if (voxels[index].data.x == 0) { // AIR
+            if (voxels[index].data.x == AIR || voxels[index].data.x != type) { // AIR or not the correct type
                 processed[i][j] = true;
                 continue;
             }

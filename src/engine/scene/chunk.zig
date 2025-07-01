@@ -248,7 +248,7 @@ pub const Chunk = struct {
         self.dispatch_classification(cmd, group_x, group_y, group_z);
         self.dispatch_face_culling(cmd, group_x, group_y, group_z);
         // self.dispatch_meshing(cmd, group_x, group_y, group_z);
-        self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 1); // x : chunk slice, y : direction, TODO : z : per voxel type
+        self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 5); // x : chunk slice, y : direction, TODO : z : per voxel type
     }
 
     pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
