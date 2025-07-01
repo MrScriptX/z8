@@ -62,12 +62,15 @@ void main() {
     else if (cube_pos.y >= BEACH_LEVEL_MIN && cube_pos.y <= BEACH_LEVEL_MAX) {
         Chunk.voxels[index].data.x = SAND; // BEACH
     }
+    else if (cube_pos.y < BEACH_LEVEL_MIN && cube_pos.y == height) { // below beach level and surface block
+        Chunk.voxels[index].data.x = SANDSTONE; // SANDSTONE
+    }
     else {
         Chunk.voxels[index].data.x = GRASS; // SOLID        
     }
 
     // Add water below the water level
-    if (cube_pos.y < WATER_LEVEL && Chunk.voxels[index].data.x == 0)
+    if (cube_pos.y < WATER_LEVEL && Chunk.voxels[index].data.x == AIR)
     {
         Chunk.voxels[index].data.x = WATER; // WATER
     }

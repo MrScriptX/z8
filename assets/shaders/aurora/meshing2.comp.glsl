@@ -292,6 +292,12 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint t
         v[2].color = vec4(0.85, 0.82, 0.44, 1);
         v[3].color = vec4(0.85, 0.82, 0.44, 1);
     }
+    else if (type == SANDSTONE) {
+        v[0].color = vec4(0.99, 0.83, 0.61, 1);
+        v[1].color = vec4(0.99, 0.83, 0.61, 1);
+        v[2].color = vec4(0.99, 0.83, 0.61, 1);
+        v[3].color = vec4(0.99, 0.83, 0.61, 1);
+    }
 
     const uint vertex_base = atomicAdd(active_count, 4);
     uint index_base = atomicAdd(water_cmd.index_count, 6);
