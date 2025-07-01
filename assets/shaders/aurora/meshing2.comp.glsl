@@ -307,11 +307,10 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint t
     }
 
     const uint vertex_base = atomicAdd(active_count, 4);
-    uint index_base = atomicAdd(water_cmd.index_count, 6);
 
     if (water)
     {
-        index_base = atomicAdd(water_cmd.index_count, 6);
+        uint index_base = atomicAdd(water_cmd.index_count, 6);
 
         water_vertices[vertex_base + 0] = v[0];
         water_vertices[vertex_base + 1] = v[1];
@@ -327,7 +326,7 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint t
     }
     else
     {
-        index_base = atomicAdd(indexCount, 6);
+        uint index_base = atomicAdd(indexCount, 6);
 
         vertices[vertex_base + 0] = v[0];
         vertices[vertex_base + 1] = v[1];
