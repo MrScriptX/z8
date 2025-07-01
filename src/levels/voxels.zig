@@ -327,7 +327,7 @@ pub const VoxelScene = struct {
         allocator.destroy(unwrap);
     }
 
-    pub fn update_ui(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+    pub fn update_ui(self: *VoxelScene, r: *const renderer.renderer_t) void {
         const result = imgui.Begin("Scene", null, 0);
         if (result) {
             defer imgui.End();
@@ -359,9 +359,9 @@ pub const VoxelScene = struct {
             const pipeline_list = [_][*:0]const u8{ "default", "debug", "normals" };
             if (imgui.ImGui_ComboChar("pipeline", &self.state.pipeline, @ptrCast(&pipeline_list), pipeline_list.len)) {
                 switch (self.state.pipeline) {
-                    0 => self.set_default_pipeline(allocator, r),
-                    1 => self.set_debug_pipeline(allocator, r),
-                    2 => self.set_debug_normals_pipeline(allocator, r),
+                    0 => self.set_default_pipeline(r),
+                    1 => self.set_debug_pipeline(r),
+                    2 => self.set_debug_normals_pipeline(r),
                     else => std.log.warn("Invalid pipeline value", .{})
                 }
             }
@@ -410,21 +410,22 @@ pub const VoxelScene = struct {
         }
     }
 
-    pub fn set_debug_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+    // TODO : set the pipeline through param so that there is only one function
+    pub fn set_debug_pipeline(self: *VoxelScene, r: *const renderer.renderer_t) void {
         for (self.world.items) |it| {
-            it.ptr.swap_pipeline(allocator, self.pipelines.polygone, r);
+            it.ptr.swap_pipeline(self.pipelines.polygone, r);
         }
     }
 
-    pub fn set_default_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+    pub fn set_default_pipeline(self: *VoxelScene, r: *const renderer.renderer_t) void {
         for (self.world.items) |it| {
-            it.ptr.swap_pipeline(allocator, self.pipelines.default, r);
+            it.ptr.swap_pipeline(self.pipelines.default, r);
         }
     }
 
-    pub fn set_debug_normals_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+    pub fn set_debug_normals_pipeline(self: *VoxelScene, r: *const renderer.renderer_t) void {
         for (self.world.items) |it| {
-            it.ptr.swap_pipeline(allocator, self.pipelines.normals, r);
+            it.ptr.swap_pipeline(self.pipelines.normals, r);
         }
     }
 };

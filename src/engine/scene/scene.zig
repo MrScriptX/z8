@@ -55,7 +55,7 @@ pub const Manager = struct {
 		}
 
         if (self.voxels_scene) |*scene| {
-            scene.update_ui(self.alloc, r);
+            scene.update_ui(r);
         }
     }
 

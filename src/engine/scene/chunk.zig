@@ -283,9 +283,9 @@ pub const Chunk = struct {
         };
     }
 
-    pub fn swap_pipeline(self: *Chunk, allocator: std.mem.Allocator, mat: *Material, r: *const renderer.renderer_t) void {
+    pub fn swap_pipeline(self: *Chunk, mat: *Material, r: *const renderer.renderer_t) void {
         // clean old material
-        self.arena.allocator().destroy(self.material);
+        self.allocator.destroy(self.material);
         
         // create new material
         const resources = Material.Resources {
@@ -293,8 +293,11 @@ pub const Chunk = struct {
             .data_buffer_offset = 0,
         };
 
-        self.material = self.arena.allocator().create(materials.MaterialInstance) catch @panic("OOM");
-        self.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
+        self.material = self.allocator.create(materials.MaterialInstance) catch {
+            std.log.err("Failed to allocate material instance !", .{});
+            @panic("Out of memory !");
+        };
+        self.material.* = mat.write_material(self.allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
     }
 
     fn dispatch_classification(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
