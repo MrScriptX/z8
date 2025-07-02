@@ -125,7 +125,7 @@ void greedy_meshing(uint dir, uint slice, uint type)
                 continue;
             }
 
-            const bool is_water = voxels[index].data.x == 2;
+            const bool is_water = voxels[index].data.x == WATER;
             if (is_water) {
                 if (dir != DIR_Y_POS) {
                     continue;
