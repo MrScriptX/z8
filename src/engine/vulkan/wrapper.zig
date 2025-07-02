@@ -7,6 +7,7 @@ pub const SurfaceCapabilitiesKHR = c.VkSurfaceCapabilitiesKHR;
 pub const SurfaceFormatKHR = c.VkSurfaceFormatKHR;
 pub const PresentModeKHR = c.VkPresentModeKHR;
 pub const ExtensionProperties = c.VkExtensionProperties;
+pub const CommandPool = c.VkCommandPool;
 pub const CommandBuffer = c.VkCommandBuffer;
 pub const CommandBufferResetFlags = c.VkCommandBufferResetFlags;
 const Result = c.VkResult;

@@ -1,10 +1,9 @@
 pub const SubmitQueue = struct {
     queue: c.VkQueue,
-    command_buffer_pool: c.VkCommandPool,
+    command_buffer_pool: vk.CommandPool,
     
     available_command_buffers: std.fifo.LinearFifo(c.VkCommandBuffer, .Dynamic),
-    
-    command_buffer: c.VkCommandBuffer,
+
     fence: c.VkFence,
     device: c.VkDevice,
 
@@ -13,13 +12,11 @@ pub const SubmitQueue = struct {
             .queue = queue,
             .command_buffer_pool = undefined,
             .available_command_buffers = std.fifo.LinearFifo(c.VkCommandBuffer, .Dynamic).init(allocator),
-            .command_buffer = undefined,
             .fence = undefined,
             .device = device
         };
 
         instance.command_buffer_pool = try commands.create_command_pool(device, queue_index);
-        instance.command_buffer = try commands.create_command_buffer(1, device, instance.command_buffer_pool);
         instance.fence = try commands.create_fence(device);
 
         return instance;
@@ -52,21 +49,19 @@ pub const SubmitQueue = struct {
     }
 
     pub fn start_command(_: *SubmitQueue, cmd: c.VkCommandBuffer) void {
-        var result = c.vkResetCommandBuffer(cmd, 0);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkResetCommandBuffer failed with error {d}", .{ result });
-        }
+        vk.resetCommandBuffer(cmd, 0) catch |err| {
+            std.log.warn("vkResetCommandBuffer failed with error {any}", .{ err });
+        };
 
-        const begin_info = c.VkCommandBufferBeginInfo {
+        const begin_info = vk.CommandBufferBeginInfo {
             .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .pNext = null,
             .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
 
-        result = c.vkBeginCommandBuffer(cmd, &begin_info);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("vkBeginCommandBuffer failed with error {d}", .{ result });
-        }
+        vk.beginCommandBuffer(cmd, &begin_info) catch |err| {
+            std.log.warn("vkBeginCommandBuffer failed with error {any}", .{ err });
+        };
     }
 
     pub fn end_command(_: *SubmitQueue, cmd: c.VkCommandBuffer) void {
@@ -122,5 +117,6 @@ pub const SubmitQueue = struct {
 };
 
 const std = @import("std");
+const vk = @import("wrapper.zig");
 const c = @import("../../clibs.zig");
 const commands = @import("command_buffers.zig");
