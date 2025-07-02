@@ -79,7 +79,7 @@ void main()
     const uint type = gl_GlobalInvocationID.z; // type of mesh (grass, sand, sandstone, etc.)
 
     
-    if (type == 0) { // skip, we don't process air
+    if (type == AIR) { // skip, we don't process air
         return;
     }
 
@@ -177,7 +177,7 @@ void greedy_meshing(uint dir, uint slice, uint type)
                 }
 
                 const uint next_index = next_pos.x + (next_pos.y * CHUNK_SIZE) + (next_pos.z * CHUNK_SIZE_SQR);
-                if (voxels[next_index].data.x == AIR || voxels[next_index].data.x == WATER) {
+                if (voxels[next_index].data.x != type) {
                     break; // stop if we hit air or a hidden face
                 }
 
@@ -206,7 +206,7 @@ void greedy_meshing(uint dir, uint slice, uint type)
                     }
 
                     const uint next_index = next_pos.x + (next_pos.y * CHUNK_SIZE) + (next_pos.z * CHUNK_SIZE_SQR);
-                    if (voxels[next_index].data.x == AIR || voxels[next_index].data.x == WATER) {
+                    if (voxels[next_index].data.x != type) {
                         valid = false;
                         break; // stop if we hit air or a hidden face
                     }

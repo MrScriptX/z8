@@ -57,7 +57,10 @@ pub const VoxelScene = struct {
                 .meshing = try allocator.create(chunk.MeshComputeShader),
                 .frustrum_culling = try allocator.create(chunk.FrustrumCulling)
             },
-            .global_data = .{},
+            .global_data = .{
+                .sunlight_color = .{ 1.0, 1.0, 1.0, 1.0 },
+                .ambient_color = .{ 0.25, 0.3, 0.4, 1.0 },
+            },
             .draw_ctx = undefined,
             .background_ctx = undefined,
             .state = .{
