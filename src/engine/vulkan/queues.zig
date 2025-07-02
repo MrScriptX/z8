@@ -1,7 +1,8 @@
 pub const SubmitQueue = struct {
     queue: c.VkQueue,
+    queue_index: u32,
+
     command_buffer_pool: vk.CommandPool,
-    
     available_command_buffers: std.fifo.LinearFifo(c.VkCommandBuffer, .Dynamic),
 
     fence: c.VkFence,
@@ -10,6 +11,7 @@ pub const SubmitQueue = struct {
     pub fn init(allocator: std.mem.Allocator, device: c.VkDevice, queue: c.VkQueue, queue_index: u32) SubmitQueue {
         var instance: SubmitQueue = .{
             .queue = queue,
+            .queue_index = queue_index,
             .command_buffer_pool = undefined,
             .available_command_buffers = std.fifo.LinearFifo(c.VkCommandBuffer, .Dynamic).init(allocator),
             .fence = undefined,

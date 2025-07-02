@@ -84,8 +84,7 @@ pub const Chunk = struct {
 
     ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders,
-        mat: *Material, water_mat: *Material, r: *const renderer.renderer_t) !Chunk {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: *Material, water_mat: *Material, r: *const renderer.renderer_t) !Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 8 }
@@ -231,7 +230,7 @@ pub const Chunk = struct {
         self.arena.deinit();
     }
 
-    pub fn dispatch(self: *Chunk, cmd: c.VkCommandBuffer) void {
+    pub fn dispatch(self: *Chunk, cmd: c.VkCommandBuffer, src_queue: u32, dst_queue: u32) void {
         const group_x: u32 = CHUNK_SIZE / 8;
         const group_y: u32 = CHUNK_SIZE / 8;
         const group_z: u32 = CHUNK_SIZE / 8;
@@ -239,7 +238,7 @@ pub const Chunk = struct {
         self.dispatch_classification(cmd, group_x, group_y, group_z);
         self.dispatch_face_culling(cmd, group_x, group_y, group_z);
         // self.dispatch_meshing(cmd, group_x, group_y, group_z);
-        self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 5); // x : chunk slice, y : direction, TODO : z : per voxel type
+        self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 5, src_queue, dst_queue); // x : chunk slice, y : direction, TODO : z : per voxel type
     }
 
     pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
@@ -341,7 +340,7 @@ pub const Chunk = struct {
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(culling_barriers.len), @ptrCast(&culling_barriers), 0, null);
     }
 
-    fn dispatch_meshing(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
+    fn dispatch_meshing(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32, src_queue: u32, dst_queue: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.meshing.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.meshing.pipeline.layout, 0, 1, &self.compute_passes.meshing.descriptor, 0, null);
         
@@ -350,9 +349,9 @@ pub const Chunk = struct {
         const vertex_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+            .srcQueueFamilyIndex = src_queue,
+            .dstQueueFamilyIndex = dst_queue,
             .buffer = self.solid_mesh.vertices_buffer.buffer,
             .offset = 0,
             .size = self.solid_mesh.vertices_buffer.info.size
@@ -361,9 +360,9 @@ pub const Chunk = struct {
         const index_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstAccessMask = c.VK_ACCESS_INDEX_READ_BIT | c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+            .srcQueueFamilyIndex = src_queue,
+            .dstQueueFamilyIndex = dst_queue,
             .buffer = self.solid_mesh.indices_buffer.buffer,
             .offset = 0,
             .size = self.solid_mesh.indices_buffer.info.size
@@ -373,8 +372,8 @@ pub const Chunk = struct {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .srcQueueFamilyIndex = src_queue,
+            .dstQueueFamilyIndex = dst_queue,
             .buffer = self.indirect_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
@@ -383,9 +382,9 @@ pub const Chunk = struct {
         const water_vertex_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+            .srcQueueFamilyIndex = src_queue,
+            .dstQueueFamilyIndex = dst_queue,
             .buffer = self.water_mesh.vertices_buffer.buffer,
             .offset = 0,
             .size = self.water_mesh.vertices_buffer.info.size
@@ -394,9 +393,9 @@ pub const Chunk = struct {
         const water_index_barrier = c.VkBufferMemoryBarrier {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstAccessMask = c.VK_ACCESS_INDEX_READ_BIT | c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+            .srcQueueFamilyIndex = src_queue,
+            .dstQueueFamilyIndex = dst_queue,
             .buffer = self.water_mesh.indices_buffer.buffer,
             .offset = 0,
             .size = self.water_mesh.indices_buffer.info.size
@@ -406,8 +405,8 @@ pub const Chunk = struct {
             .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-            .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .srcQueueFamilyIndex = src_queue,
+            .dstQueueFamilyIndex = dst_queue,
             .buffer = self.water_indirect_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
@@ -423,7 +422,8 @@ pub const Chunk = struct {
             water_indirect_barrier
         };
 
-        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
+        // c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
+        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
     }
 
     pub const Data = struct { // will be fill by GPU

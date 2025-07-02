@@ -9,7 +9,7 @@ const State = struct {
     pipeline: i32 = 0,
 
     seed: u32 = 0, // world seed
-    radius: u8 = 10,
+    radius: u8 = 1,
 };
 
 // TODO : implement UI to chose which node to display
@@ -278,7 +278,9 @@ pub const VoxelScene = struct {
                     .it = it,
                     .r = r,
                     .allocator = allocator,
-                    .self = self
+                    .self = self,
+                    .src_queue = r.compute_queue.submit.queue_index,
+                    .dst_queue = r._queue_indices.graphics
                 };
                 r.compute_queue.enqueue(&build_chunk, &on_build_success, @ptrCast(ctx)) catch {
                     std.log.warn("Queuing chunk for build failed", .{});
@@ -299,7 +301,9 @@ pub const VoxelScene = struct {
         it: *Chunk,
         r: *renderer.renderer_t,
         allocator: std.mem.Allocator,
-        self: *VoxelScene
+        self: *VoxelScene,
+        src_queue: u32,
+        dst_queue: u32
     };
 
     pub fn build_chunk(ctx: *anyopaque, cmd: c.VkCommandBuffer) void {
@@ -315,7 +319,7 @@ pub const VoxelScene = struct {
             std.log.err("Failed to create chunk : Out of memory", .{});
             @panic("Out Of Memory !");
         };
-        it.ptr.dispatch(cmd);
+        it.ptr.dispatch(cmd, unwrap.src_queue, unwrap.dst_queue);
     }
 
     pub fn on_build_success(ctx: *anyopaque) void {
