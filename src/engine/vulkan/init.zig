@@ -39,7 +39,7 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     try layers.append("VK_LAYER_KHRONOS_validation");
     try layers.append("VK_LAYER_KHRONOS_synchronization2");
 
-    const instance_info = vk.InstaceCreateInfo {
+    const instance_info = vk.InstanceCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = null,
         .flags = 0,
@@ -51,7 +51,7 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     };
 
     var instance: c.VkInstance = undefined;
-    vk.createInstance(&instance_info, null, &instance) catch |err| {
+    vk.CreateInstance(&instance_info, null, &instance) catch |err| {
         std.log.err("Unable to create Vulkan instance ! Reason {any}", .{ err });
         return Error.VkInstance;
     };
@@ -72,8 +72,8 @@ pub fn create_surface(window: ?*sdl.SDL_Window, instance: c.VkInstance) !c.VkSur
 
 pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, surface: c.VkSurfaceKHR) !vk.PhysicalDevice {
     var device_count: u32 = 0;
-    vk.enumeratePhysicalDevices(instance, &device_count, null) catch |err| {
-        if (err != vk.Error.Incomplete) {
+    vk.EnumeratePhysicalDevices(instance, &device_count, null) catch |err| {
+        if (err != vk.Error.INCOMPLETE) {
             std.log.err("Failed to enumerate devices. Reason {any}", .{ err });
             return Error.EnumDevice;
         }
@@ -89,8 +89,8 @@ pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, 
     const allocator = arena.allocator();
 
     const devices = try allocator.alloc(vk.PhysicalDevice, device_count);
-    vk.enumeratePhysicalDevices(instance, &device_count, devices.ptr) catch |err| {
-        if (err != vk.Error.Incomplete) {
+    vk.EnumeratePhysicalDevices(instance, &device_count, devices.ptr) catch |err| {
+        if (err != vk.Error.INCOMPLETE) {
             std.log.err("Failed to enumerate devices. Reason {any}", .{ err });
             return Error.EnumDevice;
         }
@@ -180,7 +180,7 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
     };
 
     var device: c.VkDevice = undefined;
-    vk.createDevice(physical_device, &device_create_info, null, &device) catch |err| {
+    vk.CreateDevice(physical_device, &device_create_info, null, &device) catch |err| {
         std.log.err("Unable to create Vulkan device ! Reason {any}", .{ err });
         return Error.DeviceCreation;
     };
@@ -254,7 +254,7 @@ fn check_device(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, device: c.VkP
 
 fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysicalDevice) !bool {
     var extension_count: u32 = 0;
-    vk.enumerateDeviceExtensionProperties(device, null, &extension_count, null) catch |err| {
+    vk.EnumerateDeviceExtensionProperties(device, null, &extension_count, null) catch |err| {
         std.log.err("Failed to enumerate device extensions. Reason {any}", .{ err });
         return Error.DeviceExtension;
     };
@@ -264,7 +264,7 @@ fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysica
     const allocator = arena.allocator();
 
     const available_extensions = try allocator.alloc(c.VkExtensionProperties, extension_count);
-    vk.enumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr) catch |err| {
+    vk.EnumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr) catch |err| {
         std.log.err("Failed to get device extensions. Reason {any}", .{ err });
         return Error.DeviceExtension;
     };
@@ -294,35 +294,35 @@ fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysica
 fn query_swapchain_support(allocator: std.mem.Allocator, device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) sw.details_t {
     var sw_details = sw.details_t.init(allocator);
 
-    vk.getPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities) catch |err| {
+    vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities) catch |err| {
         std.log.warn("Failed to get surface capabilities. Reason {any}", .{ err });
     };
 
 
     var format_count: u32 = 0;
     // _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
-    vk.getPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null) catch |err| {
+    vk.GetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null) catch |err| {
         std.log.warn("Failed to retrieve format count. Reason {any}", .{ err });
     };
 
     if (format_count != 0) {
         sw_details.resize_formats(@intCast(format_count));
         // _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr);
-        vk.getPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr) catch |err| {
+        vk.GetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr) catch |err| {
             std.log.warn("Failed to retrieve surface format. Reason {any}", .{ err });
         };
     }
 
     var present_mode_count: u32 = 0;
     // _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null);
-    vk.getPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
+    vk.GetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
         std.log.warn("Failed to retrieve surface present modes count. Reason {any}", .{ err });
     };
 
     if (present_mode_count != 0) {
         sw_details.resize_present_modes(@intCast(present_mode_count));
         // _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, sw_details.present_modes.ptr);
-        vk.getPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
+        vk.GetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
             std.log.warn("Failed to retrieve surface present modes. Reason {any}", .{ err });
         };
     }
@@ -388,8 +388,12 @@ pub fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, phys
     return family_indices;
 }
 
+// pub fn find_queues(allocator: std.mem.Allocator) void {
+
+// }
+
 const std = @import("std");
-const vk = @import("wrapper.zig");
+const vk = @import("vk_wrapper.zig");
 const c = @import("../../clibs.zig");
 const queue = @import("queue_family.zig");
 const sw = @import("swapchain.zig");
