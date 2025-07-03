@@ -94,13 +94,12 @@ pub const Chunk = struct {
 
     compute_passes: ComputePass,
     graphics_passes: GraphicsPass,
-    // material: *materials.MaterialInstance,
-    // water_material: *materials.MaterialInstance,
 
     descriptor_pool: descriptors.DescriptorAllocator2,
     material_buffer: buffers.AllocatedBuffer,
 
     ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    frame_in_use: [3]bool = .{ false, false, false },
 
     pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, r: *const renderer.renderer_t) !Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
@@ -230,7 +229,7 @@ pub const Chunk = struct {
         self.arena.deinit();
     }
 
-    pub fn dispatch(self: *Chunk, cmd: c.VkCommandBuffer, src_queue: u32, dst_queue: u32) void {
+    pub fn dispatch(self: *const Chunk, cmd: c.VkCommandBuffer, src_queue: u32, dst_queue: u32) void {
         const group_x: u32 = CHUNK_SIZE / 8;
         const group_y: u32 = CHUNK_SIZE / 8;
         const group_z: u32 = CHUNK_SIZE / 8;
@@ -241,7 +240,7 @@ pub const Chunk = struct {
         self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 5, src_queue, dst_queue); // x : chunk slice, y : direction, TODO : z : per voxel type
     }
 
-    pub fn update(self: *Chunk, ctx: *scenes.DrawContext) void {
+    pub fn update(self: *Chunk, ctx: *scenes.DrawContext, frame: u32) void {
         const object = materials.RenderObject {
             .index_count = cube_index_count,
             .first_index = 0,
@@ -254,7 +253,7 @@ pub const Chunk = struct {
         };
 
         ctx.opaque_surfaces.append(object) catch {
-            std.log.err("Failed to register object for draw", .{});
+            std.log.warn("Failed to register object for draw", .{});
         };
 
         const water_object = materials.RenderObject {
@@ -269,8 +268,10 @@ pub const Chunk = struct {
         };
 
         ctx.transparent_surfaces.append(water_object) catch {
-            std.log.err("Failed to register object for draw", .{});
+            std.log.warn("Failed to register object for draw", .{});
         };
+
+        self.frame_in_use[frame % 2] = true;
     }
 
     pub fn swap_pipeline(self: *Chunk, mat: *const Materials, r: *const renderer.renderer_t) void {
@@ -302,7 +303,7 @@ pub const Chunk = struct {
         self.graphics_passes.water_pass.* = mat.water.write_material(self.allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &self.descriptor_pool);
     }
 
-    fn dispatch_classification(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
+    fn dispatch_classification(self: *const Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.classification.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.classification.pipeline.layout, 0, 1, &self.compute_passes.classification.descriptor, 0, null);
         
@@ -328,7 +329,7 @@ pub const Chunk = struct {
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(cl_pass_barriers.len), @ptrCast(&cl_pass_barriers), 0, null);
     }
 
-    fn dispatch_face_culling(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
+    fn dispatch_face_culling(self: *const Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.face_culling.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.face_culling.pipeline.layout, 0, 1, &self.compute_passes.face_culling.descriptor, 0, null);
 
@@ -352,7 +353,7 @@ pub const Chunk = struct {
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(culling_barriers.len), @ptrCast(&culling_barriers), 0, null);
     }
 
-    fn dispatch_meshing(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32, src_queue: u32, dst_queue: u32) void {
+    fn dispatch_meshing(self: *const Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32, src_queue: u32, dst_queue: u32) void {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.meshing.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.meshing.pipeline.layout, 0, 1, &self.compute_passes.meshing.descriptor, 0, null);
         
@@ -434,7 +435,6 @@ pub const Chunk = struct {
             water_indirect_barrier
         };
 
-        // c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
         c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
     }
 

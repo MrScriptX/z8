@@ -312,6 +312,7 @@ pub const VoxelScene = struct {
             }
         }
 
+        // process world queue
         for (self.world.items) |*it| {
             if (!it.update) {
                 it.update = true; // mark as queued for update (for later use)
@@ -352,7 +353,7 @@ pub const VoxelScene = struct {
         }
 
         cam.update(r.stats.frame_time);
-        self.draw(cam, r._draw_extent, r.stats.frame_time / 1_000_000_000.0);
+        self.draw(cam, r._draw_extent, r.stats.frame_time / 1_000_000_000.0, r._frameNumber);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
@@ -452,7 +453,7 @@ pub const VoxelScene = struct {
         }
     }
 
-    pub fn draw(self: *VoxelScene, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D, delta_time: f32) void {
+    pub fn draw(self: *VoxelScene, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D, delta_time: f32, frame: u32) void {
         // reset draw ctx
         // TODO : this should be done by the renderer
         self.draw_ctx.opaque_surfaces.clearRetainingCapacity();
@@ -477,7 +478,7 @@ pub const VoxelScene = struct {
         // fill draw ctx
         for (self.world.items) |*it| {
             if (it.ptr.ready.load(std.builtin.AtomicOrder.seq_cst)) {
-                it.ptr.update(&self.draw_ctx);
+                it.ptr.update(&self.draw_ctx, frame);
             }
         }
     }
