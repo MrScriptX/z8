@@ -143,10 +143,10 @@ pub const VoxelScene = struct {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .pipelines = try MaterialPipelines.init(allocator),
             .shaders = .{
-                .classification = try allocator.create(chunk.ClassificationShader),
-                .face_culling = try allocator.create(chunk.FaceCullingShader),
-                .meshing = try allocator.create(chunk.MeshComputeShader),
-                .frustrum_culling = try allocator.create(chunk.FrustrumCulling)
+                .classification = try allocator.create(shader.ClassificationShader),
+                .face_culling = try allocator.create(shader.FaceCullingShader),
+                .meshing = try allocator.create(shader.MeshComputeShader),
+                .frustrum_culling = try allocator.create(shader.FrustrumCulling)
             },
             .global_data = .{
                 .sunlight_color = .{ 1.0, 1.0, 1.0, 1.0 },
@@ -170,28 +170,28 @@ pub const VoxelScene = struct {
         const world_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/world.comp.spv" });
         defer allocator.free(world_comp);
 
-        scene.shaders.classification.* = chunk.ClassificationShader.init(allocator);
+        scene.shaders.classification.* = shader.ClassificationShader.init(allocator);
         try scene.shaders.classification.build(allocator, world_comp, r);
 
         // build face culling shader 
         const face_culling_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/face_culling.comp.spv" });
         defer allocator.free(face_culling_comp);
 
-        scene.shaders.face_culling.* = chunk.FaceCullingShader.init(allocator);
+        scene.shaders.face_culling.* = shader.FaceCullingShader.init(allocator);
         try scene.shaders.face_culling.build(allocator, face_culling_comp, r);
 
         // meshing shader
         const meshing_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/meshing2.comp.spv" });
         defer allocator.free(meshing_comp);
 
-        scene.shaders.meshing.* = chunk.MeshComputeShader.init(allocator, "voxel");
+        scene.shaders.meshing.* = shader.MeshComputeShader.init(allocator, "voxel");
         try scene.shaders.meshing.build(allocator, meshing_comp, r);
 
         // frustrum shader
         const frustrum_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/frustrum_culling.comp.spv" });
         defer allocator.free(frustrum_comp);
 
-        scene.shaders.frustrum_culling.* = chunk.FrustrumCulling.init(allocator);
+        scene.shaders.frustrum_culling.* = shader.FrustrumCulling.init(allocator);
         try scene.shaders.frustrum_culling.build(allocator, frustrum_comp, r);
 
         // build material pipelines
@@ -500,5 +500,6 @@ const cameras = @import("../engine/scene/camera.zig");
 const material = @import("../engine/graphics/materials.zig");
 const maths = @import("../utils/maths.zig");
 const chunk = @import("../engine/scene/chunk.zig");
+const shader = @import("../levels/voxel/shaders.zig");
 const compute = @import("../engine/graphics/compute.zig");
 const tasks = @import("../tasks.zig");

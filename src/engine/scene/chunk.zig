@@ -21,45 +21,11 @@ fn seed_perm_table(seed: u32, perm: *[256]u32) void {
     }
 }
 
-const Mesh = struct {
-    indices_buffer: buffers.AllocatedBuffer,
-    vertices_buffer: buffers.AllocatedBuffer,
-    indirect_buffer: buffers.AllocatedBuffer,
-
-    pub fn init(r: *const renderer.renderer_t) Mesh {
-        const mesh: Mesh = .{
-            .indices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(u32) * cube_index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-            .vertices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(buffers.Vertex) * cube_index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-            .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
-        };
-
-        return mesh;
-    }
-
-    pub fn deinit(self: *Mesh, r: *const renderer.renderer_t) void {
-        self.indices_buffer.deinit(r._vma);
-        self.vertices_buffer.deinit(r._vma);
-        self.indirect_buffer.deinit(r._vma);
-    }
-
-    /// This is a template for the mesh resource.
-    const Resource = struct {
-        vertex_buffer: c.VkBuffer,
-        vertex_buffer_offset: u32 = 0,
-
-        index_buffer: c.VkBuffer,
-        index_buffer_offset: u32 = 0,
-
-        indirect_buffer: c.VkBuffer,
-        indirect_buffer_offset: u32 = 0,
-    };
-};
-
 pub const Shaders = struct {
-    classification: *ClassificationShader,
-    face_culling: *FaceCullingShader,
-    meshing: *MeshComputeShader,
-    frustrum_culling: *FrustrumCulling
+    classification: *shader.ClassificationShader,
+    face_culling: *shader.FaceCullingShader,
+    meshing: *shader.MeshComputeShader,
+    frustrum_culling: *shader.FrustrumCulling
 };
 
 pub const ComputePass = struct {
@@ -86,11 +52,11 @@ pub const Chunk = struct {
     perm_table_buffer: buffers.AllocatedBuffer,
     data_buffer: buffers.AllocatedBuffer,
 
-    constants: ClassificationShader.PushConstant,
+    constants: shader.ClassificationShader.PushConstant,
     perm_table: [256]u32 = @splat(0),
 
-    solid_mesh: Mesh,
-    water_mesh: Mesh,
+    solid_mesh: voxel.Mesh,
+    water_mesh: voxel.Mesh,
 
     compute_passes: ComputePass,
     graphics_passes: GraphicsPass,
@@ -107,7 +73,7 @@ pub const Chunk = struct {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 8 }
         };
 
-        var voxel: Chunk = .{
+        var chunk: Chunk = .{
             .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
             
@@ -131,83 +97,83 @@ pub const Chunk = struct {
                 .position = pos
             },
 
-            .solid_mesh = Mesh.init(r),
-            .water_mesh = Mesh.init(r),
+            .solid_mesh = voxel.Mesh.init(r),
+            .water_mesh = voxel.Mesh.init(r),
         };
 
-        seed_perm_table(seed, &voxel.perm_table);
+        seed_perm_table(seed, &chunk.perm_table);
 
         var data_ptr: []u32 = undefined;
-        const result = c.vmaMapMemory(r._vma, voxel.perm_table_buffer.allocation, @ptrCast(&data_ptr));
+        const result = c.vmaMapMemory(r._vma, chunk.perm_table_buffer.allocation, @ptrCast(&data_ptr));
         if (result != c.VK_SUCCESS) {
             std.log.err("Failed to map permutation table", .{});
             @panic("Failed to map perm_table_buffer");
         }
-        std.mem.copyForwards(u32, data_ptr, &voxel.perm_table);
-        c.vmaUnmapMemory(r._vma, voxel.perm_table_buffer.allocation);
+        std.mem.copyForwards(u32, data_ptr, &chunk.perm_table);
+        c.vmaUnmapMemory(r._vma, chunk.perm_table_buffer.allocation);
 
         const block_resources = Material.Resources {
-            .data_buffer = voxel.solid_mesh.vertices_buffer.buffer,
+            .data_buffer = chunk.solid_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
-        voxel.graphics_passes.block_pass.* = mat.block.write_material(allocator, r._device, materials.MaterialPass.MainColor, &block_resources, &voxel.descriptor_pool);
+        chunk.graphics_passes.block_pass.* = mat.block.write_material(allocator, r._device, materials.MaterialPass.MainColor, &block_resources, &chunk.descriptor_pool);
 
         const water_resources = Material.Resources {
-            .data_buffer = voxel.water_mesh.vertices_buffer.buffer,
+            .data_buffer = chunk.water_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
-        voxel.graphics_passes.water_pass.* = mat.water.write_material(allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &voxel.descriptor_pool);
+        chunk.graphics_passes.water_pass.* = mat.water.write_material(allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &chunk.descriptor_pool);
 
         // create compute passes
-        const cl_res = ClassificationShader.Resource {
-            .chunk_buffer = voxel.data_buffer.buffer,
+        const cl_res = shader.ClassificationShader.Resource {
+            .chunk_buffer = chunk.data_buffer.buffer,
             .chunk_buffer_offset = 0,
 
-            .perm_table_buffer = voxel.perm_table_buffer.buffer,
+            .perm_table_buffer = chunk.perm_table_buffer.buffer,
             .perm_table_buffer_offset = 0,
         };
-        voxel.compute_passes.classification.* = shaders.classification.write(allocator, &voxel.descriptor_pool, &cl_res, r);
+        chunk.compute_passes.classification.* = shaders.classification.write(allocator, &chunk.descriptor_pool, &cl_res, r);
 
-        const face_culling_res = FaceCullingShader.Resource {
-            .chunk_buffer = voxel.data_buffer.buffer,
+        const face_culling_res = shader.FaceCullingShader.Resource {
+            .chunk_buffer = chunk.data_buffer.buffer,
             .chunk_buffer_offset = 0
         };
-        voxel.compute_passes.face_culling.* = shaders.face_culling.write(allocator, &voxel.descriptor_pool, &face_culling_res, r);
+        chunk.compute_passes.face_culling.* = shaders.face_culling.write(allocator, &chunk.descriptor_pool, &face_culling_res, r);
 
-         const compute_resources: MeshComputeShader.Resource = .{
+         const compute_resources: shader.MeshComputeShader.Resource = .{
             .solid_mesh = .{
-                .vertex_buffer = voxel.solid_mesh.vertices_buffer.buffer,
-                .index_buffer = voxel.solid_mesh.indices_buffer.buffer,
-                .indirect_buffer = voxel.solid_mesh.indirect_buffer.buffer,
+                .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer,
+                .index_buffer = chunk.solid_mesh.indices_buffer.buffer,
+                .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer,
             },
             .water_mesh = .{
-                .vertex_buffer = voxel.water_mesh.vertices_buffer.buffer,
-                .index_buffer = voxel.water_mesh.indices_buffer.buffer,
-                .indirect_buffer = voxel.water_mesh.indirect_buffer.buffer,
+                .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer,
+                .index_buffer = chunk.water_mesh.indices_buffer.buffer,
+                .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer,
             },
-            .chunk_buffer = voxel.data_buffer.buffer,
+            .chunk_buffer = chunk.data_buffer.buffer,
             .chunk_buffer_offset = 0
         };
-        voxel.compute_passes.meshing.* = shaders.meshing.write(allocator, &voxel.descriptor_pool, &compute_resources, r);
+        chunk.compute_passes.meshing.* = shaders.meshing.write(allocator, &chunk.descriptor_pool, &compute_resources, r);
 
-        const frustrum_resources: FrustrumCulling.Resource = .{
+        const frustrum_resources: shader.FrustrumCulling.Resource = .{
             .solid_mesh = .{
-                .vertex_buffer = voxel.solid_mesh.vertices_buffer.buffer,
-                .index_buffer = voxel.solid_mesh.indices_buffer.buffer,
-                .indirect_buffer = voxel.solid_mesh.indirect_buffer.buffer,
+                .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer,
+                .index_buffer = chunk.solid_mesh.indices_buffer.buffer,
+                .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer,
             },
             .water_mesh = .{
-                .vertex_buffer = voxel.water_mesh.vertices_buffer.buffer,
-                .index_buffer = voxel.water_mesh.indices_buffer.buffer,
-                .indirect_buffer = voxel.water_mesh.indirect_buffer.buffer,
+                .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer,
+                .index_buffer = chunk.water_mesh.indices_buffer.buffer,
+                .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer,
             },
 
-            .chunk_buffer = voxel.data_buffer.buffer,
+            .chunk_buffer = chunk.data_buffer.buffer,
             .chunk_buffer_offset = 0
         };
-        voxel.compute_passes.frustrum_culling.* = shaders.frustrum_culling.write(allocator, &voxel.descriptor_pool, &frustrum_resources, r);
+        chunk.compute_passes.frustrum_culling.* = shaders.frustrum_culling.write(allocator, &chunk.descriptor_pool, &frustrum_resources, r);
 
-        return voxel;
+        return chunk;
     }
 
     pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const renderer.renderer_t) void {
@@ -307,7 +273,7 @@ pub const Chunk = struct {
         c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.classification.pipeline.pipeline);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_COMPUTE, self.compute_passes.classification.pipeline.layout, 0, 1, &self.compute_passes.classification.descriptor, 0, null);
         
-        c.vkCmdPushConstants(cmd, self.compute_passes.classification.pipeline.layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(ClassificationShader.PushConstant), &self.constants);
+        c.vkCmdPushConstants(cmd, self.compute_passes.classification.pipeline.layout, c.VK_SHADER_STAGE_COMPUTE_BIT, 0, @sizeOf(shader.ClassificationShader.PushConstant), &self.constants);
 
         c.vkCmdDispatch(cmd, x, y, z);
 
@@ -564,408 +530,13 @@ pub const Material = struct {
     };
 };
 
-// TODO : regroup shaders into one struct (compute_passes)
-
-pub const ClassificationShader = struct {
-    pipeline: compute.Pipeline = undefined,
-
-    layout: c.VkDescriptorSetLayout = undefined,
-    writer: descriptors.Writer,
-
-    pub fn init(allocator: std.mem.Allocator) ClassificationShader {
-        std.log.info("Creating voxel classification shader", .{});
-
-        return .{
-            .writer = descriptors.Writer.init(allocator)
-        };
-    }
-
-    pub fn deinit(self: *ClassificationShader, r: *const renderer.renderer_t) void {
-        c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
-        c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
-
-        c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
-
-        self.writer.deinit();
-    }
-
-    pub fn build(self: *ClassificationShader, allocator: std.mem.Allocator, shader: []const u8, r: *const renderer.renderer_t) !void {
-        std.log.info("Building voxel classification shader", .{});
-
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
-        defer layout_builder.deinit();
-
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
-
-        const layouts = [_]c.VkDescriptorSetLayout {
-            self.layout
-        };
-
-        const push_constant = c.VkPushConstantRange {
-            .offset = 0,
-            .size = @sizeOf(PushConstant),
-            .stageFlags = c.VK_SHADER_STAGE_COMPUTE_BIT,
-        };
-
-        const compute_layout = c.VkPipelineLayoutCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext = null,
-
-            .pSetLayouts = &layouts,
-            .setLayoutCount = 1,
-
-            .pPushConstantRanges = &push_constant,
-            .pushConstantRangeCount = 1
-        };
-
-        const result = c.vkCreatePipelineLayout(r._device, &compute_layout, null, &self.pipeline.layout);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("Failed to create pipeline layout !", .{});
-        }
-
-        // shader module
-        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
-        defer c.vkDestroyShaderModule(r._device, compute_shader, null);
-
-        // compute
-        var builder = p.compute_builder_t.init();
-        defer builder.deinit();
-
-        builder.layout = self.pipeline.layout;
-        builder.set_shaders(compute_shader);
-        self.pipeline.pipeline = builder.build_pipeline(r._device);
-    }
-
-    pub fn write(self: *ClassificationShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
-        const data =  compute.Instance {
-            .pipeline = &self.pipeline,
-            .descriptor = pool.allocate(allocator, r._device, self.layout, null),
-        };
-
-        self.writer.clear();
-        self.writer.write_buffer(0, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(1, resources.perm_table_buffer, @sizeOf([256]u32), resources.perm_table_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.writer.update_set(r._device, data.descriptor);
-
-        return data;
-    }
-
-    pub const Resource = struct {
-        chunk_buffer: c.VkBuffer,
-        chunk_buffer_offset: u32 = 0,
-
-        perm_table_buffer: c.VkBuffer,
-        perm_table_buffer_offset: u32 = 0,
-    };
-
-    pub const PushConstant = struct {
-        position: @Vector(3, i32) = @splat(0)
-    };
-};
-
-pub const MeshComputeShader = struct {
-    name: []const u8 = undefined,
-    
-    pipeline: compute.Pipeline = undefined,
-
-    layout: c.VkDescriptorSetLayout = undefined,
-    writer: descriptors.Writer,
-
-    pub fn init(allocator: std.mem.Allocator, name: []const u8) MeshComputeShader {
-        std.log.info("Creating compute shader {s}", .{ name });
-
-        return .{
-            .name = name,
-            .writer = descriptors.Writer.init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *MeshComputeShader, r: *renderer.renderer_t) void {
-        const result = c.vkDeviceWaitIdle(r._device);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("Failed to wait for device idle ! Reason {d}", .{ result });
-        }
-
-        c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
-        c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
-
-        c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
-
-        self.writer.deinit();
-    }
-
-    pub fn build(self: *MeshComputeShader, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.renderer_t) !void { 
-        std.log.info("Building compute shader {s}", .{ self.name });
-
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
-        defer layout_builder.deinit();
-
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(5, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(6, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
-
-        const layouts = [_]c.VkDescriptorSetLayout {
-            self.layout
-        };
-
-        const compute_layout = c.VkPipelineLayoutCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext = null,
-
-            .pSetLayouts = &layouts,
-            .setLayoutCount = 1,
-        };
-
-        const result = c.vkCreatePipelineLayout(r._device, &compute_layout, null, &self.pipeline.layout);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("Failed to create pipeline layout !", .{});
-        }
-
-        // shader module
-        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
-        defer c.vkDestroyShaderModule(r._device, compute_shader, null);
-
-        // compute
-        var builder = p.compute_builder_t.init();
-        defer builder.deinit();
-
-        builder.layout = self.pipeline.layout;
-        builder.set_shaders(compute_shader);
-        self.pipeline.pipeline = builder.build_pipeline(r._device);
-    }
-
-    pub fn write(self: *MeshComputeShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
-        const data =  compute.Instance {
-            .pipeline = &self.pipeline,
-            .descriptor = pool.allocate(allocator, r._device, self.layout, null),
-        };
-
-        self.writer.clear();
-        self.writer.write_buffer(0, resources.solid_mesh.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.solid_mesh.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(1, resources.solid_mesh.index_buffer, @sizeOf(u32) * cube_index_count, resources.solid_mesh.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(2, resources.solid_mesh.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.solid_mesh.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.writer.write_buffer(3, resources.water_mesh.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.water_mesh.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(4, resources.water_mesh.index_buffer, @sizeOf(u32) * cube_index_count, resources.water_mesh.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(5, resources.water_mesh.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.water_mesh.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        
-        self.writer.write_buffer(6, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.writer.update_set(r._device, data.descriptor);
-
-        return data;
-    }
-
-    pub const Resource = struct {
-        solid_mesh: Mesh.Resource,
-        water_mesh: Mesh.Resource,
-
-        chunk_buffer: c.VkBuffer,
-        chunk_buffer_offset: u32,
-    };
-};
-
-pub const FaceCullingShader = struct {
-    pipeline: compute.Pipeline = undefined,
-
-    layout: c.VkDescriptorSetLayout = undefined,
-    writer: descriptors.Writer,
-
-    pub fn init(allocator: std.mem.Allocator) FaceCullingShader {
-        std.log.info("Creating face culling shader", .{});
-
-        return .{
-            .writer = descriptors.Writer.init(allocator)
-        };
-    }
-
-    pub fn deinit(self: *FaceCullingShader, r: *const renderer.renderer_t) void {
-        c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
-        c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
-
-        c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
-
-        self.writer.deinit();
-    }
-
-    pub fn build(self: *FaceCullingShader, allocator: std.mem.Allocator, shader: []const u8, r: *const renderer.renderer_t) !void {
-        std.log.info("Building voxel face culling shader", .{});
-
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
-        defer layout_builder.deinit();
-
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
-
-        const layouts = [_]c.VkDescriptorSetLayout {
-            self.layout
-        };
-
-        const compute_layout = c.VkPipelineLayoutCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext = null,
-
-            .pSetLayouts = &layouts,
-            .setLayoutCount = 1,
-        };
-
-        const result = c.vkCreatePipelineLayout(r._device, &compute_layout, null, &self.pipeline.layout);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("Failed to create pipeline layout !", .{});
-        }
-
-        // shader module
-        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
-        defer c.vkDestroyShaderModule(r._device, compute_shader, null);
-
-        // compute
-        var builder = p.compute_builder_t.init();
-        defer builder.deinit();
-
-        builder.layout = self.pipeline.layout;
-        builder.set_shaders(compute_shader);
-        self.pipeline.pipeline = builder.build_pipeline(r._device);
-    }
-
-    pub fn write(self: *FaceCullingShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
-        const data =  compute.Instance {
-            .pipeline = &self.pipeline,
-            .descriptor = pool.allocate(allocator, r._device, self.layout, null),
-        };
-
-        self.writer.clear();
-        self.writer.write_buffer(0, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.writer.update_set(r._device, data.descriptor);
-
-        return data;
-    }
-
-    pub const Resource = struct {
-        chunk_buffer: c.VkBuffer,
-        chunk_buffer_offset: u32 = 0
-    };
-};
-
-pub const FrustrumCulling = struct {
-    pipeline: compute.Pipeline = undefined,
-
-    layout: c.VkDescriptorSetLayout = undefined,
-    writer: descriptors.Writer,
-
-    pub fn init(allocator: std.mem.Allocator) FrustrumCulling {
-        std.log.info("Creating frustrum culling shader", .{ });
-
-        return .{
-            .writer = descriptors.Writer.init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *FrustrumCulling, r: *const renderer.renderer_t) void {
-        const result = c.vkDeviceWaitIdle(r._device);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("Failed to wait for device idle ! Reason {d}", .{ result });
-        }
-
-        c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
-        c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
-
-        c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
-
-        self.writer.deinit();
-    }
-
-    pub fn build(self: *FrustrumCulling, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.renderer_t) !void { 
-        std.log.info("Building frustrum culling shader", .{ });
-
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
-        defer layout_builder.deinit();
-
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(5, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(6, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
-
-        const layouts = [_]c.VkDescriptorSetLayout {
-            self.layout
-        };
-
-        const compute_layout = c.VkPipelineLayoutCreateInfo {
-            .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext = null,
-
-            .pSetLayouts = &layouts,
-            .setLayoutCount = 1,
-        };
-
-        const result = c.vkCreatePipelineLayout(r._device, &compute_layout, null, &self.pipeline.layout);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("Failed to create pipeline layout !", .{});
-        }
-
-        // shader module
-        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
-        defer c.vkDestroyShaderModule(r._device, compute_shader, null);
-
-        // compute
-        var builder = p.compute_builder_t.init();
-        defer builder.deinit();
-
-        builder.layout = self.pipeline.layout;
-        builder.set_shaders(compute_shader);
-        self.pipeline.pipeline = builder.build_pipeline(r._device);
-    }
-
-    pub fn write(self: *FrustrumCulling, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
-        const data =  compute.Instance {
-            .pipeline = &self.pipeline,
-            .descriptor = pool.allocate(allocator, r._device, self.layout, null),
-        };
-
-        self.writer.clear();
-        self.writer.write_buffer(0, resources.solid_mesh.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.solid_mesh.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(1, resources.solid_mesh.index_buffer, @sizeOf(u32) * cube_index_count, resources.solid_mesh.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(2, resources.solid_mesh.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.solid_mesh.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.writer.write_buffer(3, resources.water_mesh.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.water_mesh.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(4, resources.water_mesh.index_buffer, @sizeOf(u32) * cube_index_count, resources.water_mesh.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(5, resources.water_mesh.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.water_mesh.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        
-        self.writer.write_buffer(6, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        self.writer.update_set(r._device, data.descriptor);
-
-        return data;
-    }
-
-    pub const Resource = struct {
-        solid_mesh: Mesh.Resource,
-        water_mesh: Mesh.Resource,
-
-        chunk_buffer: c.VkBuffer,
-        chunk_buffer_offset: u32,
-    };
-};
-
 const std = @import("std");
 const za = @import("zalgebra");
 const c = @import("../../clibs.zig");
+
+const shader = @import("../../levels/voxel/shaders.zig");
+const voxel = @import("../../levels/voxel/voxel.zig");
+
 const buffers = @import("../graphics/buffers.zig");
 const materials = @import("../graphics/materials.zig");
 const compute = @import("../graphics/compute.zig");
