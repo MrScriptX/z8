@@ -24,11 +24,13 @@ fn seed_perm_table(seed: u32, perm: *[256]u32) void {
 const Mesh = struct {
     indices_buffer: buffers.AllocatedBuffer,
     vertices_buffer: buffers.AllocatedBuffer,
+    indirect_buffer: buffers.AllocatedBuffer,
 
     pub fn init(r: *const renderer.renderer_t) Mesh {
         const mesh: Mesh = .{
             .indices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(u32) * cube_index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-            .vertices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(buffers.Vertex) * cube_index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+            .vertices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(buffers.Vertex) * cube_index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+            .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
         };
 
         return mesh;
@@ -37,7 +39,20 @@ const Mesh = struct {
     pub fn deinit(self: *Mesh, r: *const renderer.renderer_t) void {
         self.indices_buffer.deinit(r._vma);
         self.vertices_buffer.deinit(r._vma);
+        self.indirect_buffer.deinit(r._vma);
     }
+
+    /// This is a template for the mesh resource.
+    const Resource = struct {
+        vertex_buffer: c.VkBuffer,
+        vertex_buffer_offset: u32 = 0,
+
+        index_buffer: c.VkBuffer,
+        index_buffer_offset: u32 = 0,
+
+        indirect_buffer: c.VkBuffer,
+        indirect_buffer_offset: u32 = 0,
+    };
 };
 
 pub const Shaders = struct {
@@ -66,8 +81,8 @@ pub const Chunk = struct {
     perm_table_buffer: buffers.AllocatedBuffer,
     data_buffer: buffers.AllocatedBuffer,
 
-    indirect_buffer: buffers.AllocatedBuffer,
-    water_indirect_buffer: buffers.AllocatedBuffer,
+    // indirect_buffer: buffers.AllocatedBuffer,
+    // water_indirect_buffer: buffers.AllocatedBuffer,
 
     constants: ClassificationShader.PushConstant,
     perm_table: [256]u32 = @splat(0),
@@ -96,8 +111,8 @@ pub const Chunk = struct {
             
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
-            .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
-            .water_indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            // .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            // .water_indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             
             .compute_passes = .{
                 .classification = try allocator.create(compute.Instance),
@@ -158,52 +173,36 @@ pub const Chunk = struct {
         voxel.compute_passes.face_culling.* = shaders.face_culling.write(allocator, &voxel.descriptor_pool, &face_culling_res, r);
 
          const compute_resources: MeshComputeShader.Resource = .{
-            .vertex_buffer = voxel.solid_mesh.vertices_buffer.buffer,
-            .vertex_buffer_offset = 0,
-
-            .index_buffer = voxel.solid_mesh.indices_buffer.buffer,
-            .index_buffer_offset = 0,
-
-            .indirect_buffer = voxel.indirect_buffer.buffer,
-            .indirect_buffer_offset = 0,
-
-            .water_vertex = voxel.water_mesh.vertices_buffer.buffer,
-            .water_vertex_offset = 0,
-
-            .water_index = voxel.water_mesh.indices_buffer.buffer,
-            .water_index_offset = 0,
-
-            .water_buffer = voxel.water_indirect_buffer.buffer,
-            .water_buffer_offset = 0,
-
+            .solid_mesh = .{
+                .vertex_buffer = voxel.solid_mesh.vertices_buffer.buffer,
+                .index_buffer = voxel.solid_mesh.indices_buffer.buffer,
+                .indirect_buffer = voxel.solid_mesh.indirect_buffer.buffer,
+            },
+            .water_mesh = .{
+                .vertex_buffer = voxel.water_mesh.vertices_buffer.buffer,
+                .index_buffer = voxel.water_mesh.indices_buffer.buffer,
+                .indirect_buffer = voxel.water_mesh.indirect_buffer.buffer,
+            },
             .chunk_buffer = voxel.data_buffer.buffer,
             .chunk_buffer_offset = 0
         };
         voxel.compute_passes.meshing.* = shaders.meshing.write(allocator, &voxel.descriptor_pool, &compute_resources, r);
 
         const frustrum_resources: FrustrumCulling.Resource = .{
-            .index_buffer = voxel.solid_mesh.indices_buffer.buffer,
-            .index_buffer_offset = 0,
-
-            .vertex_buffer = voxel.solid_mesh.vertices_buffer.buffer,
-            .vertex_buffer_offset = 0,
-
-            .indirect_buffer = voxel.indirect_buffer.buffer,
-            .indirect_buffer_offset = 0,
-
-            .water_vertex = voxel.water_mesh.vertices_buffer.buffer,
-            .water_vertex_offset = 0,
-
-            .water_index = voxel.water_mesh.indices_buffer.buffer,
-            .water_index_offset = 0,
-
-            .water_buffer = voxel.water_indirect_buffer.buffer,
-            .water_buffer_offset = 0,
+            .solid_mesh = .{
+                .vertex_buffer = voxel.solid_mesh.vertices_buffer.buffer,
+                .index_buffer = voxel.solid_mesh.indices_buffer.buffer,
+                .indirect_buffer = voxel.solid_mesh.indirect_buffer.buffer,
+            },
+            .water_mesh = .{
+                .vertex_buffer = voxel.water_mesh.vertices_buffer.buffer,
+                .index_buffer = voxel.water_mesh.indices_buffer.buffer,
+                .indirect_buffer = voxel.water_mesh.indirect_buffer.buffer,
+            },
 
             .chunk_buffer = voxel.data_buffer.buffer,
             .chunk_buffer_offset = 0
         };
-
         voxel.compute_passes.frustrum_culling.* = shaders.frustrum_culling.write(allocator, &voxel.descriptor_pool, &frustrum_resources, r);
 
         return voxel;
@@ -214,8 +213,8 @@ pub const Chunk = struct {
         self.data_buffer.deinit(vma);
         self.solid_mesh.deinit(r);
         self.water_mesh.deinit(r);
-        self.indirect_buffer.deinit(vma);
-        self.water_indirect_buffer.deinit(vma);
+        // self.indirect_buffer.deinit(vma);
+        // self.water_indirect_buffer.deinit(vma);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
 
@@ -250,7 +249,7 @@ pub const Chunk = struct {
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
             .vertex_buffer = self.solid_mesh.vertices_buffer.buffer,
-            .indirect_buffer = self.indirect_buffer.buffer,
+            .indirect_buffer = self.solid_mesh.indirect_buffer.buffer,
         };
 
         ctx.opaque_surfaces.append(object) catch {
@@ -265,7 +264,7 @@ pub const Chunk = struct {
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
             .vertex_buffer = self.water_mesh.vertices_buffer.buffer,
-            .indirect_buffer = self.water_indirect_buffer.buffer,
+            .indirect_buffer = self.water_mesh.indirect_buffer.buffer,
         };
 
         ctx.transparent_surfaces.append(water_object) catch {
@@ -374,7 +373,7 @@ pub const Chunk = struct {
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
             .srcQueueFamilyIndex = src_queue,
             .dstQueueFamilyIndex = dst_queue,
-            .buffer = self.indirect_buffer.buffer,
+            .buffer = self.solid_mesh.indirect_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
@@ -407,7 +406,7 @@ pub const Chunk = struct {
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
             .srcQueueFamilyIndex = src_queue,
             .dstQueueFamilyIndex = dst_queue,
-            .buffer = self.water_indirect_buffer.buffer,
+            .buffer = self.water_mesh.indirect_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
@@ -739,13 +738,13 @@ pub const MeshComputeShader = struct {
         };
 
         self.writer.clear();
-        self.writer.write_buffer(0, resources.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(1, resources.index_buffer, @sizeOf(u32) * cube_index_count, resources.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(2, resources.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(0, resources.solid_mesh.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.solid_mesh.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(1, resources.solid_mesh.index_buffer, @sizeOf(u32) * cube_index_count, resources.solid_mesh.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(2, resources.solid_mesh.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.solid_mesh.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
-        self.writer.write_buffer(3, resources.water_vertex, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.water_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(4, resources.water_index, @sizeOf(u32) * cube_index_count, resources.water_index_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(5, resources.water_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.water_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(3, resources.water_mesh.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.water_mesh.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(4, resources.water_mesh.index_buffer, @sizeOf(u32) * cube_index_count, resources.water_mesh.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(5, resources.water_mesh.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.water_mesh.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         
         self.writer.write_buffer(6, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
@@ -755,23 +754,8 @@ pub const MeshComputeShader = struct {
     }
 
     pub const Resource = struct {
-        vertex_buffer: c.VkBuffer,
-        vertex_buffer_offset: u32,
-
-        index_buffer: c.VkBuffer,
-        index_buffer_offset: u32,
-
-        indirect_buffer: c.VkBuffer,
-        indirect_buffer_offset: u32,
-
-        water_vertex: c.VkBuffer,
-        water_vertex_offset: u32,
-
-        water_index: c.VkBuffer,
-        water_index_offset: u32,
-
-        water_buffer: c.VkBuffer,
-        water_buffer_offset: u32,
+        solid_mesh: Mesh.Resource,
+        water_mesh: Mesh.Resource,
 
         chunk_buffer: c.VkBuffer,
         chunk_buffer_offset: u32,
@@ -942,13 +926,13 @@ pub const FrustrumCulling = struct {
         };
 
         self.writer.clear();
-        self.writer.write_buffer(0, resources.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(1, resources.index_buffer, @sizeOf(u32) * cube_index_count, resources.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(2, resources.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(0, resources.solid_mesh.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.solid_mesh.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(1, resources.solid_mesh.index_buffer, @sizeOf(u32) * cube_index_count, resources.solid_mesh.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(2, resources.solid_mesh.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.solid_mesh.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
-        self.writer.write_buffer(3, resources.water_vertex, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.water_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(4, resources.water_index, @sizeOf(u32) * cube_index_count, resources.water_index_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        self.writer.write_buffer(5, resources.water_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.water_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(3, resources.water_mesh.vertex_buffer, @sizeOf(buffers.Vertex) * cube_vertex_count, resources.water_mesh.vertex_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(4, resources.water_mesh.index_buffer, @sizeOf(u32) * cube_index_count, resources.water_mesh.index_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        self.writer.write_buffer(5, resources.water_mesh.indirect_buffer, @sizeOf(c.VkDrawIndexedIndirectCommand), resources.water_mesh.indirect_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         
         self.writer.write_buffer(6, resources.chunk_buffer, @sizeOf(Chunk.Data), resources.chunk_buffer_offset, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
@@ -958,23 +942,8 @@ pub const FrustrumCulling = struct {
     }
 
     pub const Resource = struct {
-        vertex_buffer: c.VkBuffer,
-        vertex_buffer_offset: u32,
-
-        index_buffer: c.VkBuffer,
-        index_buffer_offset: u32,
-
-        indirect_buffer: c.VkBuffer,
-        indirect_buffer_offset: u32,
-
-        water_vertex: c.VkBuffer,
-        water_vertex_offset: u32,
-
-        water_index: c.VkBuffer,
-        water_index_offset: u32,
-
-        water_buffer: c.VkBuffer,
-        water_buffer_offset: u32,
+        solid_mesh: Mesh.Resource,
+        water_mesh: Mesh.Resource,
 
         chunk_buffer: c.VkBuffer,
         chunk_buffer_offset: u32,
