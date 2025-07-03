@@ -70,8 +70,13 @@ pub const ComputePass = struct {
 };
 
 pub const Materials = struct {
-    block: *materials.MaterialInstance,
-    water: *materials.MaterialInstance
+    block: *Material,
+    water: *Material,
+};
+
+pub const GraphicsPass = struct {
+    block_pass: *materials.MaterialInstance,
+    water_pass: *materials.MaterialInstance
 };
 
 pub const Chunk = struct {
@@ -81,9 +86,6 @@ pub const Chunk = struct {
     perm_table_buffer: buffers.AllocatedBuffer,
     data_buffer: buffers.AllocatedBuffer,
 
-    // indirect_buffer: buffers.AllocatedBuffer,
-    // water_indirect_buffer: buffers.AllocatedBuffer,
-
     constants: ClassificationShader.PushConstant,
     perm_table: [256]u32 = @splat(0),
 
@@ -91,15 +93,16 @@ pub const Chunk = struct {
     water_mesh: Mesh,
 
     compute_passes: ComputePass,
-    material: *materials.MaterialInstance,
-    water_material: *materials.MaterialInstance,
+    graphics_passes: GraphicsPass,
+    // material: *materials.MaterialInstance,
+    // water_material: *materials.MaterialInstance,
 
     descriptor_pool: descriptors.DescriptorAllocator2,
     material_buffer: buffers.AllocatedBuffer,
 
     ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: *Material, water_mat: *Material, r: *const renderer.renderer_t) !Chunk {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, r: *const renderer.renderer_t) !Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 8 }
@@ -111,8 +114,6 @@ pub const Chunk = struct {
             
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
-            // .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
-            // .water_indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             
             .compute_passes = .{
                 .classification = try allocator.create(compute.Instance),
@@ -120,8 +121,10 @@ pub const Chunk = struct {
                 .meshing = try allocator.create(compute.Instance),
                 .frustrum_culling = try allocator.create(compute.Instance)
             },
-            .material = try allocator.create(materials.MaterialInstance),
-            .water_material = try allocator.create(materials.MaterialInstance),
+            .graphics_passes = .{
+                .block_pass = try allocator.create(materials.MaterialInstance),
+                .water_pass = try allocator.create(materials.MaterialInstance),
+            },
             
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
             .material_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Material.Constants), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
@@ -144,17 +147,17 @@ pub const Chunk = struct {
         std.mem.copyForwards(u32, data_ptr, &voxel.perm_table);
         c.vmaUnmapMemory(r._vma, voxel.perm_table_buffer.allocation);
 
-        const resources = Material.Resources {
+        const block_resources = Material.Resources {
             .data_buffer = voxel.solid_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
-        voxel.material.* = mat.write_material(allocator, r._device, materials.MaterialPass.MainColor, &resources, &voxel.descriptor_pool);
+        voxel.graphics_passes.block_pass.* = mat.block.write_material(allocator, r._device, materials.MaterialPass.MainColor, &block_resources, &voxel.descriptor_pool);
 
         const water_resources = Material.Resources {
             .data_buffer = voxel.water_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
-        voxel.water_material.* = water_mat.write_material(allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &voxel.descriptor_pool);
+        voxel.graphics_passes.water_pass.* = mat.water.write_material(allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &voxel.descriptor_pool);
 
         // create compute passes
         const cl_res = ClassificationShader.Resource {
@@ -213,8 +216,6 @@ pub const Chunk = struct {
         self.data_buffer.deinit(vma);
         self.solid_mesh.deinit(r);
         self.water_mesh.deinit(r);
-        // self.indirect_buffer.deinit(vma);
-        // self.water_indirect_buffer.deinit(vma);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
 
@@ -222,9 +223,9 @@ pub const Chunk = struct {
         self.allocator.destroy(self.compute_passes.face_culling);
         self.allocator.destroy(self.compute_passes.meshing);
         self.allocator.destroy(self.compute_passes.frustrum_culling);
-        
-        self.allocator.destroy(self.material);
-        self.allocator.destroy(self.water_material);
+
+        self.allocator.destroy(self.graphics_passes.block_pass);
+        self.allocator.destroy(self.graphics_passes.water_pass);
 
         self.arena.deinit();
     }
@@ -245,7 +246,7 @@ pub const Chunk = struct {
             .index_count = cube_index_count,
             .first_index = 0,
             .index_buffer = self.solid_mesh.indices_buffer.buffer,
-            .material = self.material,
+            .material = self.graphics_passes.block_pass,
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
             .vertex_buffer = self.solid_mesh.vertices_buffer.buffer,
@@ -260,7 +261,7 @@ pub const Chunk = struct {
             .index_count = cube_index_count,
             .first_index = 0,
             .index_buffer = self.water_mesh.indices_buffer.buffer,
-            .material = self.water_material,
+            .material = self.graphics_passes.water_pass,
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
             .vertex_buffer = self.water_mesh.vertices_buffer.buffer,
@@ -272,21 +273,33 @@ pub const Chunk = struct {
         };
     }
 
-    pub fn swap_pipeline(self: *Chunk, mat: *Material, r: *const renderer.renderer_t) void {
+    pub fn swap_pipeline(self: *Chunk, mat: *const Materials, r: *const renderer.renderer_t) void {
         // clean old material
-        self.allocator.destroy(self.material);
-        
+        self.allocator.destroy(self.graphics_passes.block_pass);
+        self.allocator.destroy(self.graphics_passes.water_pass);
+
         // create new material
-        const resources = Material.Resources {
+        const block_resources = Material.Resources {
             .data_buffer = self.solid_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
 
-        self.material = self.allocator.create(materials.MaterialInstance) catch {
+        self.graphics_passes.block_pass = self.allocator.create(materials.MaterialInstance) catch {
             std.log.err("Failed to allocate material instance !", .{});
             @panic("Out of memory !");
         };
-        self.material.* = mat.write_material(self.allocator, r._device, materials.MaterialPass.MainColor, &resources, &self.descriptor_pool);
+        self.graphics_passes.block_pass.* = mat.block.write_material(self.allocator, r._device, materials.MaterialPass.MainColor, &block_resources, &self.descriptor_pool);
+
+        const water_resources = Material.Resources {
+            .data_buffer = self.water_mesh.vertices_buffer.buffer,
+            .data_buffer_offset = 0,
+        };
+
+        self.graphics_passes.water_pass = self.allocator.create(materials.MaterialInstance) catch {
+            std.log.err("Failed to allocate water material instance !", .{});
+            @panic("Out of memory !");
+        };
+        self.graphics_passes.water_pass.* = mat.water.write_material(self.allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &self.descriptor_pool);
     }
 
     fn dispatch_classification(self: *Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {

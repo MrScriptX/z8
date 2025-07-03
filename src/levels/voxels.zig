@@ -1,8 +1,99 @@
 const MaterialPipelines = struct {
-    default: *chunk.Material,
-    normals: *chunk.Material,
-    water: *chunk.Material,
-    polygone: *chunk.Material,
+    allocator: std.mem.Allocator,
+
+    default: chunk.Materials,
+    normals: chunk.Materials,
+    polygone: chunk.Materials,
+
+    pub fn init(allocator: std.mem.Allocator) !MaterialPipelines {
+        return MaterialPipelines{
+            .allocator = allocator,
+            .default = .{
+                .block = try allocator.create(chunk.Material),
+                .water = try allocator.create(chunk.Material),
+            },
+            .normals = .{
+                .block = try allocator.create(chunk.Material),
+                .water = try allocator.create(chunk.Material),
+            },
+            .polygone = .{
+                .block = try allocator.create(chunk.Material),
+                .water = try allocator.create(chunk.Material),
+            },
+        };
+    }
+
+    pub fn deinit(self: *MaterialPipelines, device: c.VkDevice) void {
+        self.default.block.deinit(device);
+        self.default.water.deinit(device);
+        self.normals.block.deinit(device);
+        self.normals.water.deinit(device);
+        self.polygone.block.deinit(device);
+        self.polygone.water.deinit(device);
+
+        self.allocator.destroy(self.default.block);
+        self.allocator.destroy(self.default.water);
+        self.allocator.destroy(self.normals.block);
+        self.allocator.destroy(self.normals.water);
+        self.allocator.destroy(self.polygone.block);
+        self.allocator.destroy(self.polygone.water);
+    }
+
+    pub fn build(self: *MaterialPipelines, dir: []const u8, r: *const renderer.renderer_t) !void {
+        const default_vert = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/block.vert.spv" });
+        defer self.allocator.free(default_vert);
+
+        const default_frag = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/block.frag.spv" });
+        defer self.allocator.free(default_frag);
+
+        const normals_vert = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/cube.vert.spv" });
+        defer self.allocator.free(normals_vert);
+
+        const normals_frag = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/cube.frag.spv" });
+        defer self.allocator.free(normals_frag);
+        
+        const water_vert = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.vert.spv" });
+        defer self.allocator.free(water_vert);
+
+        const water_frag = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.frag.spv" });
+        defer self.allocator.free(water_frag);
+
+        self.default.block.* = chunk.Material.init(self.allocator);
+        self.default.block.build(self.allocator, default_vert, default_frag, c.VK_POLYGON_MODE_FILL, false, r) catch |err| {
+            std.log.err("Failed to build default block pipeline", .{});
+            return err;
+        };
+
+        self.default.water.* = chunk.Material.init(self.allocator);
+        self.default.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch |err| {
+            std.log.err("Failed to build default water pipeline", .{});
+            return err;
+        };
+
+        self.normals.block.* = chunk.Material.init(self.allocator);
+        self.normals.block.build(self.allocator, normals_vert, normals_frag, c.VK_POLYGON_MODE_FILL, false, r) catch |err| {
+            std.log.err("Failed to build normals block pipeline", .{});
+            return err;
+        };
+
+        self.normals.water.* = chunk.Material.init(self.allocator);
+        self.normals.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch |err| {
+            std.log.err("Failed to build normals water pipeline", .{});
+            return err;
+        };
+
+        self.polygone.block.* = chunk.Material.init(self.allocator);
+        self.polygone.block.build(self.allocator, default_vert, default_frag, c.VK_POLYGON_MODE_LINE, false, r) catch |err| {
+            std.log.err("Failed to build polygone block pipeline", .{});
+            return err;
+        };
+
+        self.polygone.water.* = chunk.Material.init(self.allocator);
+        self.polygone.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_LINE, true, r) catch |err| {
+            std.log.err("Failed to build polygone water pipeline", .{});
+            return err;
+        };
+    }
 };
 
 const State = struct {
@@ -19,10 +110,8 @@ pub const VoxelScene = struct {
 
     state: State,
 
-    pipelines: MaterialPipelines,
-
-    // compute shaders
     shaders: chunk.Shaders,
+    pipelines: MaterialPipelines,
 
     world: std.ArrayList(Chunk),
     deletion_queue: std.ArrayList(Chunk), // use as a garbage collector
@@ -50,7 +139,7 @@ pub const VoxelScene = struct {
         var scene = VoxelScene {
             .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
-            .pipelines = undefined,
+            .pipelines = try MaterialPipelines.init(allocator),
             .shaders = .{
                 .classification = try allocator.create(chunk.ClassificationShader),
                 .face_culling = try allocator.create(chunk.FaceCullingShader),
@@ -59,7 +148,7 @@ pub const VoxelScene = struct {
             },
             .global_data = .{
                 .sunlight_color = .{ 1.0, 1.0, 1.0, 1.0 },
-                .ambient_color = .{ 0.25, 0.3, 0.4, 1.0 },
+                .ambient_color = .{ 0.35, 0.35, 0.5, 1.0 },
             },
             .draw_ctx = undefined,
             .background_ctx = undefined,
@@ -102,65 +191,17 @@ pub const VoxelScene = struct {
         scene.shaders.frustrum_culling.* = chunk.FrustrumCulling.init(allocator);
         try scene.shaders.frustrum_culling.build(allocator, frustrum_comp, r);
 
-        std.log.info("Build voxel default pipeline", .{});
-
-        scene.pipelines.default = try scene.arena.allocator().create(chunk.Material);
-        scene.pipelines.default.* = chunk.Material.init(allocator);
-
-        const default_vert = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/block.vert.spv" });
-        defer allocator.free(default_vert);
-
-        const default_frag = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/block.frag.spv" });
-        defer allocator.free(default_frag);
-
-        scene.pipelines.default.build(allocator, default_vert, default_frag, c.VK_POLYGON_MODE_FILL, false, r) catch {
-            std.log.err("Failed to build pipeline", .{});
-        };
-
-        std.log.info("Build voxel normals debug pipeline", .{});
-
-        scene.pipelines.normals = try scene.arena.allocator().create(chunk.Material);
-        scene.pipelines.normals.* = chunk.Material.init(allocator);
-
-        const normals_vert = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/cube.vert.spv" });
-        defer allocator.free(normals_vert);
-
-        const normals_frag = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/cube.frag.spv" });
-        defer allocator.free(normals_frag);
-
-        scene.pipelines.normals.build(allocator, normals_vert, normals_frag, c.VK_POLYGON_MODE_FILL, false, r) catch {
-            std.log.err("Failed to build pipeline", .{});
-        };
-
-        std.log.info("Build voxel water pipeline", .{});
-
-        scene.pipelines.water = try scene.arena.allocator().create(chunk.Material);
-        scene.pipelines.water.* = chunk.Material.init(allocator);
-
-        const water_vert = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.vert.spv" });
-        defer allocator.free(water_vert);
-
-        const water_frag = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.frag.spv" });
-        defer allocator.free(water_frag);
-
-        scene.pipelines.water.build(allocator, water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch {
-            std.log.err("Failed to build pipeline", .{});
-        };
-
-        std.log.info("Build voxel debug pipeline", .{});
-
-        scene.pipelines.polygone = try scene.arena.allocator().create(chunk.Material);
-        scene.pipelines.polygone.* = chunk.Material.init(allocator);
-
-        scene.pipelines.polygone.build(allocator, default_vert, default_frag, c.VK_POLYGON_MODE_LINE, false, r) catch {
-            std.log.err("Failed to build pipeline", .{});
+        // build material pipelines
+        scene.pipelines.build(dir, r) catch |err| {
+            std.log.err("Failed to build material pipelines: {any}", .{err});
+            return err;
         };
 
         // TODO : sky box should be handled from the scene
 
         scene.draw_ctx.global_data = &scene.global_data;
-        scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
-        scene.draw_ctx.transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
+        scene.draw_ctx.opaque_surfaces = std.ArrayList(material.RenderObject).init(allocator);
+        scene.draw_ctx.transparent_surfaces = std.ArrayList(material.RenderObject).init(allocator);
 
         scene.build_world();
 
@@ -192,10 +233,7 @@ pub const VoxelScene = struct {
         }
         self.world.deinit();
 
-        self.pipelines.default.deinit(r._device);
-        self.pipelines.normals.deinit(r._device);
-        self.pipelines.water.deinit(r._device);
-        self.pipelines.polygone.deinit(r._device);
+        self.pipelines.deinit(r._device);
 
         self.shaders.classification.deinit(r);
         self.shaders.face_culling.deinit(r);
@@ -318,7 +356,14 @@ pub const VoxelScene = struct {
 
         std.log.info("Creating chunk {any}", .{ it.pos });
 
-        it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, self.pipelines.default, self.pipelines.water, r) catch {
+        const mat: chunk.Materials = switch(self.state.pipeline) {
+            0 => self.pipelines.default,
+            1 => self.pipelines.polygone,
+            2 => self.pipelines.normals,
+            else => self.pipelines.default,
+        };
+
+        it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, mat, r) catch {
             std.log.err("Failed to create chunk : Out of memory", .{});
             @panic("Out Of Memory !");
         };
@@ -366,9 +411,9 @@ pub const VoxelScene = struct {
             const pipeline_list = [_][*:0]const u8{ "default", "debug", "normals" };
             if (imgui.ImGui_ComboChar("pipeline", &self.state.pipeline, @ptrCast(&pipeline_list), pipeline_list.len)) {
                 switch (self.state.pipeline) {
-                    0 => self.set_default_pipeline(r),
-                    1 => self.set_debug_pipeline(r),
-                    2 => self.set_debug_normals_pipeline(r),
+                    0 => self.set_pipelines(r, &self.pipelines.default),
+                    1 => self.set_pipelines(r, &self.pipelines.polygone),
+                    2 => self.set_pipelines(r, &self.pipelines.normals),
                     else => std.log.warn("Invalid pipeline value", .{})
                 }
             }
@@ -417,22 +462,9 @@ pub const VoxelScene = struct {
         }
     }
 
-    // TODO : set the pipeline through param so that there is only one function
-    pub fn set_debug_pipeline(self: *VoxelScene, r: *const renderer.renderer_t) void {
+    pub fn set_pipelines(self: *VoxelScene, r: *const renderer.renderer_t, pipelines: *const chunk.Materials) void {
         for (self.world.items) |it| {
-            it.ptr.swap_pipeline(self.pipelines.polygone, r);
-        }
-    }
-
-    pub fn set_default_pipeline(self: *VoxelScene, r: *const renderer.renderer_t) void {
-        for (self.world.items) |it| {
-            it.ptr.swap_pipeline(self.pipelines.default, r);
-        }
-    }
-
-    pub fn set_debug_normals_pipeline(self: *VoxelScene, r: *const renderer.renderer_t) void {
-        for (self.world.items) |it| {
-            it.ptr.swap_pipeline(self.pipelines.normals, r);
+            it.ptr.swap_pipeline(pipelines, r);
         }
     }
 };
@@ -444,7 +476,7 @@ const c = @import("../clibs.zig");
 const renderer = @import("../engine/renderer.zig");
 const scenes = @import("../engine/scene/scene.zig");
 const cameras = @import("../engine/scene/camera.zig");
-const materials = @import("../engine/graphics/materials.zig");
+const material = @import("../engine/graphics/materials.zig");
 const maths = @import("../utils/maths.zig");
 const chunk = @import("../engine/scene/chunk.zig");
 const compute = @import("../engine/graphics/compute.zig");
