@@ -114,6 +114,7 @@ pub const VoxelScene = struct {
     pipelines: MaterialPipelines,
 
     world: std.ArrayList(Chunk),
+    wait_queue: std.ArrayList(Chunk),
     deletion_queue: std.ArrayList(Chunk), // use as a garbage collector
     global_data: scenes.ShaderData,
 
@@ -125,7 +126,8 @@ pub const VoxelScene = struct {
     const Chunk = struct {
         ptr: *chunk.Chunk,
         update: bool = false,
-        pos: @Vector(3, i32)
+        pos: @Vector(3, i32),
+        in_use: @Vector(3, bool) = .{ true, true, true }
     };
 
     pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !VoxelScene {
@@ -156,6 +158,7 @@ pub const VoxelScene = struct {
                 .seed = rand.int(u32)
             },
             .world = std.ArrayList(Chunk).init(allocator),
+            .wait_queue = std.ArrayList(Chunk).init(allocator),
             .deletion_queue = std.ArrayList(Chunk).init(allocator),
         };
 
@@ -214,11 +217,15 @@ pub const VoxelScene = struct {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
 
-        // self.task_manager.stop();
-        // self.task_manager.deinit();
-
         self.draw_ctx.deinit();
         
+        for (self.wait_queue.items) |*it| {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
+                it.ptr.deinit(r._vma, r);
+            }
+        }
+        self.wait_queue.deinit();
+
         for (self.deletion_queue.items) |*it| {
             if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
@@ -285,7 +292,20 @@ pub const VoxelScene = struct {
     pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.renderer_t) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
-        const to_delete = self.deletion_queue.pop();
+        // process wait queue
+        const frame = r._frameNumber % 2;
+        for (self.wait_queue.items, 0..) |*it, i| {
+            it.in_use[frame] = false;
+            if (!it.in_use[0] and !it.in_use[1] and !it.in_use[2]) {
+                self.deletion_queue.append(it.*) catch {
+                    std.log.warn("Memory leak ! Cannot set chunk for deletion.", .{});
+                };
+                _ = self.wait_queue.swapRemove(i);
+            }
+        }
+
+        // process delete queue
+        var to_delete = self.deletion_queue.pop();
         if (to_delete) |*it| {
             if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
