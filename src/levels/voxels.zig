@@ -121,13 +121,10 @@ pub const VoxelScene = struct {
     background_ctx: scenes.BackgroundContext,
     draw_ctx: scenes.DrawContext,
 
-    // task_manager: *tasks.TaskManager,
-
     const Chunk = struct {
         ptr: *chunk.Chunk,
         update: bool = false,
-        pos: @Vector(3, i32),
-        in_use: @Vector(3, bool) = .{ true, true, true }
+        pos: @Vector(3, i32)
     };
 
     pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !VoxelScene {
