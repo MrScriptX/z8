@@ -290,16 +290,16 @@ pub const VoxelScene = struct {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
         // process wait queue
-        const frame = r._frameNumber % 2;
-        for (self.wait_queue.items, 0..) |*it, i| {
-            it.in_use[frame] = false;
-            if (!it.in_use[0] and !it.in_use[1] and !it.in_use[2]) {
-                self.deletion_queue.append(it.*) catch {
-                    std.log.warn("Memory leak ! Cannot set chunk for deletion.", .{});
-                };
-                _ = self.wait_queue.swapRemove(i);
-            }
-        }
+        // const frame = r._frameNumber % 2;
+        // for (self.wait_queue.items, 0..) |*it, i| {
+        //     it.in_use[frame] = false;
+        //     if (!it.in_use[0] and !it.in_use[1] and !it.in_use[2]) {
+        //         self.deletion_queue.append(it.*) catch {
+        //             std.log.warn("Memory leak ! Cannot set chunk for deletion.", .{});
+        //         };
+        //         _ = self.wait_queue.swapRemove(i);
+        //     }
+        // }
 
         // process delete queue
         var to_delete = self.deletion_queue.pop();
