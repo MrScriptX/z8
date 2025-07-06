@@ -410,9 +410,18 @@ pub const Chunk = struct {
         voxels: [voxel_count]Voxel = @splat(.{}),
     };
 
+    // pub const MapData = struct {
+    //     voxels: [voxel_count]Voxel = @splat(.{}),
+    // };
+
     pub const Voxel = struct {
         data: @Vector(2, u32) = @splat(0), // type
     };
+
+    // pub const Voxel2 = struct {
+    //     faces: [6]bool = .{ false, false, false, false, false, false }, // face culling
+    //     type: u32 = 0, // type 
+    // };
 };
 
 pub const Material = struct {

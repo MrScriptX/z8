@@ -503,6 +503,7 @@ pub const renderer_t = struct {
     }
 
     pub fn draw(self: *renderer_t, allocator: std.mem.Allocator) void {
+        // start thread
         const image_index = self.next_image() catch |err| {
             if (err == Error.OutOfDate) {
                 self.rebuild = true;
@@ -519,6 +520,8 @@ pub const renderer_t = struct {
         };
 
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
+
+        // call tasks
 
         utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
@@ -542,6 +545,9 @@ pub const renderer_t = struct {
 
         utils.transition_image(cmd, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
+        // end recording
+
+        // submit the command buffer
         self.submit_cmd(cmd, image_index);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
@@ -735,6 +741,114 @@ pub const renderer_t = struct {
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         self.stats.scene_update_time = @floatFromInt(end_time - start_time);
+    }
+};
+
+pub const RenderQueue = struct {
+    pub const TaskFn = *const fn(ctx: *anyopaque, cmd: c.VkCommandBuffer) void;
+    pub const Task = struct {
+        record: TaskFn,
+        ctx: *anyopaque,
+        cmd: c.VkCommandBuffer = undefined,
+        image_index: u32 = 0,
+    };
+
+    pub const TaskQueue = std.fifo.LinearFifo(Task, .Dynamic);
+
+    allocator: std.mem.Allocator,
+
+    record_queue: TaskQueue,
+    submit_queue: TaskQueue,
+
+    record_thread: ?std.Thread = null,
+    submit_thread: ?std.Thread = null,
+
+    running: bool = false,
+    renderer: renderer_t = undefined,
+
+    pub fn init(allocator: std.mem.Allocator) RenderQueue {
+        return RenderQueue{
+            .allocator = allocator,
+            .record_queue = TaskQueue.init(allocator),
+            .submit_queue = TaskQueue.init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *RenderQueue) void {
+        self.stop();
+
+        self.record_queue.deinit();
+        self.submit_queue.deinit();
+    }
+
+    pub fn enqueue(self: *RenderQueue, record: TaskFn, ctx: *anyopaque) !void {
+        const task = Task{
+            .record = record,
+            .ctx = ctx,
+        };
+        try self.record_queue.writeItem(task);
+    }
+
+    pub fn record_worker(self: *RenderQueue) void {
+        while (self.running) {
+            if(self.record_queue.readItem()) |*task| {
+                task.image_index = self.renderer.next_image() catch |err| {
+                    if (err == Error.OutOfDate) {
+                        self.renderer.rebuild = true;
+                    }
+                    return;
+                };
+
+                // reset stats
+                self.stats.drawcall_count = 0;
+                self.stats.triangle_count = 0;
+
+                const cmd = self.renderer.begin_draw() catch {
+                    return; // we skip for now
+                };
+
+                task.record(task.ctx, cmd);
+
+                const result = c.vkEndCommandBuffer(cmd);
+                if (result != c.VK_SUCCESS) {
+                    std.log.warn("vkEndCommandBuffer failed with error {x}\n", .{ result });
+                }
+
+                task.cmd = cmd;
+                self.submit_queue.writeItem(task);
+            }
+            else {
+                std.time.sleep(1_000_000);
+            }
+        }
+    }
+
+    pub fn submit_worker(self: *RenderQueue) void {
+        while (self.running) {
+            if (self.submit_queue.readItem()) |task| {
+                const start_time: u128 = @intCast(std.time.nanoTimestamp());
+                
+                self.renderer.submit_cmd(task.cmd, task.cmd.image_index);
+                
+                const end_time: u128 = @intCast(std.time.nanoTimestamp());
+                self.renderer.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
+
+                self.renderer._frameNumber += 1;
+            }
+            else {
+                std.time.sleep(1_000_000);
+            }
+        }
+    }
+
+    pub fn stop(self: *RenderQueue) void {
+        self.running = false;
+
+        if (self.record_thread) |thread| thread.join();
+        self.record_thread = null;
+
+        if (self.submit_thread) |thread| thread.join();
+        self.submit_thread = null;
     }
 };
 
