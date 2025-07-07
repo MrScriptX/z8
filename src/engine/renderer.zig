@@ -414,7 +414,7 @@ pub const Renderer = struct {
         return image_index;
     }
 
-    fn begin_draw(self: *Renderer) Error!c.VkCommandBuffer {
+    fn begin_draw_command(self: *Renderer) Error!c.VkCommandBuffer {
         var result = c.vkResetFences(self._device, 1, &self.current_frame()._render_fence);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetFences failed with error {x}\n", .{ result });
@@ -515,7 +515,7 @@ pub const Renderer = struct {
         self.stats.drawcall_count = 0;
         self.stats.triangle_count = 0;
 
-        const cmd = self.begin_draw() catch {
+        const cmd = self.begin_draw_command() catch {
             return; // we skip for now
         };
 

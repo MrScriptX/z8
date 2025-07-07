@@ -21,11 +21,8 @@ pub const data_t = struct {
     }
 
     pub fn deinit(self: *data_t, device: c.VkDevice, vma: c.VmaAllocator) void {
-        // self._frame_descriptors.deinit(device);
-
         c.vkDestroyCommandPool(device, self._cmd_pool, null);
 
-        // c.vkDestroySemaphore(device, self._sw_semaphore, null);
         c.vkDestroySemaphore(device, self._render_semaphore, null);
         c.vkDestroyFence(device, self._render_fence, null);
 
