@@ -100,7 +100,8 @@ const State = struct {
     pipeline: i32 = 0,
 
     seed: u32 = 0, // world seed
-    radius: u8 = 10,
+    radius: u8 = 5,
+    position: @Vector(3, i32)
 };
 
 // TODO : implement UI to chose which node to display
@@ -152,11 +153,19 @@ pub const VoxelScene = struct {
             .draw_ctx = undefined,
             .background_ctx = undefined,
             .state = .{
-                .seed = rand.int(u32)
+                .seed = rand.int(u32),
+                .position = .{ 0, 0, 0 }
             },
-            .world = std.ArrayList(Chunk).init(allocator),
+            .world = undefined,
             .wait_queue = std.ArrayList(Chunk).init(allocator),
             .deletion_queue = std.ArrayList(Chunk).init(allocator),
+        };
+
+        // allocate chunk map memory
+        const nb_chunks = std.math.pow(u32, scene.state.radius * 2, 2);
+        scene.world = std.ArrayList(Chunk).initCapacity(allocator, nb_chunks) catch |err| {
+            std.log.warn("Failed to allocate memory for chunks", .{});
+            return err;
         };
 
         // get local directory (exe)
@@ -200,8 +209,8 @@ pub const VoxelScene = struct {
         // TODO : sky box should be handled from the scene
 
         scene.draw_ctx.global_data = &scene.global_data;
-        scene.draw_ctx.opaque_surfaces = std.ArrayList(material.RenderObject).init(allocator);
-        scene.draw_ctx.transparent_surfaces = std.ArrayList(material.RenderObject).init(allocator);
+        scene.draw_ctx.opaque_surfaces = try std.ArrayList(material.RenderObject).initCapacity(allocator, nb_chunks);
+        scene.draw_ctx.transparent_surfaces = try std.ArrayList(material.RenderObject).initCapacity(allocator, nb_chunks);
 
         scene.build_world();
 
@@ -255,16 +264,19 @@ pub const VoxelScene = struct {
     pub fn build_world(self: *VoxelScene) void {
         std.log.info("Intializing world. seed {d}, radius {d}", .{ self.state.seed, self.state.radius });
 
-        for (0..self.state.radius) |x| {
-            for (0..self.state.radius) |z| {
+        const start = self.state.position - @Vector(3, i32){ self.state.radius, 0, self.state.radius };
+
+        for (0..self.state.radius * 2) |x| {
+            for (0..self.state.radius * 2) |z| {
                 const ptr = self.arena.allocator().create(chunk.Chunk) catch {
                     std.log.err("Failed to allocate memory for chunk", .{});
                     @panic("Out of memory !");
                 };
 
+                const offset = @Vector(3, i32){ @intCast(x), 0, @intCast(z) };
                 const it = Chunk {
                     .ptr = ptr,
-                    .pos = .{ @intCast(x), 0, @intCast(z) }
+                    .pos = start + offset
                 };
 
                 self.world.append(it) catch @panic("Out of memory !");

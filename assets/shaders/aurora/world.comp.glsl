@@ -43,7 +43,7 @@ void main() {
 
     // Instead of absolute position, normalize relative to chunk size
     const float noise_scale = 0.09;
-    const vec2 noise_pos = (vec2(cube_pos.x, cube_pos.z) + vec2(0.5 * CHUNK_SIZE)) / CHUNK_SIZE * noise_scale;
+    const vec2 noise_pos = (vec2(abs(cube_pos.x), abs(cube_pos.z)) + vec2(0.5 * CHUNK_SIZE)) / CHUNK_SIZE * noise_scale;
 
     float n = 0.0;
     float freq = 1.0;
@@ -66,7 +66,7 @@ void main() {
         Chunk.voxels[index].data.x = SANDSTONE; // SANDSTONE
     }
     else {
-        Chunk.voxels[index].data.x = GRASS; // SOLID        
+        Chunk.voxels[index].data.x = GRASS; // GRASS        
     }
 
     // Add water below the water level

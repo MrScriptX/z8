@@ -535,8 +535,8 @@ const za = @import("zalgebra");
 const vk = @import("../../engine/vulkan/vk_wrapper.zig");
 const c = @import("../../clibs.zig");
 
-const shader = @import("../../levels/voxel/shaders.zig");
-const voxel = @import("../../levels/voxel/voxel.zig");
+const shader = @import("shaders.zig");
+const voxel = @import("voxel.zig");
 const engine = @import("../../engine/engine.zig");
 const Renderer = engine.renderer.Renderer;
 
