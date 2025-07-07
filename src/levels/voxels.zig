@@ -113,6 +113,7 @@ pub const VoxelScene = struct {
 
     shaders: chunk.Shaders,
     pipelines: MaterialPipelines,
+    shadow_map: voxel.ShadowMap,
 
     world: std.ArrayList(Chunk),
     wait_queue: std.ArrayList(Chunk),
@@ -140,6 +141,7 @@ pub const VoxelScene = struct {
             .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
             .pipelines = try MaterialPipelines.init(allocator),
+            .shadow_map = try voxel.ShadowMap.init(allocator, r),
             .shaders = .{
                 .classification = try allocator.create(shader.ClassificationShader),
                 .face_culling = try allocator.create(shader.FaceCullingShader),
@@ -245,6 +247,8 @@ pub const VoxelScene = struct {
             }
         }
         self.world.deinit();
+
+        self.shadow_map.deinit(r);
 
         self.pipelines.deinit(r._device);
 
@@ -520,6 +524,7 @@ const scenes = @import("../engine/scene/scene.zig");
 const cameras = @import("../engine/scene/camera.zig");
 const material = @import("../engine/graphics/materials.zig");
 const maths = @import("../utils/maths.zig");
+const voxel = @import("../levels/voxel/voxel.zig");
 const chunk = @import("voxel/chunk.zig");
 const shader = @import("../levels/voxel/shaders.zig");
 const compute = @import("../engine/graphics/compute.zig");
