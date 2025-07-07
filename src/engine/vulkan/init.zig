@@ -332,8 +332,8 @@ fn query_swapchain_support(allocator: std.mem.Allocator, device: c.VkPhysicalDev
 
 pub fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, physical_device: c.VkPhysicalDevice) !queue.indices_t {
     var queue_family_count: u32 = 0;
-    c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
-
+    vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
+    
     std.log.debug("Queue family count: {d}", .{ queue_family_count });
 
     var arena = std.heap.ArenaAllocator.init(alloc);
@@ -341,7 +341,7 @@ pub fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, phys
     const allocator = arena.allocator();
 
     const queue_families = try allocator.alloc(c.VkQueueFamilyProperties, queue_family_count);
-    c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.ptr);
+    vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.ptr);
 
     var compute_family: ?usize = null;
     var graphics_family: ?usize = null;

@@ -1526,15 +1526,14 @@ pub fn CreateInstance(pCreateInfo: ?*const vk.VkInstanceCreateInfo, pAllocator: 
     try check(result);
 }
 
-pub fn DestroyInstance(instance: vk.VkInstance, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyInstance(
+pub fn DestroyInstance(instance: vk.VkInstance, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyInstance(
         instance,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn EnumeratePhysicalDevices(instance: vk.VkInstance, pPhysicalDeviceCount: ?*u32, pPhysicalDevices: ?[*]vk.VkPhysicalDevice) Error!void {
+pub fn EnumeratePhysicalDevices(instance: vk.VkInstance, pPhysicalDeviceCount: ?*u32, pPhysicalDevices: [*c]vk.VkPhysicalDevice) Error!void {
     const result = vk.vkEnumeratePhysicalDevices(
         instance,
         pPhysicalDeviceCount,
@@ -1543,24 +1542,22 @@ pub fn EnumeratePhysicalDevices(instance: vk.VkInstance, pPhysicalDeviceCount: ?
     try check(result);
 }
 
-pub fn GetPhysicalDeviceFeatures(physicalDevice: vk.VkPhysicalDevice, pFeatures: ?[*]vk.VkPhysicalDeviceFeatures) Error!void {
-    const result = vk.vkGetPhysicalDeviceFeatures(
+pub fn GetPhysicalDeviceFeatures(physicalDevice: vk.VkPhysicalDevice, pFeatures: [*c]vk.VkPhysicalDeviceFeatures) void {
+    vk.vkGetPhysicalDeviceFeatures(
         physicalDevice,
         pFeatures
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceFormatProperties(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, pFormatProperties: ?[*]vk.VkFormatProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceFormatProperties(
+pub fn GetPhysicalDeviceFormatProperties(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, pFormatProperties: [*c]vk.VkFormatProperties) void {
+    vk.vkGetPhysicalDeviceFormatProperties(
         physicalDevice,
         format,
         pFormatProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceImageFormatProperties(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, _type: vk.VkImageType, tiling: vk.VkImageTiling, usage: vk.VkImageUsageFlags, flags: vk.VkImageCreateFlags, pImageFormatProperties: ?[*]vk.VkImageFormatProperties) Error!void {
+pub fn GetPhysicalDeviceImageFormatProperties(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, _type: vk.VkImageType, tiling: vk.VkImageTiling, usage: vk.VkImageUsageFlags, flags: vk.VkImageCreateFlags, pImageFormatProperties: [*c]vk.VkImageFormatProperties) Error!void {
     const result = vk.vkGetPhysicalDeviceImageFormatProperties(
         physicalDevice,
         format,
@@ -1573,29 +1570,26 @@ pub fn GetPhysicalDeviceImageFormatProperties(physicalDevice: vk.VkPhysicalDevic
     try check(result);
 }
 
-pub fn GetPhysicalDeviceProperties(physicalDevice: vk.VkPhysicalDevice, pProperties: ?[*]vk.VkPhysicalDeviceProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceProperties(
+pub fn GetPhysicalDeviceProperties(physicalDevice: vk.VkPhysicalDevice, pProperties: [*c]vk.VkPhysicalDeviceProperties) void {
+    vk.vkGetPhysicalDeviceProperties(
         physicalDevice,
         pProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceQueueFamilyProperties(physicalDevice: vk.VkPhysicalDevice, pQueueFamilyPropertyCount: ?*u32, pQueueFamilyProperties: ?[*]vk.VkQueueFamilyProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceQueueFamilyProperties(
+pub fn GetPhysicalDeviceQueueFamilyProperties(physicalDevice: vk.VkPhysicalDevice, pQueueFamilyPropertyCount: ?*u32, pQueueFamilyProperties: [*c]vk.VkQueueFamilyProperties) void {
+    vk.vkGetPhysicalDeviceQueueFamilyProperties(
         physicalDevice,
         pQueueFamilyPropertyCount,
         pQueueFamilyProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceMemoryProperties(physicalDevice: vk.VkPhysicalDevice, pMemoryProperties: ?[*]vk.VkPhysicalDeviceMemoryProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceMemoryProperties(
+pub fn GetPhysicalDeviceMemoryProperties(physicalDevice: vk.VkPhysicalDevice, pMemoryProperties: [*c]vk.VkPhysicalDeviceMemoryProperties) void {
+    vk.vkGetPhysicalDeviceMemoryProperties(
         physicalDevice,
         pMemoryProperties
     );
-    try check(result);
 }
 
 pub fn CreateDevice(physicalDevice: vk.VkPhysicalDevice, pCreateInfo: ?*const vk.VkDeviceCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pDevice: ?*vk.VkDevice) Error!void {
@@ -1608,15 +1602,14 @@ pub fn CreateDevice(physicalDevice: vk.VkPhysicalDevice, pCreateInfo: ?*const vk
     try check(result);
 }
 
-pub fn DestroyDevice(device: vk.VkDevice, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyDevice(
+pub fn DestroyDevice(device: vk.VkDevice, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyDevice(
         device,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn EnumerateInstanceExtensionProperties(pLayerName: ?*const u8, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkExtensionProperties) Error!void {
+pub fn EnumerateInstanceExtensionProperties(pLayerName: ?*const u8, pPropertyCount: ?*u32, pProperties: [*c]vk.VkExtensionProperties) Error!void {
     const result = vk.vkEnumerateInstanceExtensionProperties(
         pLayerName,
         pPropertyCount,
@@ -1625,7 +1618,7 @@ pub fn EnumerateInstanceExtensionProperties(pLayerName: ?*const u8, pPropertyCou
     try check(result);
 }
 
-pub fn EnumerateDeviceExtensionProperties(physicalDevice: vk.VkPhysicalDevice, pLayerName: ?*const u8, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkExtensionProperties) Error!void {
+pub fn EnumerateDeviceExtensionProperties(physicalDevice: vk.VkPhysicalDevice, pLayerName: ?*const u8, pPropertyCount: ?*u32, pProperties: [*c]vk.VkExtensionProperties) Error!void {
     const result = vk.vkEnumerateDeviceExtensionProperties(
         physicalDevice,
         pLayerName,
@@ -1635,7 +1628,7 @@ pub fn EnumerateDeviceExtensionProperties(physicalDevice: vk.VkPhysicalDevice, p
     try check(result);
 }
 
-pub fn EnumerateInstanceLayerProperties(pPropertyCount: ?*u32, pProperties: ?[*]vk.VkLayerProperties) Error!void {
+pub fn EnumerateInstanceLayerProperties(pPropertyCount: ?*u32, pProperties: [*c]vk.VkLayerProperties) Error!void {
     const result = vk.vkEnumerateInstanceLayerProperties(
         pPropertyCount,
         pProperties
@@ -1643,7 +1636,7 @@ pub fn EnumerateInstanceLayerProperties(pPropertyCount: ?*u32, pProperties: ?[*]
     try check(result);
 }
 
-pub fn EnumerateDeviceLayerProperties(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkLayerProperties) Error!void {
+pub fn EnumerateDeviceLayerProperties(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkLayerProperties) Error!void {
     const result = vk.vkEnumerateDeviceLayerProperties(
         physicalDevice,
         pPropertyCount,
@@ -1652,17 +1645,16 @@ pub fn EnumerateDeviceLayerProperties(physicalDevice: vk.VkPhysicalDevice, pProp
     try check(result);
 }
 
-pub fn GetDeviceQueue(device: vk.VkDevice, queueFamilyIndex: u32, queueIndex: u32, pQueue: ?*vk.VkQueue) Error!void {
-    const result = vk.vkGetDeviceQueue(
+pub fn GetDeviceQueue(device: vk.VkDevice, queueFamilyIndex: u32, queueIndex: u32, pQueue: ?*vk.VkQueue) void {
+    vk.vkGetDeviceQueue(
         device,
         queueFamilyIndex,
         queueIndex,
         pQueue
     );
-    try check(result);
 }
 
-pub fn QueueSubmit(queue: vk.VkQueue, submitCount: u32, pSubmits: ?[*]const vk.VkSubmitInfo, fence: vk.VkFence) Error!void {
+pub fn QueueSubmit(queue: vk.VkQueue, submitCount: u32, pSubmits: [*c]const vk.VkSubmitInfo, fence: vk.VkFence) Error!void {
     const result = vk.vkQueueSubmit(
         queue,
         submitCount,
@@ -1696,13 +1688,12 @@ pub fn AllocateMemory(device: vk.VkDevice, pAllocateInfo: ?*const vk.VkMemoryAll
     try check(result);
 }
 
-pub fn FreeMemory(device: vk.VkDevice, memory: vk.VkDeviceMemory, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkFreeMemory(
+pub fn FreeMemory(device: vk.VkDevice, memory: vk.VkDeviceMemory, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkFreeMemory(
         device,
         memory,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn MapMemory(device: vk.VkDevice, memory: vk.VkDeviceMemory, offset: vk.VkDeviceSize, size: vk.VkDeviceSize, flags: vk.VkMemoryMapFlags, ppData: ?*void) Error!void {
@@ -1717,15 +1708,14 @@ pub fn MapMemory(device: vk.VkDevice, memory: vk.VkDeviceMemory, offset: vk.VkDe
     try check(result);
 }
 
-pub fn UnmapMemory(device: vk.VkDevice, memory: vk.VkDeviceMemory) Error!void {
-    const result = vk.vkUnmapMemory(
+pub fn UnmapMemory(device: vk.VkDevice, memory: vk.VkDeviceMemory) void {
+    vk.vkUnmapMemory(
         device,
         memory
     );
-    try check(result);
 }
 
-pub fn FlushMappedMemoryRanges(device: vk.VkDevice, memoryRangeCount: u32, pMemoryRanges: ?[*]const vk.VkMappedMemoryRange) Error!void {
+pub fn FlushMappedMemoryRanges(device: vk.VkDevice, memoryRangeCount: u32, pMemoryRanges: [*c]const vk.VkMappedMemoryRange) Error!void {
     const result = vk.vkFlushMappedMemoryRanges(
         device,
         memoryRangeCount,
@@ -1734,7 +1724,7 @@ pub fn FlushMappedMemoryRanges(device: vk.VkDevice, memoryRangeCount: u32, pMemo
     try check(result);
 }
 
-pub fn InvalidateMappedMemoryRanges(device: vk.VkDevice, memoryRangeCount: u32, pMemoryRanges: ?[*]const vk.VkMappedMemoryRange) Error!void {
+pub fn InvalidateMappedMemoryRanges(device: vk.VkDevice, memoryRangeCount: u32, pMemoryRanges: [*c]const vk.VkMappedMemoryRange) Error!void {
     const result = vk.vkInvalidateMappedMemoryRanges(
         device,
         memoryRangeCount,
@@ -1743,13 +1733,12 @@ pub fn InvalidateMappedMemoryRanges(device: vk.VkDevice, memoryRangeCount: u32, 
     try check(result);
 }
 
-pub fn GetDeviceMemoryCommitment(device: vk.VkDevice, memory: vk.VkDeviceMemory, pCommittedMemoryInBytes: ?[*]vk.VkDeviceSize) Error!void {
-    const result = vk.vkGetDeviceMemoryCommitment(
+pub fn GetDeviceMemoryCommitment(device: vk.VkDevice, memory: vk.VkDeviceMemory, pCommittedMemoryInBytes: [*c]vk.VkDeviceSize) void {
+    vk.vkGetDeviceMemoryCommitment(
         device,
         memory,
         pCommittedMemoryInBytes
     );
-    try check(result);
 }
 
 pub fn BindBufferMemory(device: vk.VkDevice, buffer: vk.VkBuffer, memory: vk.VkDeviceMemory, memoryOffset: vk.VkDeviceSize) Error!void {
@@ -1772,36 +1761,33 @@ pub fn BindImageMemory(device: vk.VkDevice, image: vk.VkImage, memory: vk.VkDevi
     try check(result);
 }
 
-pub fn GetBufferMemoryRequirements(device: vk.VkDevice, buffer: vk.VkBuffer, pMemoryRequirements: ?[*]vk.VkMemoryRequirements) Error!void {
-    const result = vk.vkGetBufferMemoryRequirements(
+pub fn GetBufferMemoryRequirements(device: vk.VkDevice, buffer: vk.VkBuffer, pMemoryRequirements: [*c]vk.VkMemoryRequirements) void {
+    vk.vkGetBufferMemoryRequirements(
         device,
         buffer,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetImageMemoryRequirements(device: vk.VkDevice, image: vk.VkImage, pMemoryRequirements: ?[*]vk.VkMemoryRequirements) Error!void {
-    const result = vk.vkGetImageMemoryRequirements(
+pub fn GetImageMemoryRequirements(device: vk.VkDevice, image: vk.VkImage, pMemoryRequirements: [*c]vk.VkMemoryRequirements) void {
+    vk.vkGetImageMemoryRequirements(
         device,
         image,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetImageSparseMemoryRequirements(device: vk.VkDevice, image: vk.VkImage, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: ?[*]vk.VkSparseImageMemoryRequirements) Error!void {
-    const result = vk.vkGetImageSparseMemoryRequirements(
+pub fn GetImageSparseMemoryRequirements(device: vk.VkDevice, image: vk.VkImage, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: [*c]vk.VkSparseImageMemoryRequirements) void {
+    vk.vkGetImageSparseMemoryRequirements(
         device,
         image,
         pSparseMemoryRequirementCount,
         pSparseMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceSparseImageFormatProperties(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, _type: vk.VkImageType, samples: vk.VkSampleCountFlagBits, usage: vk.VkImageUsageFlags, tiling: vk.VkImageTiling, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkSparseImageFormatProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceSparseImageFormatProperties(
+pub fn GetPhysicalDeviceSparseImageFormatProperties(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, _type: vk.VkImageType, samples: vk.VkSampleCountFlagBits, usage: vk.VkImageUsageFlags, tiling: vk.VkImageTiling, pPropertyCount: ?*u32, pProperties: [*c]vk.VkSparseImageFormatProperties) void {
+    vk.vkGetPhysicalDeviceSparseImageFormatProperties(
         physicalDevice,
         format,
         _type,
@@ -1811,7 +1797,6 @@ pub fn GetPhysicalDeviceSparseImageFormatProperties(physicalDevice: vk.VkPhysica
         pPropertyCount,
         pProperties
     );
-    try check(result);
 }
 
 pub fn QueueBindSparse(queue: vk.VkQueue, bindInfoCount: u32, pBindInfo: ?*const vk.VkBindSparseInfo, fence: vk.VkFence) Error!void {
@@ -1834,16 +1819,15 @@ pub fn CreateFence(device: vk.VkDevice, pCreateInfo: ?*const vk.VkFenceCreateInf
     try check(result);
 }
 
-pub fn DestroyFence(device: vk.VkDevice, fence: vk.VkFence, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyFence(
+pub fn DestroyFence(device: vk.VkDevice, fence: vk.VkFence, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyFence(
         device,
         fence,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn ResetFences(device: vk.VkDevice, fenceCount: u32, pFences: ?[*]const vk.VkFence) Error!void {
+pub fn ResetFences(device: vk.VkDevice, fenceCount: u32, pFences: [*c]const vk.VkFence) Error!void {
     const result = vk.vkResetFences(
         device,
         fenceCount,
@@ -1860,7 +1844,7 @@ pub fn GetFenceStatus(device: vk.VkDevice, fence: vk.VkFence) Error!void {
     try check(result);
 }
 
-pub fn WaitForFences(device: vk.VkDevice, fenceCount: u32, pFences: ?[*]const vk.VkFence, waitAll: vk.VkBool32, timeout: vk.uint64_t) Error!void {
+pub fn WaitForFences(device: vk.VkDevice, fenceCount: u32, pFences: [*c]const vk.VkFence, waitAll: vk.VkBool32, timeout: u64) Error!void {
     const result = vk.vkWaitForFences(
         device,
         fenceCount,
@@ -1881,13 +1865,12 @@ pub fn CreateSemaphore(device: vk.VkDevice, pCreateInfo: ?*const vk.VkSemaphoreC
     try check(result);
 }
 
-pub fn DestroySemaphore(device: vk.VkDevice, semaphore: vk.VkSemaphore, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroySemaphore(
+pub fn DestroySemaphore(device: vk.VkDevice, semaphore: vk.VkSemaphore, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroySemaphore(
         device,
         semaphore,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateEvent(device: vk.VkDevice, pCreateInfo: ?*const vk.VkEventCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pEvent: ?*vk.VkEvent) Error!void {
@@ -1900,13 +1883,12 @@ pub fn CreateEvent(device: vk.VkDevice, pCreateInfo: ?*const vk.VkEventCreateInf
     try check(result);
 }
 
-pub fn DestroyEvent(device: vk.VkDevice, event: vk.VkEvent, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyEvent(
+pub fn DestroyEvent(device: vk.VkDevice, event: vk.VkEvent, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyEvent(
         device,
         event,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn GetEventStatus(device: vk.VkDevice, event: vk.VkEvent) Error!void {
@@ -1943,13 +1925,12 @@ pub fn CreateQueryPool(device: vk.VkDevice, pCreateInfo: ?*const vk.VkQueryPoolC
     try check(result);
 }
 
-pub fn DestroyQueryPool(device: vk.VkDevice, queryPool: vk.VkQueryPool, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyQueryPool(
+pub fn DestroyQueryPool(device: vk.VkDevice, queryPool: vk.VkQueryPool, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyQueryPool(
         device,
         queryPool,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn GetQueryPoolResults(device: vk.VkDevice, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32, dataSize: vk.size_t, pData: ?*void, stride: vk.VkDeviceSize, flags: vk.VkQueryResultFlags) Error!void {
@@ -1976,13 +1957,12 @@ pub fn CreateBuffer(device: vk.VkDevice, pCreateInfo: ?*const vk.VkBufferCreateI
     try check(result);
 }
 
-pub fn DestroyBuffer(device: vk.VkDevice, buffer: vk.VkBuffer, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyBuffer(
+pub fn DestroyBuffer(device: vk.VkDevice, buffer: vk.VkBuffer, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyBuffer(
         device,
         buffer,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateBufferView(device: vk.VkDevice, pCreateInfo: ?*const vk.VkBufferViewCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pView: ?*vk.VkBufferView) Error!void {
@@ -1995,13 +1975,12 @@ pub fn CreateBufferView(device: vk.VkDevice, pCreateInfo: ?*const vk.VkBufferVie
     try check(result);
 }
 
-pub fn DestroyBufferView(device: vk.VkDevice, bufferView: vk.VkBufferView, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyBufferView(
+pub fn DestroyBufferView(device: vk.VkDevice, bufferView: vk.VkBufferView, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyBufferView(
         device,
         bufferView,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateImage(device: vk.VkDevice, pCreateInfo: ?*const vk.VkImageCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pImage: ?*vk.VkImage) Error!void {
@@ -2014,23 +1993,21 @@ pub fn CreateImage(device: vk.VkDevice, pCreateInfo: ?*const vk.VkImageCreateInf
     try check(result);
 }
 
-pub fn DestroyImage(device: vk.VkDevice, image: vk.VkImage, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyImage(
+pub fn DestroyImage(device: vk.VkDevice, image: vk.VkImage, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyImage(
         device,
         image,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn GetImageSubresourceLayout(device: vk.VkDevice, image: vk.VkImage, pSubresource: ?*const vk.VkImageSubresource, pLayout: ?*vk.VkSubresourceLayout) Error!void {
-    const result = vk.vkGetImageSubresourceLayout(
+pub fn GetImageSubresourceLayout(device: vk.VkDevice, image: vk.VkImage, pSubresource: ?*const vk.VkImageSubresource, pLayout: ?*vk.VkSubresourceLayout) void {
+    vk.vkGetImageSubresourceLayout(
         device,
         image,
         pSubresource,
         pLayout
     );
-    try check(result);
 }
 
 pub fn CreateImageView(device: vk.VkDevice, pCreateInfo: ?*const vk.VkImageViewCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pView: ?*vk.VkImageView) Error!void {
@@ -2043,13 +2020,12 @@ pub fn CreateImageView(device: vk.VkDevice, pCreateInfo: ?*const vk.VkImageViewC
     try check(result);
 }
 
-pub fn DestroyImageView(device: vk.VkDevice, imageView: vk.VkImageView, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyImageView(
+pub fn DestroyImageView(device: vk.VkDevice, imageView: vk.VkImageView, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyImageView(
         device,
         imageView,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateShaderModule(device: vk.VkDevice, pCreateInfo: ?*const vk.VkShaderModuleCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pShaderModule: ?*vk.VkShaderModule) Error!void {
@@ -2062,13 +2038,12 @@ pub fn CreateShaderModule(device: vk.VkDevice, pCreateInfo: ?*const vk.VkShaderM
     try check(result);
 }
 
-pub fn DestroyShaderModule(device: vk.VkDevice, shaderModule: vk.VkShaderModule, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyShaderModule(
+pub fn DestroyShaderModule(device: vk.VkDevice, shaderModule: vk.VkShaderModule, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyShaderModule(
         device,
         shaderModule,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreatePipelineCache(device: vk.VkDevice, pCreateInfo: ?*const vk.VkPipelineCacheCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelineCache: ?*vk.VkPipelineCache) Error!void {
@@ -2081,13 +2056,12 @@ pub fn CreatePipelineCache(device: vk.VkDevice, pCreateInfo: ?*const vk.VkPipeli
     try check(result);
 }
 
-pub fn DestroyPipelineCache(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyPipelineCache(
+pub fn DestroyPipelineCache(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyPipelineCache(
         device,
         pipelineCache,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn GetPipelineCacheData(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, pDataSize: ?*vk.size_t, pData: ?*void) Error!void {
@@ -2100,7 +2074,7 @@ pub fn GetPipelineCacheData(device: vk.VkDevice, pipelineCache: vk.VkPipelineCac
     try check(result);
 }
 
-pub fn MergePipelineCaches(device: vk.VkDevice, dstCache: vk.VkPipelineCache, srcCacheCount: u32, pSrcCaches: ?[*]const vk.VkPipelineCache) Error!void {
+pub fn MergePipelineCaches(device: vk.VkDevice, dstCache: vk.VkPipelineCache, srcCacheCount: u32, pSrcCaches: [*c]const vk.VkPipelineCache) Error!void {
     const result = vk.vkMergePipelineCaches(
         device,
         dstCache,
@@ -2110,7 +2084,7 @@ pub fn MergePipelineCaches(device: vk.VkDevice, dstCache: vk.VkPipelineCache, sr
     try check(result);
 }
 
-pub fn CreateGraphicsPipelines(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, createInfoCount: u32, pCreateInfos: ?[*]const vk.VkGraphicsPipelineCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelines: ?[*]vk.VkPipeline) Error!void {
+pub fn CreateGraphicsPipelines(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, createInfoCount: u32, pCreateInfos: [*c]const vk.VkGraphicsPipelineCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelines: [*c]vk.VkPipeline) Error!void {
     const result = vk.vkCreateGraphicsPipelines(
         device,
         pipelineCache,
@@ -2122,7 +2096,7 @@ pub fn CreateGraphicsPipelines(device: vk.VkDevice, pipelineCache: vk.VkPipeline
     try check(result);
 }
 
-pub fn CreateComputePipelines(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, createInfoCount: u32, pCreateInfos: ?[*]const vk.VkComputePipelineCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelines: ?[*]vk.VkPipeline) Error!void {
+pub fn CreateComputePipelines(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, createInfoCount: u32, pCreateInfos: [*c]const vk.VkComputePipelineCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelines: [*c]vk.VkPipeline) Error!void {
     const result = vk.vkCreateComputePipelines(
         device,
         pipelineCache,
@@ -2134,13 +2108,12 @@ pub fn CreateComputePipelines(device: vk.VkDevice, pipelineCache: vk.VkPipelineC
     try check(result);
 }
 
-pub fn DestroyPipeline(device: vk.VkDevice, pipeline: vk.VkPipeline, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyPipeline(
+pub fn DestroyPipeline(device: vk.VkDevice, pipeline: vk.VkPipeline, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyPipeline(
         device,
         pipeline,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreatePipelineLayout(device: vk.VkDevice, pCreateInfo: ?*const vk.VkPipelineLayoutCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelineLayout: ?*vk.VkPipelineLayout) Error!void {
@@ -2153,13 +2126,12 @@ pub fn CreatePipelineLayout(device: vk.VkDevice, pCreateInfo: ?*const vk.VkPipel
     try check(result);
 }
 
-pub fn DestroyPipelineLayout(device: vk.VkDevice, pipelineLayout: vk.VkPipelineLayout, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyPipelineLayout(
+pub fn DestroyPipelineLayout(device: vk.VkDevice, pipelineLayout: vk.VkPipelineLayout, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyPipelineLayout(
         device,
         pipelineLayout,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateSampler(device: vk.VkDevice, pCreateInfo: ?*const vk.VkSamplerCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pSampler: ?*vk.VkSampler) Error!void {
@@ -2172,13 +2144,12 @@ pub fn CreateSampler(device: vk.VkDevice, pCreateInfo: ?*const vk.VkSamplerCreat
     try check(result);
 }
 
-pub fn DestroySampler(device: vk.VkDevice, sampler: vk.VkSampler, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroySampler(
+pub fn DestroySampler(device: vk.VkDevice, sampler: vk.VkSampler, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroySampler(
         device,
         sampler,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateDescriptorSetLayout(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescriptorSetLayoutCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pSetLayout: ?*vk.VkDescriptorSetLayout) Error!void {
@@ -2191,13 +2162,12 @@ pub fn CreateDescriptorSetLayout(device: vk.VkDevice, pCreateInfo: ?*const vk.Vk
     try check(result);
 }
 
-pub fn DestroyDescriptorSetLayout(device: vk.VkDevice, descriptorSetLayout: vk.VkDescriptorSetLayout, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyDescriptorSetLayout(
+pub fn DestroyDescriptorSetLayout(device: vk.VkDevice, descriptorSetLayout: vk.VkDescriptorSetLayout, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyDescriptorSetLayout(
         device,
         descriptorSetLayout,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateDescriptorPool(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescriptorPoolCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pDescriptorPool: ?*vk.VkDescriptorPool) Error!void {
@@ -2210,13 +2180,12 @@ pub fn CreateDescriptorPool(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescr
     try check(result);
 }
 
-pub fn DestroyDescriptorPool(device: vk.VkDevice, descriptorPool: vk.VkDescriptorPool, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyDescriptorPool(
+pub fn DestroyDescriptorPool(device: vk.VkDevice, descriptorPool: vk.VkDescriptorPool, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyDescriptorPool(
         device,
         descriptorPool,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn ResetDescriptorPool(device: vk.VkDevice, descriptorPool: vk.VkDescriptorPool, flags: vk.VkDescriptorPoolResetFlags) Error!void {
@@ -2228,7 +2197,7 @@ pub fn ResetDescriptorPool(device: vk.VkDevice, descriptorPool: vk.VkDescriptorP
     try check(result);
 }
 
-pub fn AllocateDescriptorSets(device: vk.VkDevice, pAllocateInfo: ?*const vk.VkDescriptorSetAllocateInfo, pDescriptorSets: ?[*]vk.VkDescriptorSet) Error!void {
+pub fn AllocateDescriptorSets(device: vk.VkDevice, pAllocateInfo: ?*const vk.VkDescriptorSetAllocateInfo, pDescriptorSets: [*c]vk.VkDescriptorSet) Error!void {
     const result = vk.vkAllocateDescriptorSets(
         device,
         pAllocateInfo,
@@ -2237,7 +2206,7 @@ pub fn AllocateDescriptorSets(device: vk.VkDevice, pAllocateInfo: ?*const vk.VkD
     try check(result);
 }
 
-pub fn FreeDescriptorSets(device: vk.VkDevice, descriptorPool: vk.VkDescriptorPool, descriptorSetCount: u32, pDescriptorSets: ?[*]const vk.VkDescriptorSet) Error!void {
+pub fn FreeDescriptorSets(device: vk.VkDevice, descriptorPool: vk.VkDescriptorPool, descriptorSetCount: u32, pDescriptorSets: [*c]const vk.VkDescriptorSet) Error!void {
     const result = vk.vkFreeDescriptorSets(
         device,
         descriptorPool,
@@ -2247,15 +2216,14 @@ pub fn FreeDescriptorSets(device: vk.VkDevice, descriptorPool: vk.VkDescriptorPo
     try check(result);
 }
 
-pub fn UpdateDescriptorSets(device: vk.VkDevice, descriptorWriteCount: u32, pDescriptorWrites: ?[*]const vk.VkWriteDescriptorSet, descriptorCopyCount: u32, pDescriptorCopies: ?[*]const vk.VkCopyDescriptorSet) Error!void {
-    const result = vk.vkUpdateDescriptorSets(
+pub fn UpdateDescriptorSets(device: vk.VkDevice, descriptorWriteCount: u32, pDescriptorWrites: [*c]const vk.VkWriteDescriptorSet, descriptorCopyCount: u32, pDescriptorCopies: [*c]const vk.VkCopyDescriptorSet) void {
+    vk.vkUpdateDescriptorSets(
         device,
         descriptorWriteCount,
         pDescriptorWrites,
         descriptorCopyCount,
         pDescriptorCopies
     );
-    try check(result);
 }
 
 pub fn CreateFramebuffer(device: vk.VkDevice, pCreateInfo: ?*const vk.VkFramebufferCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pFramebuffer: ?*vk.VkFramebuffer) Error!void {
@@ -2268,16 +2236,15 @@ pub fn CreateFramebuffer(device: vk.VkDevice, pCreateInfo: ?*const vk.VkFramebuf
     try check(result);
 }
 
-pub fn DestroyFramebuffer(device: vk.VkDevice, framebuffer: vk.VkFramebuffer, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyFramebuffer(
+pub fn DestroyFramebuffer(device: vk.VkDevice, framebuffer: vk.VkFramebuffer, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyFramebuffer(
         device,
         framebuffer,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn CreateRenderPass(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRenderPassCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pRenderPass: ?[*]vk.VkRenderPass) Error!void {
+pub fn CreateRenderPass(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRenderPassCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pRenderPass: [*c]vk.VkRenderPass) Error!void {
     const result = vk.vkCreateRenderPass(
         device,
         pCreateInfo,
@@ -2287,22 +2254,20 @@ pub fn CreateRenderPass(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRenderPas
     try check(result);
 }
 
-pub fn DestroyRenderPass(device: vk.VkDevice, renderPass: vk.VkRenderPass, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyRenderPass(
+pub fn DestroyRenderPass(device: vk.VkDevice, renderPass: vk.VkRenderPass, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyRenderPass(
         device,
         renderPass,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn GetRenderAreaGranularity(device: vk.VkDevice, renderPass: vk.VkRenderPass, pGranularity: ?*vk.VkExtent2D) Error!void {
-    const result = vk.vkGetRenderAreaGranularity(
+pub fn GetRenderAreaGranularity(device: vk.VkDevice, renderPass: vk.VkRenderPass, pGranularity: ?*vk.VkExtent2D) void {
+    vk.vkGetRenderAreaGranularity(
         device,
         renderPass,
         pGranularity
     );
-    try check(result);
 }
 
 pub fn CreateCommandPool(device: vk.VkDevice, pCreateInfo: ?*const vk.VkCommandPoolCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pCommandPool: ?*vk.VkCommandPool) Error!void {
@@ -2315,13 +2280,12 @@ pub fn CreateCommandPool(device: vk.VkDevice, pCreateInfo: ?*const vk.VkCommandP
     try check(result);
 }
 
-pub fn DestroyCommandPool(device: vk.VkDevice, commandPool: vk.VkCommandPool, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyCommandPool(
+pub fn DestroyCommandPool(device: vk.VkDevice, commandPool: vk.VkCommandPool, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyCommandPool(
         device,
         commandPool,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn ResetCommandPool(device: vk.VkDevice, commandPool: vk.VkCommandPool, flags: vk.VkCommandPoolResetFlags) Error!void {
@@ -2333,7 +2297,7 @@ pub fn ResetCommandPool(device: vk.VkDevice, commandPool: vk.VkCommandPool, flag
     try check(result);
 }
 
-pub fn AllocateCommandBuffers(device: vk.VkDevice, pAllocateInfo: ?*const vk.VkCommandBufferAllocateInfo, pCommandBuffers: ?[*]vk.VkCommandBuffer) Error!void {
+pub fn AllocateCommandBuffers(device: vk.VkDevice, pAllocateInfo: ?*const vk.VkCommandBufferAllocateInfo, pCommandBuffers: [*c]vk.VkCommandBuffer) Error!void {
     const result = vk.vkAllocateCommandBuffers(
         device,
         pAllocateInfo,
@@ -2342,14 +2306,13 @@ pub fn AllocateCommandBuffers(device: vk.VkDevice, pAllocateInfo: ?*const vk.VkC
     try check(result);
 }
 
-pub fn FreeCommandBuffers(device: vk.VkDevice, commandPool: vk.VkCommandPool, commandBufferCount: u32, pCommandBuffers: ?[*]const vk.VkCommandBuffer) Error!void {
-    const result = vk.vkFreeCommandBuffers(
+pub fn FreeCommandBuffers(device: vk.VkDevice, commandPool: vk.VkCommandPool, commandBufferCount: u32, pCommandBuffers: [*c]const vk.VkCommandBuffer) void {
+    vk.vkFreeCommandBuffers(
         device,
         commandPool,
         commandBufferCount,
         pCommandBuffers
     );
-    try check(result);
 }
 
 pub fn BeginCommandBuffer(commandBuffer: vk.VkCommandBuffer, pBeginInfo: ?*const vk.VkCommandBufferBeginInfo) Error!void {
@@ -2375,99 +2338,89 @@ pub fn ResetCommandBuffer(commandBuffer: vk.VkCommandBuffer, flags: vk.VkCommand
     try check(result);
 }
 
-pub fn CmdBindPipeline(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, pipeline: vk.VkPipeline) Error!void {
-    const result = vk.vkCmdBindPipeline(
+pub fn CmdBindPipeline(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, pipeline: vk.VkPipeline) void {
+    vk.vkCmdBindPipeline(
         commandBuffer,
         pipelineBindPoint,
         pipeline
     );
-    try check(result);
 }
 
-pub fn CmdSetViewport(commandBuffer: vk.VkCommandBuffer, firstViewport: u32, viewportCount: u32, pViewports: ?[*]const vk.VkViewport) Error!void {
-    const result = vk.vkCmdSetViewport(
+pub fn CmdSetViewport(commandBuffer: vk.VkCommandBuffer, firstViewport: u32, viewportCount: u32, pViewports: [*c]const vk.VkViewport) void {
+    vk.vkCmdSetViewport(
         commandBuffer,
         firstViewport,
         viewportCount,
         pViewports
     );
-    try check(result);
 }
 
-pub fn CmdSetScissor(commandBuffer: vk.VkCommandBuffer, firstScissor: u32, scissorCount: u32, pScissors: ?[*]const vk.VkRect2D) Error!void {
-    const result = vk.vkCmdSetScissor(
+pub fn CmdSetScissor(commandBuffer: vk.VkCommandBuffer, firstScissor: u32, scissorCount: u32, pScissors: [*c]const vk.VkRect2D) void {
+    vk.vkCmdSetScissor(
         commandBuffer,
         firstScissor,
         scissorCount,
         pScissors
     );
-    try check(result);
 }
 
-pub fn CmdSetLineWidth(commandBuffer: vk.VkCommandBuffer, lineWidth: f32) Error!void {
-    const result = vk.vkCmdSetLineWidth(
+pub fn CmdSetLineWidth(commandBuffer: vk.VkCommandBuffer, lineWidth: f32) void {
+    vk.vkCmdSetLineWidth(
         commandBuffer,
         lineWidth
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthBias(commandBuffer: vk.VkCommandBuffer, depthBiasConstantFactor: f32, depthBiasClamp: f32, depthBiasSlopeFactor: f32) Error!void {
-    const result = vk.vkCmdSetDepthBias(
+pub fn CmdSetDepthBias(commandBuffer: vk.VkCommandBuffer, depthBiasConstantFactor: f32, depthBiasClamp: f32, depthBiasSlopeFactor: f32) void {
+    vk.vkCmdSetDepthBias(
         commandBuffer,
         depthBiasConstantFactor,
         depthBiasClamp,
         depthBiasSlopeFactor
     );
-    try check(result);
 }
 
-pub fn CmdSetBlendConstants(commandBuffer: vk.VkCommandBuffer, blendConstants: f32) Error!void {
-    const result = vk.vkCmdSetBlendConstants(
+pub fn CmdSetBlendConstants(commandBuffer: vk.VkCommandBuffer, blendConstants: f32) void {
+    vk.vkCmdSetBlendConstants(
         commandBuffer,
         blendConstants
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthBounds(commandBuffer: vk.VkCommandBuffer, minDepthBounds: f32, maxDepthBounds: f32) Error!void {
-    const result = vk.vkCmdSetDepthBounds(
+pub fn CmdSetDepthBounds(commandBuffer: vk.VkCommandBuffer, minDepthBounds: f32, maxDepthBounds: f32) void {
+    vk.vkCmdSetDepthBounds(
         commandBuffer,
         minDepthBounds,
         maxDepthBounds
     );
-    try check(result);
 }
 
-pub fn CmdSetStencilCompareMask(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, compareMask: u32) Error!void {
-    const result = vk.vkCmdSetStencilCompareMask(
+pub fn CmdSetStencilCompareMask(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, compareMask: u32) void {
+    vk.vkCmdSetStencilCompareMask(
         commandBuffer,
         faceMask,
         compareMask
     );
-    try check(result);
 }
 
-pub fn CmdSetStencilWriteMask(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, writeMask: u32) Error!void {
-    const result = vk.vkCmdSetStencilWriteMask(
+pub fn CmdSetStencilWriteMask(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, writeMask: u32) void {
+    vk.vkCmdSetStencilWriteMask(
         commandBuffer,
         faceMask,
         writeMask
     );
-    try check(result);
 }
 
-pub fn CmdSetStencilReference(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, reference: u32) Error!void {
-    const result = vk.vkCmdSetStencilReference(
+pub fn CmdSetStencilReference(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, reference: u32) void {
+    vk.vkCmdSetStencilReference(
         commandBuffer,
         faceMask,
         reference
     );
-    try check(result);
 }
 
-pub fn CmdBindDescriptorSets(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, firstSet: u32, descriptorSetCount: u32, pDescriptorSets: ?[*]const vk.VkDescriptorSet, dynamicOffsetCount: u32, pDynamicOffsets: ?[*]const u32) Error!void {
-    const result = vk.vkCmdBindDescriptorSets(
+pub fn CmdBindDescriptorSets(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, firstSet: u32, descriptorSetCount: u32, pDescriptorSets: [*c]const vk.VkDescriptorSet, dynamicOffsetCount: u32, pDynamicOffsets: [*c]const u32) void {
+    vk.vkCmdBindDescriptorSets(
         commandBuffer,
         pipelineBindPoint,
         layout,
@@ -2477,43 +2430,39 @@ pub fn CmdBindDescriptorSets(commandBuffer: vk.VkCommandBuffer, pipelineBindPoin
         dynamicOffsetCount,
         pDynamicOffsets
     );
-    try check(result);
 }
 
-pub fn CmdBindIndexBuffer(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, indexType: vk.VkIndexType) Error!void {
-    const result = vk.vkCmdBindIndexBuffer(
+pub fn CmdBindIndexBuffer(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, indexType: vk.VkIndexType) void {
+    vk.vkCmdBindIndexBuffer(
         commandBuffer,
         buffer,
         offset,
         indexType
     );
-    try check(result);
 }
 
-pub fn CmdBindVertexBuffers(commandBuffer: vk.VkCommandBuffer, firstBinding: u32, bindingCount: u32, pBuffers: ?[*]const vk.VkBuffer, pOffsets: ?[*]const vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdBindVertexBuffers(
+pub fn CmdBindVertexBuffers(commandBuffer: vk.VkCommandBuffer, firstBinding: u32, bindingCount: u32, pBuffers: [*c]const vk.VkBuffer, pOffsets: [*c]const vk.VkDeviceSize) void {
+    vk.vkCmdBindVertexBuffers(
         commandBuffer,
         firstBinding,
         bindingCount,
         pBuffers,
         pOffsets
     );
-    try check(result);
 }
 
-pub fn CmdDraw(commandBuffer: vk.VkCommandBuffer, vertexCount: u32, instanceCount: u32, firstVertex: u32, firstInstance: u32) Error!void {
-    const result = vk.vkCmdDraw(
+pub fn CmdDraw(commandBuffer: vk.VkCommandBuffer, vertexCount: u32, instanceCount: u32, firstVertex: u32, firstInstance: u32) void {
+    vk.vkCmdDraw(
         commandBuffer,
         vertexCount,
         instanceCount,
         firstVertex,
         firstInstance
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndexed(commandBuffer: vk.VkCommandBuffer, indexCount: u32, instanceCount: u32, firstIndex: u32, vertexOffset: i32, firstInstance: u32) Error!void {
-    const result = vk.vkCmdDrawIndexed(
+pub fn CmdDrawIndexed(commandBuffer: vk.VkCommandBuffer, indexCount: u32, instanceCount: u32, firstIndex: u32, vertexOffset: i32, firstInstance: u32) void {
+    vk.vkCmdDrawIndexed(
         commandBuffer,
         indexCount,
         instanceCount,
@@ -2521,63 +2470,57 @@ pub fn CmdDrawIndexed(commandBuffer: vk.VkCommandBuffer, indexCount: u32, instan
         vertexOffset,
         firstInstance
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndirect(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, drawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawIndirect(
+pub fn CmdDrawIndirect(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, drawCount: u32, stride: u32) void {
+    vk.vkCmdDrawIndirect(
         commandBuffer,
         buffer,
         offset,
         drawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndexedIndirect(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, drawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawIndexedIndirect(
+pub fn CmdDrawIndexedIndirect(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, drawCount: u32, stride: u32) void {
+    vk.vkCmdDrawIndexedIndirect(
         commandBuffer,
         buffer,
         offset,
         drawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdDispatch(commandBuffer: vk.VkCommandBuffer, groupCountX: u32, groupCountY: u32, groupCountZ: u32) Error!void {
-    const result = vk.vkCmdDispatch(
+pub fn CmdDispatch(commandBuffer: vk.VkCommandBuffer, groupCountX: u32, groupCountY: u32, groupCountZ: u32) void {
+    vk.vkCmdDispatch(
         commandBuffer,
         groupCountX,
         groupCountY,
         groupCountZ
     );
-    try check(result);
 }
 
-pub fn CmdDispatchIndirect(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdDispatchIndirect(
+pub fn CmdDispatchIndirect(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize) void {
+    vk.vkCmdDispatchIndirect(
         commandBuffer,
         buffer,
         offset
     );
-    try check(result);
 }
 
-pub fn CmdCopyBuffer(commandBuffer: vk.VkCommandBuffer, srcBuffer: vk.VkBuffer, dstBuffer: vk.VkBuffer, regionCount: u32, pRegions: ?[*]const vk.VkBufferCopy) Error!void {
-    const result = vk.vkCmdCopyBuffer(
+pub fn CmdCopyBuffer(commandBuffer: vk.VkCommandBuffer, srcBuffer: vk.VkBuffer, dstBuffer: vk.VkBuffer, regionCount: u32, pRegions: [*c]const vk.VkBufferCopy) void {
+    vk.vkCmdCopyBuffer(
         commandBuffer,
         srcBuffer,
         dstBuffer,
         regionCount,
         pRegions
     );
-    try check(result);
 }
 
-pub fn CmdCopyImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, srcImageLayout: vk.VkImageLayout, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, regionCount: u32, pRegions: ?[*]const vk.VkImageCopy) Error!void {
-    const result = vk.vkCmdCopyImage(
+pub fn CmdCopyImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, srcImageLayout: vk.VkImageLayout, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, regionCount: u32, pRegions: [*c]const vk.VkImageCopy) void {
+    vk.vkCmdCopyImage(
         commandBuffer,
         srcImage,
         srcImageLayout,
@@ -2586,11 +2529,10 @@ pub fn CmdCopyImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, src
         regionCount,
         pRegions
     );
-    try check(result);
 }
 
-pub fn CmdBlitImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, srcImageLayout: vk.VkImageLayout, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, regionCount: u32, pRegions: ?[*]const vk.VkImageBlit, filter: vk.VkFilter) Error!void {
-    const result = vk.vkCmdBlitImage(
+pub fn CmdBlitImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, srcImageLayout: vk.VkImageLayout, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, regionCount: u32, pRegions: [*c]const vk.VkImageBlit, filter: vk.VkFilter) void {
+    vk.vkCmdBlitImage(
         commandBuffer,
         srcImage,
         srcImageLayout,
@@ -2600,11 +2542,10 @@ pub fn CmdBlitImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, src
         pRegions,
         filter
     );
-    try check(result);
 }
 
-pub fn CmdCopyBufferToImage(commandBuffer: vk.VkCommandBuffer, srcBuffer: vk.VkBuffer, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, regionCount: u32, pRegions: ?[*]const vk.VkBufferImageCopy) Error!void {
-    const result = vk.vkCmdCopyBufferToImage(
+pub fn CmdCopyBufferToImage(commandBuffer: vk.VkCommandBuffer, srcBuffer: vk.VkBuffer, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, regionCount: u32, pRegions: [*c]const vk.VkBufferImageCopy) void {
+    vk.vkCmdCopyBufferToImage(
         commandBuffer,
         srcBuffer,
         dstImage,
@@ -2612,11 +2553,10 @@ pub fn CmdCopyBufferToImage(commandBuffer: vk.VkCommandBuffer, srcBuffer: vk.VkB
         regionCount,
         pRegions
     );
-    try check(result);
 }
 
-pub fn CmdCopyImageToBuffer(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, srcImageLayout: vk.VkImageLayout, dstBuffer: vk.VkBuffer, regionCount: u32, pRegions: ?[*]const vk.VkBufferImageCopy) Error!void {
-    const result = vk.vkCmdCopyImageToBuffer(
+pub fn CmdCopyImageToBuffer(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, srcImageLayout: vk.VkImageLayout, dstBuffer: vk.VkBuffer, regionCount: u32, pRegions: [*c]const vk.VkBufferImageCopy) void {
+    vk.vkCmdCopyImageToBuffer(
         commandBuffer,
         srcImage,
         srcImageLayout,
@@ -2624,33 +2564,30 @@ pub fn CmdCopyImageToBuffer(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkIm
         regionCount,
         pRegions
     );
-    try check(result);
 }
 
-pub fn CmdUpdateBuffer(commandBuffer: vk.VkCommandBuffer, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, dataSize: vk.VkDeviceSize, pData: ?*const void) Error!void {
-    const result = vk.vkCmdUpdateBuffer(
+pub fn CmdUpdateBuffer(commandBuffer: vk.VkCommandBuffer, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, dataSize: vk.VkDeviceSize, pData: ?*const void) void {
+    vk.vkCmdUpdateBuffer(
         commandBuffer,
         dstBuffer,
         dstOffset,
         dataSize,
         pData
     );
-    try check(result);
 }
 
-pub fn CmdFillBuffer(commandBuffer: vk.VkCommandBuffer, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, size: vk.VkDeviceSize, data: u32) Error!void {
-    const result = vk.vkCmdFillBuffer(
+pub fn CmdFillBuffer(commandBuffer: vk.VkCommandBuffer, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, size: vk.VkDeviceSize, data: u32) void {
+    vk.vkCmdFillBuffer(
         commandBuffer,
         dstBuffer,
         dstOffset,
         size,
         data
     );
-    try check(result);
 }
 
-pub fn CmdClearColorImage(commandBuffer: vk.VkCommandBuffer, image: vk.VkImage, imageLayout: vk.VkImageLayout, pColor: ?*const vk.VkClearColorValue, rangeCount: u32, pRanges: ?[*]const vk.VkImageSubresourceRange) Error!void {
-    const result = vk.vkCmdClearColorImage(
+pub fn CmdClearColorImage(commandBuffer: vk.VkCommandBuffer, image: vk.VkImage, imageLayout: vk.VkImageLayout, pColor: ?*const vk.VkClearColorValue, rangeCount: u32, pRanges: [*c]const vk.VkImageSubresourceRange) void {
+    vk.vkCmdClearColorImage(
         commandBuffer,
         image,
         imageLayout,
@@ -2658,11 +2595,10 @@ pub fn CmdClearColorImage(commandBuffer: vk.VkCommandBuffer, image: vk.VkImage, 
         rangeCount,
         pRanges
     );
-    try check(result);
 }
 
-pub fn CmdClearDepthStencilImage(commandBuffer: vk.VkCommandBuffer, image: vk.VkImage, imageLayout: vk.VkImageLayout, pDepthStencil: ?*const vk.VkClearDepthStencilValue, rangeCount: u32, pRanges: ?[*]const vk.VkImageSubresourceRange) Error!void {
-    const result = vk.vkCmdClearDepthStencilImage(
+pub fn CmdClearDepthStencilImage(commandBuffer: vk.VkCommandBuffer, image: vk.VkImage, imageLayout: vk.VkImageLayout, pDepthStencil: ?*const vk.VkClearDepthStencilValue, rangeCount: u32, pRanges: [*c]const vk.VkImageSubresourceRange) void {
+    vk.vkCmdClearDepthStencilImage(
         commandBuffer,
         image,
         imageLayout,
@@ -2670,22 +2606,20 @@ pub fn CmdClearDepthStencilImage(commandBuffer: vk.VkCommandBuffer, image: vk.Vk
         rangeCount,
         pRanges
     );
-    try check(result);
 }
 
-pub fn CmdClearAttachments(commandBuffer: vk.VkCommandBuffer, attachmentCount: u32, pAttachments: ?[*]const vk.VkClearAttachment, rectCount: u32, pRects: ?[*]const vk.VkClearRect) Error!void {
-    const result = vk.vkCmdClearAttachments(
+pub fn CmdClearAttachments(commandBuffer: vk.VkCommandBuffer, attachmentCount: u32, pAttachments: [*c]const vk.VkClearAttachment, rectCount: u32, pRects: [*c]const vk.VkClearRect) void {
+    vk.vkCmdClearAttachments(
         commandBuffer,
         attachmentCount,
         pAttachments,
         rectCount,
         pRects
     );
-    try check(result);
 }
 
-pub fn CmdResolveImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, srcImageLayout: vk.VkImageLayout, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, regionCount: u32, pRegions: ?[*]const vk.VkImageResolve) Error!void {
-    const result = vk.vkCmdResolveImage(
+pub fn CmdResolveImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, srcImageLayout: vk.VkImageLayout, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, regionCount: u32, pRegions: [*c]const vk.VkImageResolve) void {
+    vk.vkCmdResolveImage(
         commandBuffer,
         srcImage,
         srcImageLayout,
@@ -2694,29 +2628,26 @@ pub fn CmdResolveImage(commandBuffer: vk.VkCommandBuffer, srcImage: vk.VkImage, 
         regionCount,
         pRegions
     );
-    try check(result);
 }
 
-pub fn CmdSetEvent(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, stageMask: vk.VkPipelineStageFlags) Error!void {
-    const result = vk.vkCmdSetEvent(
+pub fn CmdSetEvent(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, stageMask: vk.VkPipelineStageFlags) void {
+    vk.vkCmdSetEvent(
         commandBuffer,
         event,
         stageMask
     );
-    try check(result);
 }
 
-pub fn CmdResetEvent(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, stageMask: vk.VkPipelineStageFlags) Error!void {
-    const result = vk.vkCmdResetEvent(
+pub fn CmdResetEvent(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, stageMask: vk.VkPipelineStageFlags) void {
+    vk.vkCmdResetEvent(
         commandBuffer,
         event,
         stageMask
     );
-    try check(result);
 }
 
-pub fn CmdWaitEvents(commandBuffer: vk.VkCommandBuffer, eventCount: u32, pEvents: ?[*]const vk.VkEvent, srcStageMask: vk.VkPipelineStageFlags, dstStageMask: vk.VkPipelineStageFlags, memoryBarrierCount: u32, pMemoryBarriers: ?[*]const vk.VkMemoryBarrier, bufferMemoryBarrierCount: u32, pBufferMemoryBarriers: ?[*]const vk.VkBufferMemoryBarrier, imageMemoryBarrierCount: u32, pImageMemoryBarriers: ?[*]const vk.VkImageMemoryBarrier) Error!void {
-    const result = vk.vkCmdWaitEvents(
+pub fn CmdWaitEvents(commandBuffer: vk.VkCommandBuffer, eventCount: u32, pEvents: [*c]const vk.VkEvent, srcStageMask: vk.VkPipelineStageFlags, dstStageMask: vk.VkPipelineStageFlags, memoryBarrierCount: u32, pMemoryBarriers: [*c]const vk.VkMemoryBarrier, bufferMemoryBarrierCount: u32, pBufferMemoryBarriers: [*c]const vk.VkBufferMemoryBarrier, imageMemoryBarrierCount: u32, pImageMemoryBarriers: [*c]const vk.VkImageMemoryBarrier) void {
+    vk.vkCmdWaitEvents(
         commandBuffer,
         eventCount,
         pEvents,
@@ -2729,11 +2660,10 @@ pub fn CmdWaitEvents(commandBuffer: vk.VkCommandBuffer, eventCount: u32, pEvents
         imageMemoryBarrierCount,
         pImageMemoryBarriers
     );
-    try check(result);
 }
 
-pub fn CmdPipelineBarrier(commandBuffer: vk.VkCommandBuffer, srcStageMask: vk.VkPipelineStageFlags, dstStageMask: vk.VkPipelineStageFlags, dependencyFlags: vk.VkDependencyFlags, memoryBarrierCount: u32, pMemoryBarriers: ?[*]const vk.VkMemoryBarrier, bufferMemoryBarrierCount: u32, pBufferMemoryBarriers: ?[*]const vk.VkBufferMemoryBarrier, imageMemoryBarrierCount: u32, pImageMemoryBarriers: ?[*]const vk.VkImageMemoryBarrier) Error!void {
-    const result = vk.vkCmdPipelineBarrier(
+pub fn CmdPipelineBarrier(commandBuffer: vk.VkCommandBuffer, srcStageMask: vk.VkPipelineStageFlags, dstStageMask: vk.VkPipelineStageFlags, dependencyFlags: vk.VkDependencyFlags, memoryBarrierCount: u32, pMemoryBarriers: [*c]const vk.VkMemoryBarrier, bufferMemoryBarrierCount: u32, pBufferMemoryBarriers: [*c]const vk.VkBufferMemoryBarrier, imageMemoryBarrierCount: u32, pImageMemoryBarriers: [*c]const vk.VkImageMemoryBarrier) void {
+    vk.vkCmdPipelineBarrier(
         commandBuffer,
         srcStageMask,
         dstStageMask,
@@ -2745,50 +2675,45 @@ pub fn CmdPipelineBarrier(commandBuffer: vk.VkCommandBuffer, srcStageMask: vk.Vk
         imageMemoryBarrierCount,
         pImageMemoryBarriers
     );
-    try check(result);
 }
 
-pub fn CmdBeginQuery(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, query: u32, flags: vk.VkQueryControlFlags) Error!void {
-    const result = vk.vkCmdBeginQuery(
+pub fn CmdBeginQuery(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, query: u32, flags: vk.VkQueryControlFlags) void {
+    vk.vkCmdBeginQuery(
         commandBuffer,
         queryPool,
         query,
         flags
     );
-    try check(result);
 }
 
-pub fn CmdEndQuery(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, query: u32) Error!void {
-    const result = vk.vkCmdEndQuery(
+pub fn CmdEndQuery(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, query: u32) void {
+    vk.vkCmdEndQuery(
         commandBuffer,
         queryPool,
         query
     );
-    try check(result);
 }
 
-pub fn CmdResetQueryPool(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32) Error!void {
-    const result = vk.vkCmdResetQueryPool(
+pub fn CmdResetQueryPool(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32) void {
+    vk.vkCmdResetQueryPool(
         commandBuffer,
         queryPool,
         firstQuery,
         queryCount
     );
-    try check(result);
 }
 
-pub fn CmdWriteTimestamp(commandBuffer: vk.VkCommandBuffer, pipelineStage: vk.VkPipelineStageFlagBits, queryPool: vk.VkQueryPool, query: u32) Error!void {
-    const result = vk.vkCmdWriteTimestamp(
+pub fn CmdWriteTimestamp(commandBuffer: vk.VkCommandBuffer, pipelineStage: vk.VkPipelineStageFlagBits, queryPool: vk.VkQueryPool, query: u32) void {
+    vk.vkCmdWriteTimestamp(
         commandBuffer,
         pipelineStage,
         queryPool,
         query
     );
-    try check(result);
 }
 
-pub fn CmdCopyQueryPoolResults(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, stride: vk.VkDeviceSize, flags: vk.VkQueryResultFlags) Error!void {
-    const result = vk.vkCmdCopyQueryPoolResults(
+pub fn CmdCopyQueryPoolResults(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, stride: vk.VkDeviceSize, flags: vk.VkQueryResultFlags) void {
+    vk.vkCmdCopyQueryPoolResults(
         commandBuffer,
         queryPool,
         firstQuery,
@@ -2798,11 +2723,10 @@ pub fn CmdCopyQueryPoolResults(commandBuffer: vk.VkCommandBuffer, queryPool: vk.
         stride,
         flags
     );
-    try check(result);
 }
 
-pub fn CmdPushConstants(commandBuffer: vk.VkCommandBuffer, layout: vk.VkPipelineLayout, stageFlags: vk.VkShaderStageFlags, offset: u32, size: u32, pValues: ?[*]const void) Error!void {
-    const result = vk.vkCmdPushConstants(
+pub fn CmdPushConstants(commandBuffer: vk.VkCommandBuffer, layout: vk.VkPipelineLayout, stageFlags: vk.VkShaderStageFlags, offset: u32, size: u32, pValues: [*c]const void) void {
+    vk.vkCmdPushConstants(
         commandBuffer,
         layout,
         stageFlags,
@@ -2810,40 +2734,35 @@ pub fn CmdPushConstants(commandBuffer: vk.VkCommandBuffer, layout: vk.VkPipeline
         size,
         pValues
     );
-    try check(result);
 }
 
-pub fn CmdBeginRenderPass(commandBuffer: vk.VkCommandBuffer, pRenderPassBegin: ?*const vk.VkRenderPassBeginInfo, contents: vk.VkSubpassContents) Error!void {
-    const result = vk.vkCmdBeginRenderPass(
+pub fn CmdBeginRenderPass(commandBuffer: vk.VkCommandBuffer, pRenderPassBegin: ?*const vk.VkRenderPassBeginInfo, contents: vk.VkSubpassContents) void {
+    vk.vkCmdBeginRenderPass(
         commandBuffer,
         pRenderPassBegin,
         contents
     );
-    try check(result);
 }
 
-pub fn CmdNextSubpass(commandBuffer: vk.VkCommandBuffer, contents: vk.VkSubpassContents) Error!void {
-    const result = vk.vkCmdNextSubpass(
+pub fn CmdNextSubpass(commandBuffer: vk.VkCommandBuffer, contents: vk.VkSubpassContents) void {
+    vk.vkCmdNextSubpass(
         commandBuffer,
         contents
     );
-    try check(result);
 }
 
-pub fn CmdEndRenderPass(commandBuffer: vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdEndRenderPass(
+pub fn CmdEndRenderPass(commandBuffer: vk.VkCommandBuffer) void {
+    vk.vkCmdEndRenderPass(
         commandBuffer
     );
-    try check(result);
 }
 
-pub fn CmdExecuteCommands(commandBuffer: vk.VkCommandBuffer, commandBufferCount: u32, pCommandBuffers: ?[*]const vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdExecuteCommands(
+pub fn CmdExecuteCommands(commandBuffer: vk.VkCommandBuffer, commandBufferCount: u32, pCommandBuffers: [*c]const vk.VkCommandBuffer) void {
+    vk.vkCmdExecuteCommands(
         commandBuffer,
         commandBufferCount,
         pCommandBuffers
     );
-    try check(result);
 }
 
 pub fn EnumerateInstanceVersion(pApiVersion: ?*u32) Error!void {
@@ -2853,7 +2772,7 @@ pub fn EnumerateInstanceVersion(pApiVersion: ?*u32) Error!void {
     try check(result);
 }
 
-pub fn BindBufferMemory2(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: ?[*]const vk.VkBindBufferMemoryInfo) Error!void {
+pub fn BindBufferMemory2(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: [*c]const vk.VkBindBufferMemoryInfo) Error!void {
     const result = vk.vkBindBufferMemory2(
         device,
         bindInfoCount,
@@ -2862,7 +2781,7 @@ pub fn BindBufferMemory2(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: ?[
     try check(result);
 }
 
-pub fn BindImageMemory2(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: ?[*]const vk.VkBindImageMemoryInfo) Error!void {
+pub fn BindImageMemory2(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: [*c]const vk.VkBindImageMemoryInfo) Error!void {
     const result = vk.vkBindImageMemory2(
         device,
         bindInfoCount,
@@ -2871,27 +2790,25 @@ pub fn BindImageMemory2(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: ?[*
     try check(result);
 }
 
-pub fn GetDeviceGroupPeerMemoryFeatures(device: vk.VkDevice, heapIndex: u32, localDeviceIndex: u32, remoteDeviceIndex: u32, pPeerMemoryFeatures: ?[*]vk.VkPeerMemoryFeatureFlags) Error!void {
-    const result = vk.vkGetDeviceGroupPeerMemoryFeatures(
+pub fn GetDeviceGroupPeerMemoryFeatures(device: vk.VkDevice, heapIndex: u32, localDeviceIndex: u32, remoteDeviceIndex: u32, pPeerMemoryFeatures: [*c]vk.VkPeerMemoryFeatureFlags) void {
+    vk.vkGetDeviceGroupPeerMemoryFeatures(
         device,
         heapIndex,
         localDeviceIndex,
         remoteDeviceIndex,
         pPeerMemoryFeatures
     );
-    try check(result);
 }
 
-pub fn CmdSetDeviceMask(commandBuffer: vk.VkCommandBuffer, deviceMask: u32) Error!void {
-    const result = vk.vkCmdSetDeviceMask(
+pub fn CmdSetDeviceMask(commandBuffer: vk.VkCommandBuffer, deviceMask: u32) void {
+    vk.vkCmdSetDeviceMask(
         commandBuffer,
         deviceMask
     );
-    try check(result);
 }
 
-pub fn CmdDispatchBase(commandBuffer: vk.VkCommandBuffer, baseGroupX: u32, baseGroupY: u32, baseGroupZ: u32, groupCountX: u32, groupCountY: u32, groupCountZ: u32) Error!void {
-    const result = vk.vkCmdDispatchBase(
+pub fn CmdDispatchBase(commandBuffer: vk.VkCommandBuffer, baseGroupX: u32, baseGroupY: u32, baseGroupZ: u32, groupCountX: u32, groupCountY: u32, groupCountZ: u32) void {
+    vk.vkCmdDispatchBase(
         commandBuffer,
         baseGroupX,
         baseGroupY,
@@ -2900,10 +2817,9 @@ pub fn CmdDispatchBase(commandBuffer: vk.VkCommandBuffer, baseGroupX: u32, baseG
         groupCountY,
         groupCountZ
     );
-    try check(result);
 }
 
-pub fn EnumeratePhysicalDeviceGroups(instance: vk.VkInstance, pPhysicalDeviceGroupCount: ?*u32, pPhysicalDeviceGroupProperties: ?[*]vk.VkPhysicalDeviceGroupProperties) Error!void {
+pub fn EnumeratePhysicalDeviceGroups(instance: vk.VkInstance, pPhysicalDeviceGroupCount: ?*u32, pPhysicalDeviceGroupProperties: [*c]vk.VkPhysicalDeviceGroupProperties) Error!void {
     const result = vk.vkEnumeratePhysicalDeviceGroups(
         instance,
         pPhysicalDeviceGroupCount,
@@ -2912,60 +2828,54 @@ pub fn EnumeratePhysicalDeviceGroups(instance: vk.VkInstance, pPhysicalDeviceGro
     try check(result);
 }
 
-pub fn GetImageMemoryRequirements2(device: vk.VkDevice, pInfo: ?*const vk.VkImageMemoryRequirementsInfo2, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetImageMemoryRequirements2(
+pub fn GetImageMemoryRequirements2(device: vk.VkDevice, pInfo: ?*const vk.VkImageMemoryRequirementsInfo2, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetImageMemoryRequirements2(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetBufferMemoryRequirements2(device: vk.VkDevice, pInfo: ?*const vk.VkBufferMemoryRequirementsInfo2, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetBufferMemoryRequirements2(
+pub fn GetBufferMemoryRequirements2(device: vk.VkDevice, pInfo: ?*const vk.VkBufferMemoryRequirementsInfo2, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetBufferMemoryRequirements2(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetImageSparseMemoryRequirements2(device: vk.VkDevice, pInfo: ?*const vk.VkImageSparseMemoryRequirementsInfo2, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: ?[*]vk.VkSparseImageMemoryRequirements2) Error!void {
-    const result = vk.vkGetImageSparseMemoryRequirements2(
+pub fn GetImageSparseMemoryRequirements2(device: vk.VkDevice, pInfo: ?*const vk.VkImageSparseMemoryRequirementsInfo2, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: [*c]vk.VkSparseImageMemoryRequirements2) void {
+    vk.vkGetImageSparseMemoryRequirements2(
         device,
         pInfo,
         pSparseMemoryRequirementCount,
         pSparseMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceFeatures2(physicalDevice: vk.VkPhysicalDevice, pFeatures: ?[*]vk.VkPhysicalDeviceFeatures2) Error!void {
-    const result = vk.vkGetPhysicalDeviceFeatures2(
+pub fn GetPhysicalDeviceFeatures2(physicalDevice: vk.VkPhysicalDevice, pFeatures: [*c]vk.VkPhysicalDeviceFeatures2) void {
+    vk.vkGetPhysicalDeviceFeatures2(
         physicalDevice,
         pFeatures
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceProperties2(physicalDevice: vk.VkPhysicalDevice, pProperties: ?[*]vk.VkPhysicalDeviceProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceProperties2(
+pub fn GetPhysicalDeviceProperties2(physicalDevice: vk.VkPhysicalDevice, pProperties: [*c]vk.VkPhysicalDeviceProperties2) void {
+    vk.vkGetPhysicalDeviceProperties2(
         physicalDevice,
         pProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceFormatProperties2(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, pFormatProperties: ?[*]vk.VkFormatProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceFormatProperties2(
+pub fn GetPhysicalDeviceFormatProperties2(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, pFormatProperties: [*c]vk.VkFormatProperties2) void {
+    vk.vkGetPhysicalDeviceFormatProperties2(
         physicalDevice,
         format,
         pFormatProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceImageFormatProperties2(physicalDevice: vk.VkPhysicalDevice, pImageFormatInfo: ?*const vk.VkPhysicalDeviceImageFormatInfo2, pImageFormatProperties: ?[*]vk.VkImageFormatProperties2) Error!void {
+pub fn GetPhysicalDeviceImageFormatProperties2(physicalDevice: vk.VkPhysicalDevice, pImageFormatInfo: ?*const vk.VkPhysicalDeviceImageFormatInfo2, pImageFormatProperties: [*c]vk.VkImageFormatProperties2) Error!void {
     const result = vk.vkGetPhysicalDeviceImageFormatProperties2(
         physicalDevice,
         pImageFormatInfo,
@@ -2974,49 +2884,44 @@ pub fn GetPhysicalDeviceImageFormatProperties2(physicalDevice: vk.VkPhysicalDevi
     try check(result);
 }
 
-pub fn GetPhysicalDeviceQueueFamilyProperties2(physicalDevice: vk.VkPhysicalDevice, pQueueFamilyPropertyCount: ?*u32, pQueueFamilyProperties: ?[*]vk.VkQueueFamilyProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceQueueFamilyProperties2(
+pub fn GetPhysicalDeviceQueueFamilyProperties2(physicalDevice: vk.VkPhysicalDevice, pQueueFamilyPropertyCount: ?*u32, pQueueFamilyProperties: [*c]vk.VkQueueFamilyProperties2) void {
+    vk.vkGetPhysicalDeviceQueueFamilyProperties2(
         physicalDevice,
         pQueueFamilyPropertyCount,
         pQueueFamilyProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceMemoryProperties2(physicalDevice: vk.VkPhysicalDevice, pMemoryProperties: ?[*]vk.VkPhysicalDeviceMemoryProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceMemoryProperties2(
+pub fn GetPhysicalDeviceMemoryProperties2(physicalDevice: vk.VkPhysicalDevice, pMemoryProperties: [*c]vk.VkPhysicalDeviceMemoryProperties2) void {
+    vk.vkGetPhysicalDeviceMemoryProperties2(
         physicalDevice,
         pMemoryProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceSparseImageFormatProperties2(physicalDevice: vk.VkPhysicalDevice, pFormatInfo: ?*const vk.VkPhysicalDeviceSparseImageFormatInfo2, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkSparseImageFormatProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceSparseImageFormatProperties2(
+pub fn GetPhysicalDeviceSparseImageFormatProperties2(physicalDevice: vk.VkPhysicalDevice, pFormatInfo: ?*const vk.VkPhysicalDeviceSparseImageFormatInfo2, pPropertyCount: ?*u32, pProperties: [*c]vk.VkSparseImageFormatProperties2) void {
+    vk.vkGetPhysicalDeviceSparseImageFormatProperties2(
         physicalDevice,
         pFormatInfo,
         pPropertyCount,
         pProperties
     );
-    try check(result);
 }
 
-pub fn TrimCommandPool(device: vk.VkDevice, commandPool: vk.VkCommandPool, flags: vk.VkCommandPoolTrimFlags) Error!void {
-    const result = vk.vkTrimCommandPool(
+pub fn TrimCommandPool(device: vk.VkDevice, commandPool: vk.VkCommandPool, flags: vk.VkCommandPoolTrimFlags) void {
+    vk.vkTrimCommandPool(
         device,
         commandPool,
         flags
     );
-    try check(result);
 }
 
-pub fn GetDeviceQueue2(device: vk.VkDevice, pQueueInfo: ?*const vk.VkDeviceQueueInfo2, pQueue: ?*vk.VkQueue) Error!void {
-    const result = vk.vkGetDeviceQueue2(
+pub fn GetDeviceQueue2(device: vk.VkDevice, pQueueInfo: ?*const vk.VkDeviceQueueInfo2, pQueue: ?*vk.VkQueue) void {
+    vk.vkGetDeviceQueue2(
         device,
         pQueueInfo,
         pQueue
     );
-    try check(result);
 }
 
 pub fn CreateSamplerYcbcrConversion(device: vk.VkDevice, pCreateInfo: ?*const vk.VkSamplerYcbcrConversionCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pYcbcrConversion: ?*vk.VkSamplerYcbcrConversion) Error!void {
@@ -3029,13 +2934,12 @@ pub fn CreateSamplerYcbcrConversion(device: vk.VkDevice, pCreateInfo: ?*const vk
     try check(result);
 }
 
-pub fn DestroySamplerYcbcrConversion(device: vk.VkDevice, ycbcrConversion: vk.VkSamplerYcbcrConversion, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroySamplerYcbcrConversion(
+pub fn DestroySamplerYcbcrConversion(device: vk.VkDevice, ycbcrConversion: vk.VkSamplerYcbcrConversion, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroySamplerYcbcrConversion(
         device,
         ycbcrConversion,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateDescriptorUpdateTemplate(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescriptorUpdateTemplateCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pDescriptorUpdateTemplate: ?*vk.VkDescriptorUpdateTemplate) Error!void {
@@ -3048,63 +2952,57 @@ pub fn CreateDescriptorUpdateTemplate(device: vk.VkDevice, pCreateInfo: ?*const 
     try check(result);
 }
 
-pub fn DestroyDescriptorUpdateTemplate(device: vk.VkDevice, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyDescriptorUpdateTemplate(
+pub fn DestroyDescriptorUpdateTemplate(device: vk.VkDevice, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyDescriptorUpdateTemplate(
         device,
         descriptorUpdateTemplate,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn UpdateDescriptorSetWithTemplate(device: vk.VkDevice, descriptorSet: vk.VkDescriptorSet, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, pData: ?*const void) Error!void {
-    const result = vk.vkUpdateDescriptorSetWithTemplate(
+pub fn UpdateDescriptorSetWithTemplate(device: vk.VkDevice, descriptorSet: vk.VkDescriptorSet, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, pData: ?*const void) void {
+    vk.vkUpdateDescriptorSetWithTemplate(
         device,
         descriptorSet,
         descriptorUpdateTemplate,
         pData
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceExternalBufferProperties(physicalDevice: vk.VkPhysicalDevice, pExternalBufferInfo: ?*const vk.VkPhysicalDeviceExternalBufferInfo, pExternalBufferProperties: ?[*]vk.VkExternalBufferProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceExternalBufferProperties(
+pub fn GetPhysicalDeviceExternalBufferProperties(physicalDevice: vk.VkPhysicalDevice, pExternalBufferInfo: ?*const vk.VkPhysicalDeviceExternalBufferInfo, pExternalBufferProperties: [*c]vk.VkExternalBufferProperties) void {
+    vk.vkGetPhysicalDeviceExternalBufferProperties(
         physicalDevice,
         pExternalBufferInfo,
         pExternalBufferProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceExternalFenceProperties(physicalDevice: vk.VkPhysicalDevice, pExternalFenceInfo: ?*const vk.VkPhysicalDeviceExternalFenceInfo, pExternalFenceProperties: ?[*]vk.VkExternalFenceProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceExternalFenceProperties(
+pub fn GetPhysicalDeviceExternalFenceProperties(physicalDevice: vk.VkPhysicalDevice, pExternalFenceInfo: ?*const vk.VkPhysicalDeviceExternalFenceInfo, pExternalFenceProperties: [*c]vk.VkExternalFenceProperties) void {
+    vk.vkGetPhysicalDeviceExternalFenceProperties(
         physicalDevice,
         pExternalFenceInfo,
         pExternalFenceProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceExternalSemaphoreProperties(physicalDevice: vk.VkPhysicalDevice, pExternalSemaphoreInfo: ?*const vk.VkPhysicalDeviceExternalSemaphoreInfo, pExternalSemaphoreProperties: ?[*]vk.VkExternalSemaphoreProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceExternalSemaphoreProperties(
+pub fn GetPhysicalDeviceExternalSemaphoreProperties(physicalDevice: vk.VkPhysicalDevice, pExternalSemaphoreInfo: ?*const vk.VkPhysicalDeviceExternalSemaphoreInfo, pExternalSemaphoreProperties: [*c]vk.VkExternalSemaphoreProperties) void {
+    vk.vkGetPhysicalDeviceExternalSemaphoreProperties(
         physicalDevice,
         pExternalSemaphoreInfo,
         pExternalSemaphoreProperties
     );
-    try check(result);
 }
 
-pub fn GetDescriptorSetLayoutSupport(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescriptorSetLayoutCreateInfo, pSupport: ?*vk.VkDescriptorSetLayoutSupport) Error!void {
-    const result = vk.vkGetDescriptorSetLayoutSupport(
+pub fn GetDescriptorSetLayoutSupport(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescriptorSetLayoutCreateInfo, pSupport: ?*vk.VkDescriptorSetLayoutSupport) void {
+    vk.vkGetDescriptorSetLayoutSupport(
         device,
         pCreateInfo,
         pSupport
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndirectCount(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawIndirectCount(
+pub fn CmdDrawIndirectCount(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) void {
+    vk.vkCmdDrawIndirectCount(
         commandBuffer,
         buffer,
         offset,
@@ -3113,11 +3011,10 @@ pub fn CmdDrawIndirectCount(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuff
         maxDrawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndexedIndirectCount(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawIndexedIndirectCount(
+pub fn CmdDrawIndexedIndirectCount(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) void {
+    vk.vkCmdDrawIndexedIndirectCount(
         commandBuffer,
         buffer,
         offset,
@@ -3126,10 +3023,9 @@ pub fn CmdDrawIndexedIndirectCount(commandBuffer: vk.VkCommandBuffer, buffer: vk
         maxDrawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CreateRenderPass2(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRenderPassCreateInfo2, pAllocator: ?*const vk.VkAllocationCallbacks, pRenderPass: ?[*]vk.VkRenderPass) Error!void {
+pub fn CreateRenderPass2(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRenderPassCreateInfo2, pAllocator: ?*const vk.VkAllocationCallbacks, pRenderPass: [*c]vk.VkRenderPass) Error!void {
     const result = vk.vkCreateRenderPass2(
         device,
         pCreateInfo,
@@ -3139,43 +3035,39 @@ pub fn CreateRenderPass2(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRenderPa
     try check(result);
 }
 
-pub fn CmdBeginRenderPass2(commandBuffer: vk.VkCommandBuffer, pRenderPassBegin: ?*const vk.VkRenderPassBeginInfo, pSubpassBeginInfo: ?*const vk.VkSubpassBeginInfo) Error!void {
-    const result = vk.vkCmdBeginRenderPass2(
+pub fn CmdBeginRenderPass2(commandBuffer: vk.VkCommandBuffer, pRenderPassBegin: ?*const vk.VkRenderPassBeginInfo, pSubpassBeginInfo: ?*const vk.VkSubpassBeginInfo) void {
+    vk.vkCmdBeginRenderPass2(
         commandBuffer,
         pRenderPassBegin,
         pSubpassBeginInfo
     );
-    try check(result);
 }
 
-pub fn CmdNextSubpass2(commandBuffer: vk.VkCommandBuffer, pSubpassBeginInfo: ?*const vk.VkSubpassBeginInfo, pSubpassEndInfo: ?*const vk.VkSubpassEndInfo) Error!void {
-    const result = vk.vkCmdNextSubpass2(
+pub fn CmdNextSubpass2(commandBuffer: vk.VkCommandBuffer, pSubpassBeginInfo: ?*const vk.VkSubpassBeginInfo, pSubpassEndInfo: ?*const vk.VkSubpassEndInfo) void {
+    vk.vkCmdNextSubpass2(
         commandBuffer,
         pSubpassBeginInfo,
         pSubpassEndInfo
     );
-    try check(result);
 }
 
-pub fn CmdEndRenderPass2(commandBuffer: vk.VkCommandBuffer, pSubpassEndInfo: ?*const vk.VkSubpassEndInfo) Error!void {
-    const result = vk.vkCmdEndRenderPass2(
+pub fn CmdEndRenderPass2(commandBuffer: vk.VkCommandBuffer, pSubpassEndInfo: ?*const vk.VkSubpassEndInfo) void {
+    vk.vkCmdEndRenderPass2(
         commandBuffer,
         pSubpassEndInfo
     );
-    try check(result);
 }
 
-pub fn ResetQueryPool(device: vk.VkDevice, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32) Error!void {
-    const result = vk.vkResetQueryPool(
+pub fn ResetQueryPool(device: vk.VkDevice, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32) void {
+    vk.vkResetQueryPool(
         device,
         queryPool,
         firstQuery,
         queryCount
     );
-    try check(result);
 }
 
-pub fn GetSemaphoreCounterValue(device: vk.VkDevice, semaphore: vk.VkSemaphore, pValue: ?*vk.uint64_t) Error!void {
+pub fn GetSemaphoreCounterValue(device: vk.VkDevice, semaphore: vk.VkSemaphore, pValue: ?*u64) Error!void {
     const result = vk.vkGetSemaphoreCounterValue(
         device,
         semaphore,
@@ -3184,7 +3076,7 @@ pub fn GetSemaphoreCounterValue(device: vk.VkDevice, semaphore: vk.VkSemaphore, 
     try check(result);
 }
 
-pub fn WaitSemaphores(device: vk.VkDevice, pWaitInfo: ?*const vk.VkSemaphoreWaitInfo, timeout: vk.uint64_t) Error!void {
+pub fn WaitSemaphores(device: vk.VkDevice, pWaitInfo: ?*const vk.VkSemaphoreWaitInfo, timeout: u64) Error!void {
     const result = vk.vkWaitSemaphores(
         device,
         pWaitInfo,
@@ -3209,7 +3101,7 @@ pub fn GetBufferDeviceAddress(device: vk.VkDevice, pInfo: ?*const vk.VkBufferDev
     try check(result);
 }
 
-pub fn GetPhysicalDeviceToolProperties(physicalDevice: vk.VkPhysicalDevice, pToolCount: ?*u32, pToolProperties: ?[*]vk.VkPhysicalDeviceToolProperties) Error!void {
+pub fn GetPhysicalDeviceToolProperties(physicalDevice: vk.VkPhysicalDevice, pToolCount: ?*u32, pToolProperties: [*c]vk.VkPhysicalDeviceToolProperties) Error!void {
     const result = vk.vkGetPhysicalDeviceToolProperties(
         physicalDevice,
         pToolCount,
@@ -3228,16 +3120,15 @@ pub fn CreatePrivateDataSlot(device: vk.VkDevice, pCreateInfo: ?*const vk.VkPriv
     try check(result);
 }
 
-pub fn DestroyPrivateDataSlot(device: vk.VkDevice, privateDataSlot: vk.VkPrivateDataSlot, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyPrivateDataSlot(
+pub fn DestroyPrivateDataSlot(device: vk.VkDevice, privateDataSlot: vk.VkPrivateDataSlot, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyPrivateDataSlot(
         device,
         privateDataSlot,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn SetPrivateData(device: vk.VkDevice, objectType: vk.VkObjectType, objectHandle: vk.uint64_t, privateDataSlot: vk.VkPrivateDataSlot, data: vk.uint64_t) Error!void {
+pub fn SetPrivateData(device: vk.VkDevice, objectType: vk.VkObjectType, objectHandle: u64, privateDataSlot: vk.VkPrivateDataSlot, data: u64) Error!void {
     const result = vk.vkSetPrivateData(
         device,
         objectType,
@@ -3248,64 +3139,58 @@ pub fn SetPrivateData(device: vk.VkDevice, objectType: vk.VkObjectType, objectHa
     try check(result);
 }
 
-pub fn GetPrivateData(device: vk.VkDevice, objectType: vk.VkObjectType, objectHandle: vk.uint64_t, privateDataSlot: vk.VkPrivateDataSlot, pData: ?*vk.uint64_t) Error!void {
-    const result = vk.vkGetPrivateData(
+pub fn GetPrivateData(device: vk.VkDevice, objectType: vk.VkObjectType, objectHandle: u64, privateDataSlot: vk.VkPrivateDataSlot, pData: ?*u64) void {
+    vk.vkGetPrivateData(
         device,
         objectType,
         objectHandle,
         privateDataSlot,
         pData
     );
-    try check(result);
 }
 
-pub fn CmdSetEvent2(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, pDependencyInfo: ?*const vk.VkDependencyInfo) Error!void {
-    const result = vk.vkCmdSetEvent2(
+pub fn CmdSetEvent2(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, pDependencyInfo: ?*const vk.VkDependencyInfo) void {
+    vk.vkCmdSetEvent2(
         commandBuffer,
         event,
         pDependencyInfo
     );
-    try check(result);
 }
 
-pub fn CmdResetEvent2(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, stageMask: vk.VkPipelineStageFlags2) Error!void {
-    const result = vk.vkCmdResetEvent2(
+pub fn CmdResetEvent2(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, stageMask: vk.VkPipelineStageFlags2) void {
+    vk.vkCmdResetEvent2(
         commandBuffer,
         event,
         stageMask
     );
-    try check(result);
 }
 
-pub fn CmdWaitEvents2(commandBuffer: vk.VkCommandBuffer, eventCount: u32, pEvents: ?[*]const vk.VkEvent, pDependencyInfos: ?[*]const vk.VkDependencyInfo) Error!void {
-    const result = vk.vkCmdWaitEvents2(
+pub fn CmdWaitEvents2(commandBuffer: vk.VkCommandBuffer, eventCount: u32, pEvents: [*c]const vk.VkEvent, pDependencyInfos: [*c]const vk.VkDependencyInfo) void {
+    vk.vkCmdWaitEvents2(
         commandBuffer,
         eventCount,
         pEvents,
         pDependencyInfos
     );
-    try check(result);
 }
 
-pub fn CmdPipelineBarrier2(commandBuffer: vk.VkCommandBuffer, pDependencyInfo: ?*const vk.VkDependencyInfo) Error!void {
-    const result = vk.vkCmdPipelineBarrier2(
+pub fn CmdPipelineBarrier2(commandBuffer: vk.VkCommandBuffer, pDependencyInfo: ?*const vk.VkDependencyInfo) void {
+    vk.vkCmdPipelineBarrier2(
         commandBuffer,
         pDependencyInfo
     );
-    try check(result);
 }
 
-pub fn CmdWriteTimestamp2(commandBuffer: vk.VkCommandBuffer, stage: vk.VkPipelineStageFlags2, queryPool: vk.VkQueryPool, query: u32) Error!void {
-    const result = vk.vkCmdWriteTimestamp2(
+pub fn CmdWriteTimestamp2(commandBuffer: vk.VkCommandBuffer, stage: vk.VkPipelineStageFlags2, queryPool: vk.VkQueryPool, query: u32) void {
+    vk.vkCmdWriteTimestamp2(
         commandBuffer,
         stage,
         queryPool,
         query
     );
-    try check(result);
 }
 
-pub fn QueueSubmit2(queue: vk.VkQueue, submitCount: u32, pSubmits: ?[*]const vk.VkSubmitInfo2, fence: vk.VkFence) Error!void {
+pub fn QueueSubmit2(queue: vk.VkQueue, submitCount: u32, pSubmits: [*c]const vk.VkSubmitInfo2, fence: vk.VkFence) Error!void {
     const result = vk.vkQueueSubmit2(
         queue,
         submitCount,
@@ -3315,113 +3200,100 @@ pub fn QueueSubmit2(queue: vk.VkQueue, submitCount: u32, pSubmits: ?[*]const vk.
     try check(result);
 }
 
-pub fn CmdCopyBuffer2(commandBuffer: vk.VkCommandBuffer, pCopyBufferInfo: ?*const vk.VkCopyBufferInfo2) Error!void {
-    const result = vk.vkCmdCopyBuffer2(
+pub fn CmdCopyBuffer2(commandBuffer: vk.VkCommandBuffer, pCopyBufferInfo: ?*const vk.VkCopyBufferInfo2) void {
+    vk.vkCmdCopyBuffer2(
         commandBuffer,
         pCopyBufferInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyImage2(commandBuffer: vk.VkCommandBuffer, pCopyImageInfo: ?*const vk.VkCopyImageInfo2) Error!void {
-    const result = vk.vkCmdCopyImage2(
+pub fn CmdCopyImage2(commandBuffer: vk.VkCommandBuffer, pCopyImageInfo: ?*const vk.VkCopyImageInfo2) void {
+    vk.vkCmdCopyImage2(
         commandBuffer,
         pCopyImageInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyBufferToImage2(commandBuffer: vk.VkCommandBuffer, pCopyBufferToImageInfo: ?*const vk.VkCopyBufferToImageInfo2) Error!void {
-    const result = vk.vkCmdCopyBufferToImage2(
+pub fn CmdCopyBufferToImage2(commandBuffer: vk.VkCommandBuffer, pCopyBufferToImageInfo: ?*const vk.VkCopyBufferToImageInfo2) void {
+    vk.vkCmdCopyBufferToImage2(
         commandBuffer,
         pCopyBufferToImageInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyImageToBuffer2(commandBuffer: vk.VkCommandBuffer, pCopyImageToBufferInfo: ?*const vk.VkCopyImageToBufferInfo2) Error!void {
-    const result = vk.vkCmdCopyImageToBuffer2(
+pub fn CmdCopyImageToBuffer2(commandBuffer: vk.VkCommandBuffer, pCopyImageToBufferInfo: ?*const vk.VkCopyImageToBufferInfo2) void {
+    vk.vkCmdCopyImageToBuffer2(
         commandBuffer,
         pCopyImageToBufferInfo
     );
-    try check(result);
 }
 
-pub fn CmdBlitImage2(commandBuffer: vk.VkCommandBuffer, pBlitImageInfo: ?*const vk.VkBlitImageInfo2) Error!void {
-    const result = vk.vkCmdBlitImage2(
+pub fn CmdBlitImage2(commandBuffer: vk.VkCommandBuffer, pBlitImageInfo: ?*const vk.VkBlitImageInfo2) void {
+    vk.vkCmdBlitImage2(
         commandBuffer,
         pBlitImageInfo
     );
-    try check(result);
 }
 
-pub fn CmdResolveImage2(commandBuffer: vk.VkCommandBuffer, pResolveImageInfo: ?*const vk.VkResolveImageInfo2) Error!void {
-    const result = vk.vkCmdResolveImage2(
+pub fn CmdResolveImage2(commandBuffer: vk.VkCommandBuffer, pResolveImageInfo: ?*const vk.VkResolveImageInfo2) void {
+    vk.vkCmdResolveImage2(
         commandBuffer,
         pResolveImageInfo
     );
-    try check(result);
 }
 
-pub fn CmdBeginRendering(commandBuffer: vk.VkCommandBuffer, pRenderingInfo: ?*const vk.VkRenderingInfo) Error!void {
-    const result = vk.vkCmdBeginRendering(
+pub fn CmdBeginRendering(commandBuffer: vk.VkCommandBuffer, pRenderingInfo: ?*const vk.VkRenderingInfo) void {
+    vk.vkCmdBeginRendering(
         commandBuffer,
         pRenderingInfo
     );
-    try check(result);
 }
 
-pub fn CmdEndRendering(commandBuffer: vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdEndRendering(
+pub fn CmdEndRendering(commandBuffer: vk.VkCommandBuffer) void {
+    vk.vkCmdEndRendering(
         commandBuffer
     );
-    try check(result);
 }
 
-pub fn CmdSetCullMode(commandBuffer: vk.VkCommandBuffer, cullMode: vk.VkCullModeFlags) Error!void {
-    const result = vk.vkCmdSetCullMode(
+pub fn CmdSetCullMode(commandBuffer: vk.VkCommandBuffer, cullMode: vk.VkCullModeFlags) void {
+    vk.vkCmdSetCullMode(
         commandBuffer,
         cullMode
     );
-    try check(result);
 }
 
-pub fn CmdSetFrontFace(commandBuffer: vk.VkCommandBuffer, frontFace: vk.VkFrontFace) Error!void {
-    const result = vk.vkCmdSetFrontFace(
+pub fn CmdSetFrontFace(commandBuffer: vk.VkCommandBuffer, frontFace: vk.VkFrontFace) void {
+    vk.vkCmdSetFrontFace(
         commandBuffer,
         frontFace
     );
-    try check(result);
 }
 
-pub fn CmdSetPrimitiveTopology(commandBuffer: vk.VkCommandBuffer, primitiveTopology: vk.VkPrimitiveTopology) Error!void {
-    const result = vk.vkCmdSetPrimitiveTopology(
+pub fn CmdSetPrimitiveTopology(commandBuffer: vk.VkCommandBuffer, primitiveTopology: vk.VkPrimitiveTopology) void {
+    vk.vkCmdSetPrimitiveTopology(
         commandBuffer,
         primitiveTopology
     );
-    try check(result);
 }
 
-pub fn CmdSetViewportWithCount(commandBuffer: vk.VkCommandBuffer, viewportCount: u32, pViewports: ?[*]const vk.VkViewport) Error!void {
-    const result = vk.vkCmdSetViewportWithCount(
+pub fn CmdSetViewportWithCount(commandBuffer: vk.VkCommandBuffer, viewportCount: u32, pViewports: [*c]const vk.VkViewport) void {
+    vk.vkCmdSetViewportWithCount(
         commandBuffer,
         viewportCount,
         pViewports
     );
-    try check(result);
 }
 
-pub fn CmdSetScissorWithCount(commandBuffer: vk.VkCommandBuffer, scissorCount: u32, pScissors: ?[*]const vk.VkRect2D) Error!void {
-    const result = vk.vkCmdSetScissorWithCount(
+pub fn CmdSetScissorWithCount(commandBuffer: vk.VkCommandBuffer, scissorCount: u32, pScissors: [*c]const vk.VkRect2D) void {
+    vk.vkCmdSetScissorWithCount(
         commandBuffer,
         scissorCount,
         pScissors
     );
-    try check(result);
 }
 
-pub fn CmdBindVertexBuffers2(commandBuffer: vk.VkCommandBuffer, firstBinding: u32, bindingCount: u32, pBuffers: ?[*]const vk.VkBuffer, pOffsets: ?[*]const vk.VkDeviceSize, pSizes: ?[*]const vk.VkDeviceSize, pStrides: ?[*]const vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdBindVertexBuffers2(
+pub fn CmdBindVertexBuffers2(commandBuffer: vk.VkCommandBuffer, firstBinding: u32, bindingCount: u32, pBuffers: [*c]const vk.VkBuffer, pOffsets: [*c]const vk.VkDeviceSize, pSizes: [*c]const vk.VkDeviceSize, pStrides: [*c]const vk.VkDeviceSize) void {
+    vk.vkCmdBindVertexBuffers2(
         commandBuffer,
         firstBinding,
         bindingCount,
@@ -3430,51 +3302,45 @@ pub fn CmdBindVertexBuffers2(commandBuffer: vk.VkCommandBuffer, firstBinding: u3
         pSizes,
         pStrides
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthTestEnable(commandBuffer: vk.VkCommandBuffer, depthTestEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthTestEnable(
+pub fn CmdSetDepthTestEnable(commandBuffer: vk.VkCommandBuffer, depthTestEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthTestEnable(
         commandBuffer,
         depthTestEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthWriteEnable(commandBuffer: vk.VkCommandBuffer, depthWriteEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthWriteEnable(
+pub fn CmdSetDepthWriteEnable(commandBuffer: vk.VkCommandBuffer, depthWriteEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthWriteEnable(
         commandBuffer,
         depthWriteEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthCompareOp(commandBuffer: vk.VkCommandBuffer, depthCompareOp: vk.VkCompareOp) Error!void {
-    const result = vk.vkCmdSetDepthCompareOp(
+pub fn CmdSetDepthCompareOp(commandBuffer: vk.VkCommandBuffer, depthCompareOp: vk.VkCompareOp) void {
+    vk.vkCmdSetDepthCompareOp(
         commandBuffer,
         depthCompareOp
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthBoundsTestEnable(commandBuffer: vk.VkCommandBuffer, depthBoundsTestEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthBoundsTestEnable(
+pub fn CmdSetDepthBoundsTestEnable(commandBuffer: vk.VkCommandBuffer, depthBoundsTestEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthBoundsTestEnable(
         commandBuffer,
         depthBoundsTestEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetStencilTestEnable(commandBuffer: vk.VkCommandBuffer, stencilTestEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetStencilTestEnable(
+pub fn CmdSetStencilTestEnable(commandBuffer: vk.VkCommandBuffer, stencilTestEnable: vk.VkBool32) void {
+    vk.vkCmdSetStencilTestEnable(
         commandBuffer,
         stencilTestEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetStencilOp(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, failOp: vk.VkStencilOp, passOp: vk.VkStencilOp, depthFailOp: vk.VkStencilOp, compareOp: vk.VkCompareOp) Error!void {
-    const result = vk.vkCmdSetStencilOp(
+pub fn CmdSetStencilOp(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, failOp: vk.VkStencilOp, passOp: vk.VkStencilOp, depthFailOp: vk.VkStencilOp, compareOp: vk.VkCompareOp) void {
+    vk.vkCmdSetStencilOp(
         commandBuffer,
         faceMask,
         failOp,
@@ -3482,68 +3348,60 @@ pub fn CmdSetStencilOp(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencil
         depthFailOp,
         compareOp
     );
-    try check(result);
 }
 
-pub fn CmdSetRasterizerDiscardEnable(commandBuffer: vk.VkCommandBuffer, rasterizerDiscardEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetRasterizerDiscardEnable(
+pub fn CmdSetRasterizerDiscardEnable(commandBuffer: vk.VkCommandBuffer, rasterizerDiscardEnable: vk.VkBool32) void {
+    vk.vkCmdSetRasterizerDiscardEnable(
         commandBuffer,
         rasterizerDiscardEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthBiasEnable(commandBuffer: vk.VkCommandBuffer, depthBiasEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthBiasEnable(
+pub fn CmdSetDepthBiasEnable(commandBuffer: vk.VkCommandBuffer, depthBiasEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthBiasEnable(
         commandBuffer,
         depthBiasEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetPrimitiveRestartEnable(commandBuffer: vk.VkCommandBuffer, primitiveRestartEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetPrimitiveRestartEnable(
+pub fn CmdSetPrimitiveRestartEnable(commandBuffer: vk.VkCommandBuffer, primitiveRestartEnable: vk.VkBool32) void {
+    vk.vkCmdSetPrimitiveRestartEnable(
         commandBuffer,
         primitiveRestartEnable
     );
-    try check(result);
 }
 
-pub fn GetDeviceBufferMemoryRequirements(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceBufferMemoryRequirements, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetDeviceBufferMemoryRequirements(
+pub fn GetDeviceBufferMemoryRequirements(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceBufferMemoryRequirements, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetDeviceBufferMemoryRequirements(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetDeviceImageMemoryRequirements(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageMemoryRequirements, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetDeviceImageMemoryRequirements(
+pub fn GetDeviceImageMemoryRequirements(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageMemoryRequirements, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetDeviceImageMemoryRequirements(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetDeviceImageSparseMemoryRequirements(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageMemoryRequirements, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: ?[*]vk.VkSparseImageMemoryRequirements2) Error!void {
-    const result = vk.vkGetDeviceImageSparseMemoryRequirements(
+pub fn GetDeviceImageSparseMemoryRequirements(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageMemoryRequirements, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: [*c]vk.VkSparseImageMemoryRequirements2) void {
+    vk.vkGetDeviceImageSparseMemoryRequirements(
         device,
         pInfo,
         pSparseMemoryRequirementCount,
         pSparseMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn CmdSetLineStipple(commandBuffer: vk.VkCommandBuffer, lineStippleFactor: u32, lineStipplePattern: vk.uint16_t) Error!void {
-    const result = vk.vkCmdSetLineStipple(
+pub fn CmdSetLineStipple(commandBuffer: vk.VkCommandBuffer, lineStippleFactor: u32, lineStipplePattern: vk.uint16_t) void {
+    vk.vkCmdSetLineStipple(
         commandBuffer,
         lineStippleFactor,
         lineStipplePattern
     );
-    try check(result);
 }
 
 pub fn MapMemory2(device: vk.VkDevice, pMemoryMapInfo: ?*const vk.VkMemoryMapInfo, ppData: ?*void) Error!void {
@@ -3563,47 +3421,43 @@ pub fn UnmapMemory2(device: vk.VkDevice, pMemoryUnmapInfo: ?*const vk.VkMemoryUn
     try check(result);
 }
 
-pub fn CmdBindIndexBuffer2(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, size: vk.VkDeviceSize, indexType: vk.VkIndexType) Error!void {
-    const result = vk.vkCmdBindIndexBuffer2(
+pub fn CmdBindIndexBuffer2(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, size: vk.VkDeviceSize, indexType: vk.VkIndexType) void {
+    vk.vkCmdBindIndexBuffer2(
         commandBuffer,
         buffer,
         offset,
         size,
         indexType
     );
-    try check(result);
 }
 
-pub fn GetRenderingAreaGranularity(device: vk.VkDevice, pRenderingAreaInfo: ?*const vk.VkRenderingAreaInfo, pGranularity: ?*vk.VkExtent2D) Error!void {
-    const result = vk.vkGetRenderingAreaGranularity(
+pub fn GetRenderingAreaGranularity(device: vk.VkDevice, pRenderingAreaInfo: ?*const vk.VkRenderingAreaInfo, pGranularity: ?*vk.VkExtent2D) void {
+    vk.vkGetRenderingAreaGranularity(
         device,
         pRenderingAreaInfo,
         pGranularity
     );
-    try check(result);
 }
 
-pub fn GetDeviceImageSubresourceLayout(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageSubresourceInfo, pLayout: ?*vk.VkSubresourceLayout2) Error!void {
-    const result = vk.vkGetDeviceImageSubresourceLayout(
+pub fn GetDeviceImageSubresourceLayout(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageSubresourceInfo, pLayout: ?*vk.VkSubresourceLayout2) void {
+    vk.vkGetDeviceImageSubresourceLayout(
         device,
         pInfo,
         pLayout
     );
-    try check(result);
 }
 
-pub fn GetImageSubresourceLayout2(device: vk.VkDevice, image: vk.VkImage, pSubresource: ?*const vk.VkImageSubresource2, pLayout: ?*vk.VkSubresourceLayout2) Error!void {
-    const result = vk.vkGetImageSubresourceLayout2(
+pub fn GetImageSubresourceLayout2(device: vk.VkDevice, image: vk.VkImage, pSubresource: ?*const vk.VkImageSubresource2, pLayout: ?*vk.VkSubresourceLayout2) void {
+    vk.vkGetImageSubresourceLayout2(
         device,
         image,
         pSubresource,
         pLayout
     );
-    try check(result);
 }
 
-pub fn CmdPushDescriptorSet(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, set: u32, descriptorWriteCount: u32, pDescriptorWrites: ?[*]const vk.VkWriteDescriptorSet) Error!void {
-    const result = vk.vkCmdPushDescriptorSet(
+pub fn CmdPushDescriptorSet(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, set: u32, descriptorWriteCount: u32, pDescriptorWrites: [*c]const vk.VkWriteDescriptorSet) void {
+    vk.vkCmdPushDescriptorSet(
         commandBuffer,
         pipelineBindPoint,
         layout,
@@ -3611,66 +3465,58 @@ pub fn CmdPushDescriptorSet(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint
         descriptorWriteCount,
         pDescriptorWrites
     );
-    try check(result);
 }
 
-pub fn CmdPushDescriptorSetWithTemplate(commandBuffer: vk.VkCommandBuffer, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, layout: vk.VkPipelineLayout, set: u32, pData: ?*const void) Error!void {
-    const result = vk.vkCmdPushDescriptorSetWithTemplate(
+pub fn CmdPushDescriptorSetWithTemplate(commandBuffer: vk.VkCommandBuffer, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, layout: vk.VkPipelineLayout, set: u32, pData: ?*const void) void {
+    vk.vkCmdPushDescriptorSetWithTemplate(
         commandBuffer,
         descriptorUpdateTemplate,
         layout,
         set,
         pData
     );
-    try check(result);
 }
 
-pub fn CmdSetRenderingAttachmentLocations(commandBuffer: vk.VkCommandBuffer, pLocationInfo: ?*const vk.VkRenderingAttachmentLocationInfo) Error!void {
-    const result = vk.vkCmdSetRenderingAttachmentLocations(
+pub fn CmdSetRenderingAttachmentLocations(commandBuffer: vk.VkCommandBuffer, pLocationInfo: ?*const vk.VkRenderingAttachmentLocationInfo) void {
+    vk.vkCmdSetRenderingAttachmentLocations(
         commandBuffer,
         pLocationInfo
     );
-    try check(result);
 }
 
-pub fn CmdSetRenderingInputAttachmentIndices(commandBuffer: vk.VkCommandBuffer, pInputAttachmentIndexInfo: ?*const vk.VkRenderingInputAttachmentIndexInfo) Error!void {
-    const result = vk.vkCmdSetRenderingInputAttachmentIndices(
+pub fn CmdSetRenderingInputAttachmentIndices(commandBuffer: vk.VkCommandBuffer, pInputAttachmentIndexInfo: ?*const vk.VkRenderingInputAttachmentIndexInfo) void {
+    vk.vkCmdSetRenderingInputAttachmentIndices(
         commandBuffer,
         pInputAttachmentIndexInfo
     );
-    try check(result);
 }
 
-pub fn CmdBindDescriptorSets2(commandBuffer: vk.VkCommandBuffer, pBindDescriptorSetsInfo: ?*const vk.VkBindDescriptorSetsInfo) Error!void {
-    const result = vk.vkCmdBindDescriptorSets2(
+pub fn CmdBindDescriptorSets2(commandBuffer: vk.VkCommandBuffer, pBindDescriptorSetsInfo: ?*const vk.VkBindDescriptorSetsInfo) void {
+    vk.vkCmdBindDescriptorSets2(
         commandBuffer,
         pBindDescriptorSetsInfo
     );
-    try check(result);
 }
 
-pub fn CmdPushConstants2(commandBuffer: vk.VkCommandBuffer, pPushConstantsInfo: ?*const vk.VkPushConstantsInfo) Error!void {
-    const result = vk.vkCmdPushConstants2(
+pub fn CmdPushConstants2(commandBuffer: vk.VkCommandBuffer, pPushConstantsInfo: ?*const vk.VkPushConstantsInfo) void {
+    vk.vkCmdPushConstants2(
         commandBuffer,
         pPushConstantsInfo
     );
-    try check(result);
 }
 
-pub fn CmdPushDescriptorSet2(commandBuffer: vk.VkCommandBuffer, pPushDescriptorSetInfo: ?*const vk.VkPushDescriptorSetInfo) Error!void {
-    const result = vk.vkCmdPushDescriptorSet2(
+pub fn CmdPushDescriptorSet2(commandBuffer: vk.VkCommandBuffer, pPushDescriptorSetInfo: ?*const vk.VkPushDescriptorSetInfo) void {
+    vk.vkCmdPushDescriptorSet2(
         commandBuffer,
         pPushDescriptorSetInfo
     );
-    try check(result);
 }
 
-pub fn CmdPushDescriptorSetWithTemplate2(commandBuffer: vk.VkCommandBuffer, pPushDescriptorSetWithTemplateInfo: ?*const vk.VkPushDescriptorSetWithTemplateInfo) Error!void {
-    const result = vk.vkCmdPushDescriptorSetWithTemplate2(
+pub fn CmdPushDescriptorSetWithTemplate2(commandBuffer: vk.VkCommandBuffer, pPushDescriptorSetWithTemplateInfo: ?*const vk.VkPushDescriptorSetWithTemplateInfo) void {
+    vk.vkCmdPushDescriptorSetWithTemplate2(
         commandBuffer,
         pPushDescriptorSetWithTemplateInfo
     );
-    try check(result);
 }
 
 pub fn CopyMemoryToImage(device: vk.VkDevice, pCopyMemoryToImageInfo: ?*const vk.VkCopyMemoryToImageInfo) Error!void {
@@ -3697,7 +3543,7 @@ pub fn CopyImageToImage(device: vk.VkDevice, pCopyImageToImageInfo: ?*const vk.V
     try check(result);
 }
 
-pub fn TransitionImageLayout(device: vk.VkDevice, transitionCount: u32, pTransitions: ?[*]const vk.VkHostImageLayoutTransitionInfo) Error!void {
+pub fn TransitionImageLayout(device: vk.VkDevice, transitionCount: u32, pTransitions: [*c]const vk.VkHostImageLayoutTransitionInfo) Error!void {
     const result = vk.vkTransitionImageLayout(
         device,
         transitionCount,
@@ -3706,13 +3552,12 @@ pub fn TransitionImageLayout(device: vk.VkDevice, transitionCount: u32, pTransit
     try check(result);
 }
 
-pub fn DestroySurfaceKHR(instance: vk.VkInstance, surface: vk.VkSurfaceKHR, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroySurfaceKHR(
+pub fn DestroySurfaceKHR(instance: vk.VkInstance, surface: vk.VkSurfaceKHR, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroySurfaceKHR(
         instance,
         surface,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn GetPhysicalDeviceSurfaceSupportKHR(physicalDevice: vk.VkPhysicalDevice, queueFamilyIndex: u32, surface: vk.VkSurfaceKHR, pSupported: ?*vk.VkBool32) Error!void {
@@ -3725,7 +3570,7 @@ pub fn GetPhysicalDeviceSurfaceSupportKHR(physicalDevice: vk.VkPhysicalDevice, q
     try check(result);
 }
 
-pub fn GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pSurfaceCapabilities: ?*vk.VkSurfaceCapabilitiesKHR) Error!void {
+pub fn GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pSurfaceCapabilities: [*c]vk.VkSurfaceCapabilitiesKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
         physicalDevice,
         surface,
@@ -3734,7 +3579,7 @@ pub fn GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice: vk.VkPhysicalDevi
     try check(result);
 }
 
-pub fn GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pSurfaceFormatCount: ?*u32, pSurfaceFormats: ?[*]vk.VkSurfaceFormatKHR) Error!void {
+pub fn GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pSurfaceFormatCount: ?*u32, pSurfaceFormats: [*c]vk.VkSurfaceFormatKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceSurfaceFormatsKHR(
         physicalDevice,
         surface,
@@ -3744,7 +3589,7 @@ pub fn GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice: vk.VkPhysicalDevice, s
     try check(result);
 }
 
-pub fn GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pPresentModeCount: ?*u32, pPresentModes: ?[*]vk.VkPresentModeKHR) Error!void {
+pub fn GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pPresentModeCount: ?*u32, pPresentModes: [*c]vk.VkPresentModeKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceSurfacePresentModesKHR(
         physicalDevice,
         surface,
@@ -3764,16 +3609,15 @@ pub fn CreateSwapchainKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkSwapcha
     try check(result);
 }
 
-pub fn DestroySwapchainKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroySwapchainKHR(
+pub fn DestroySwapchainKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroySwapchainKHR(
         device,
         swapchain,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn GetSwapchainImagesKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pSwapchainImageCount: ?*u32, pSwapchainImages: ?[*]vk.VkImage) Error!void {
+pub fn GetSwapchainImagesKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pSwapchainImageCount: ?*u32, pSwapchainImages: [*c]vk.VkImage) Error!void {
     const result = vk.vkGetSwapchainImagesKHR(
         device,
         swapchain,
@@ -3783,7 +3627,7 @@ pub fn GetSwapchainImagesKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, 
     try check(result);
 }
 
-pub fn AcquireNextImageKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, timeout: vk.uint64_t, semaphore: vk.VkSemaphore, fence: vk.VkFence, pImageIndex: ?*u32) Error!void {
+pub fn AcquireNextImageKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, timeout: u64, semaphore: vk.VkSemaphore, fence: vk.VkFence, pImageIndex: ?*u32) Error!void {
     const result = vk.vkAcquireNextImageKHR(
         device,
         swapchain,
@@ -3803,7 +3647,7 @@ pub fn QueuePresentKHR(queue: vk.VkQueue, pPresentInfo: ?*const vk.VkPresentInfo
     try check(result);
 }
 
-pub fn GetDeviceGroupPresentCapabilitiesKHR(device: vk.VkDevice, pDeviceGroupPresentCapabilities: ?[*]vk.VkDeviceGroupPresentCapabilitiesKHR) Error!void {
+pub fn GetDeviceGroupPresentCapabilitiesKHR(device: vk.VkDevice, pDeviceGroupPresentCapabilities: [*c]vk.VkDeviceGroupPresentCapabilitiesKHR) Error!void {
     const result = vk.vkGetDeviceGroupPresentCapabilitiesKHR(
         device,
         pDeviceGroupPresentCapabilities
@@ -3811,7 +3655,7 @@ pub fn GetDeviceGroupPresentCapabilitiesKHR(device: vk.VkDevice, pDeviceGroupPre
     try check(result);
 }
 
-pub fn GetDeviceGroupSurfacePresentModesKHR(device: vk.VkDevice, surface: vk.VkSurfaceKHR, pModes: ?[*]vk.VkDeviceGroupPresentModeFlagsKHR) Error!void {
+pub fn GetDeviceGroupSurfacePresentModesKHR(device: vk.VkDevice, surface: vk.VkSurfaceKHR, pModes: [*c]vk.VkDeviceGroupPresentModeFlagsKHR) Error!void {
     const result = vk.vkGetDeviceGroupSurfacePresentModesKHR(
         device,
         surface,
@@ -3820,7 +3664,7 @@ pub fn GetDeviceGroupSurfacePresentModesKHR(device: vk.VkDevice, surface: vk.VkS
     try check(result);
 }
 
-pub fn GetPhysicalDevicePresentRectanglesKHR(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pRectCount: ?*u32, pRects: ?[*]vk.VkRect2D) Error!void {
+pub fn GetPhysicalDevicePresentRectanglesKHR(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pRectCount: ?*u32, pRects: [*c]vk.VkRect2D) Error!void {
     const result = vk.vkGetPhysicalDevicePresentRectanglesKHR(
         physicalDevice,
         surface,
@@ -3839,7 +3683,7 @@ pub fn AcquireNextImage2KHR(device: vk.VkDevice, pAcquireInfo: ?*const vk.VkAcqu
     try check(result);
 }
 
-pub fn GetPhysicalDeviceDisplayPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkDisplayPropertiesKHR) Error!void {
+pub fn GetPhysicalDeviceDisplayPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkDisplayPropertiesKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceDisplayPropertiesKHR(
         physicalDevice,
         pPropertyCount,
@@ -3848,7 +3692,7 @@ pub fn GetPhysicalDeviceDisplayPropertiesKHR(physicalDevice: vk.VkPhysicalDevice
     try check(result);
 }
 
-pub fn GetPhysicalDeviceDisplayPlanePropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkDisplayPlanePropertiesKHR) Error!void {
+pub fn GetPhysicalDeviceDisplayPlanePropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkDisplayPlanePropertiesKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
         physicalDevice,
         pPropertyCount,
@@ -3857,7 +3701,7 @@ pub fn GetPhysicalDeviceDisplayPlanePropertiesKHR(physicalDevice: vk.VkPhysicalD
     try check(result);
 }
 
-pub fn GetDisplayPlaneSupportedDisplaysKHR(physicalDevice: vk.VkPhysicalDevice, planeIndex: u32, pDisplayCount: ?*u32, pDisplays: ?[*]vk.VkDisplayKHR) Error!void {
+pub fn GetDisplayPlaneSupportedDisplaysKHR(physicalDevice: vk.VkPhysicalDevice, planeIndex: u32, pDisplayCount: ?*u32, pDisplays: [*c]vk.VkDisplayKHR) Error!void {
     const result = vk.vkGetDisplayPlaneSupportedDisplaysKHR(
         physicalDevice,
         planeIndex,
@@ -3867,7 +3711,7 @@ pub fn GetDisplayPlaneSupportedDisplaysKHR(physicalDevice: vk.VkPhysicalDevice, 
     try check(result);
 }
 
-pub fn GetDisplayModePropertiesKHR(physicalDevice: vk.VkPhysicalDevice, display: vk.VkDisplayKHR, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkDisplayModePropertiesKHR) Error!void {
+pub fn GetDisplayModePropertiesKHR(physicalDevice: vk.VkPhysicalDevice, display: vk.VkDisplayKHR, pPropertyCount: ?*u32, pProperties: [*c]vk.VkDisplayModePropertiesKHR) Error!void {
     const result = vk.vkGetDisplayModePropertiesKHR(
         physicalDevice,
         display,
@@ -3888,7 +3732,7 @@ pub fn CreateDisplayModeKHR(physicalDevice: vk.VkPhysicalDevice, display: vk.VkD
     try check(result);
 }
 
-pub fn GetDisplayPlaneCapabilitiesKHR(physicalDevice: vk.VkPhysicalDevice, mode: vk.VkDisplayModeKHR, planeIndex: u32, pCapabilities: ?[*]vk.VkDisplayPlaneCapabilitiesKHR) Error!void {
+pub fn GetDisplayPlaneCapabilitiesKHR(physicalDevice: vk.VkPhysicalDevice, mode: vk.VkDisplayModeKHR, planeIndex: u32, pCapabilities: [*c]vk.VkDisplayPlaneCapabilitiesKHR) Error!void {
     const result = vk.vkGetDisplayPlaneCapabilitiesKHR(
         physicalDevice,
         mode,
@@ -3908,7 +3752,7 @@ pub fn CreateDisplayPlaneSurfaceKHR(instance: vk.VkInstance, pCreateInfo: ?*cons
     try check(result);
 }
 
-pub fn CreateSharedSwapchainsKHR(device: vk.VkDevice, swapchainCount: u32, pCreateInfos: ?[*]const vk.VkSwapchainCreateInfoKHR, pAllocator: ?*const vk.VkAllocationCallbacks, pSwapchains: ?[*]vk.VkSwapchainKHR) Error!void {
+pub fn CreateSharedSwapchainsKHR(device: vk.VkDevice, swapchainCount: u32, pCreateInfos: [*c]const vk.VkSwapchainCreateInfoKHR, pAllocator: ?*const vk.VkAllocationCallbacks, pSwapchains: [*c]vk.VkSwapchainKHR) Error!void {
     const result = vk.vkCreateSharedSwapchainsKHR(
         device,
         swapchainCount,
@@ -3919,7 +3763,7 @@ pub fn CreateSharedSwapchainsKHR(device: vk.VkDevice, swapchainCount: u32, pCrea
     try check(result);
 }
 
-pub fn GetPhysicalDeviceVideoCapabilitiesKHR(physicalDevice: vk.VkPhysicalDevice, pVideoProfile: ?*const vk.VkVideoProfileInfoKHR, pCapabilities: ?[*]vk.VkVideoCapabilitiesKHR) Error!void {
+pub fn GetPhysicalDeviceVideoCapabilitiesKHR(physicalDevice: vk.VkPhysicalDevice, pVideoProfile: ?*const vk.VkVideoProfileInfoKHR, pCapabilities: [*c]vk.VkVideoCapabilitiesKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceVideoCapabilitiesKHR(
         physicalDevice,
         pVideoProfile,
@@ -3928,7 +3772,7 @@ pub fn GetPhysicalDeviceVideoCapabilitiesKHR(physicalDevice: vk.VkPhysicalDevice
     try check(result);
 }
 
-pub fn GetPhysicalDeviceVideoFormatPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pVideoFormatInfo: ?*const vk.VkPhysicalDeviceVideoFormatInfoKHR, pVideoFormatPropertyCount: ?*u32, pVideoFormatProperties: ?[*]vk.VkVideoFormatPropertiesKHR) Error!void {
+pub fn GetPhysicalDeviceVideoFormatPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pVideoFormatInfo: ?*const vk.VkPhysicalDeviceVideoFormatInfoKHR, pVideoFormatPropertyCount: ?*u32, pVideoFormatProperties: [*c]vk.VkVideoFormatPropertiesKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceVideoFormatPropertiesKHR(
         physicalDevice,
         pVideoFormatInfo,
@@ -3948,16 +3792,15 @@ pub fn CreateVideoSessionKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkVide
     try check(result);
 }
 
-pub fn DestroyVideoSessionKHR(device: vk.VkDevice, videoSession: vk.VkVideoSessionKHR, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyVideoSessionKHR(
+pub fn DestroyVideoSessionKHR(device: vk.VkDevice, videoSession: vk.VkVideoSessionKHR, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyVideoSessionKHR(
         device,
         videoSession,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn GetVideoSessionMemoryRequirementsKHR(device: vk.VkDevice, videoSession: vk.VkVideoSessionKHR, pMemoryRequirementsCount: ?*u32, pMemoryRequirements: ?[*]vk.VkVideoSessionMemoryRequirementsKHR) Error!void {
+pub fn GetVideoSessionMemoryRequirementsKHR(device: vk.VkDevice, videoSession: vk.VkVideoSessionKHR, pMemoryRequirementsCount: ?*u32, pMemoryRequirements: [*c]vk.VkVideoSessionMemoryRequirementsKHR) Error!void {
     const result = vk.vkGetVideoSessionMemoryRequirementsKHR(
         device,
         videoSession,
@@ -3967,7 +3810,7 @@ pub fn GetVideoSessionMemoryRequirementsKHR(device: vk.VkDevice, videoSession: v
     try check(result);
 }
 
-pub fn BindVideoSessionMemoryKHR(device: vk.VkDevice, videoSession: vk.VkVideoSessionKHR, bindSessionMemoryInfoCount: u32, pBindSessionMemoryInfos: ?[*]const vk.VkBindVideoSessionMemoryInfoKHR) Error!void {
+pub fn BindVideoSessionMemoryKHR(device: vk.VkDevice, videoSession: vk.VkVideoSessionKHR, bindSessionMemoryInfoCount: u32, pBindSessionMemoryInfos: [*c]const vk.VkBindVideoSessionMemoryInfoKHR) Error!void {
     const result = vk.vkBindVideoSessionMemoryKHR(
         device,
         videoSession,
@@ -3977,7 +3820,7 @@ pub fn BindVideoSessionMemoryKHR(device: vk.VkDevice, videoSession: vk.VkVideoSe
     try check(result);
 }
 
-pub fn CreateVideoSessionParametersKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkVideoSessionParametersCreateInfoKHR, pAllocator: ?*const vk.VkAllocationCallbacks, pVideoSessionParameters: ?[*]vk.VkVideoSessionParametersKHR) Error!void {
+pub fn CreateVideoSessionParametersKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkVideoSessionParametersCreateInfoKHR, pAllocator: ?*const vk.VkAllocationCallbacks, pVideoSessionParameters: [*c]vk.VkVideoSessionParametersKHR) Error!void {
     const result = vk.vkCreateVideoSessionParametersKHR(
         device,
         pCreateInfo,
@@ -3996,88 +3839,78 @@ pub fn UpdateVideoSessionParametersKHR(device: vk.VkDevice, videoSessionParamete
     try check(result);
 }
 
-pub fn DestroyVideoSessionParametersKHR(device: vk.VkDevice, videoSessionParameters: vk.VkVideoSessionParametersKHR, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyVideoSessionParametersKHR(
+pub fn DestroyVideoSessionParametersKHR(device: vk.VkDevice, videoSessionParameters: vk.VkVideoSessionParametersKHR, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyVideoSessionParametersKHR(
         device,
         videoSessionParameters,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn CmdBeginVideoCodingKHR(commandBuffer: vk.VkCommandBuffer, pBeginInfo: ?*const vk.VkVideoBeginCodingInfoKHR) Error!void {
-    const result = vk.vkCmdBeginVideoCodingKHR(
+pub fn CmdBeginVideoCodingKHR(commandBuffer: vk.VkCommandBuffer, pBeginInfo: ?*const vk.VkVideoBeginCodingInfoKHR) void {
+    vk.vkCmdBeginVideoCodingKHR(
         commandBuffer,
         pBeginInfo
     );
-    try check(result);
 }
 
-pub fn CmdEndVideoCodingKHR(commandBuffer: vk.VkCommandBuffer, pEndCodingInfo: ?*const vk.VkVideoEndCodingInfoKHR) Error!void {
-    const result = vk.vkCmdEndVideoCodingKHR(
+pub fn CmdEndVideoCodingKHR(commandBuffer: vk.VkCommandBuffer, pEndCodingInfo: ?*const vk.VkVideoEndCodingInfoKHR) void {
+    vk.vkCmdEndVideoCodingKHR(
         commandBuffer,
         pEndCodingInfo
     );
-    try check(result);
 }
 
-pub fn CmdControlVideoCodingKHR(commandBuffer: vk.VkCommandBuffer, pCodingControlInfo: ?*const vk.VkVideoCodingControlInfoKHR) Error!void {
-    const result = vk.vkCmdControlVideoCodingKHR(
+pub fn CmdControlVideoCodingKHR(commandBuffer: vk.VkCommandBuffer, pCodingControlInfo: ?*const vk.VkVideoCodingControlInfoKHR) void {
+    vk.vkCmdControlVideoCodingKHR(
         commandBuffer,
         pCodingControlInfo
     );
-    try check(result);
 }
 
-pub fn CmdDecodeVideoKHR(commandBuffer: vk.VkCommandBuffer, pDecodeInfo: ?*const vk.VkVideoDecodeInfoKHR) Error!void {
-    const result = vk.vkCmdDecodeVideoKHR(
+pub fn CmdDecodeVideoKHR(commandBuffer: vk.VkCommandBuffer, pDecodeInfo: ?*const vk.VkVideoDecodeInfoKHR) void {
+    vk.vkCmdDecodeVideoKHR(
         commandBuffer,
         pDecodeInfo
     );
-    try check(result);
 }
 
-pub fn CmdBeginRenderingKHR(commandBuffer: vk.VkCommandBuffer, pRenderingInfo: ?*const vk.VkRenderingInfo) Error!void {
-    const result = vk.vkCmdBeginRenderingKHR(
+pub fn CmdBeginRenderingKHR(commandBuffer: vk.VkCommandBuffer, pRenderingInfo: ?*const vk.VkRenderingInfo) void {
+    vk.vkCmdBeginRenderingKHR(
         commandBuffer,
         pRenderingInfo
     );
-    try check(result);
 }
 
-pub fn CmdEndRenderingKHR(commandBuffer: vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdEndRenderingKHR(
+pub fn CmdEndRenderingKHR(commandBuffer: vk.VkCommandBuffer) void {
+    vk.vkCmdEndRenderingKHR(
         commandBuffer
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceFeatures2KHR(physicalDevice: vk.VkPhysicalDevice, pFeatures: ?[*]vk.VkPhysicalDeviceFeatures2) Error!void {
-    const result = vk.vkGetPhysicalDeviceFeatures2KHR(
+pub fn GetPhysicalDeviceFeatures2KHR(physicalDevice: vk.VkPhysicalDevice, pFeatures: [*c]vk.VkPhysicalDeviceFeatures2) void {
+    vk.vkGetPhysicalDeviceFeatures2KHR(
         physicalDevice,
         pFeatures
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pProperties: ?[*]vk.VkPhysicalDeviceProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceProperties2KHR(
+pub fn GetPhysicalDeviceProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pProperties: [*c]vk.VkPhysicalDeviceProperties2) void {
+    vk.vkGetPhysicalDeviceProperties2KHR(
         physicalDevice,
         pProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceFormatProperties2KHR(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, pFormatProperties: ?[*]vk.VkFormatProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceFormatProperties2KHR(
+pub fn GetPhysicalDeviceFormatProperties2KHR(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, pFormatProperties: [*c]vk.VkFormatProperties2) void {
+    vk.vkGetPhysicalDeviceFormatProperties2KHR(
         physicalDevice,
         format,
         pFormatProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceImageFormatProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pImageFormatInfo: ?*const vk.VkPhysicalDeviceImageFormatInfo2, pImageFormatProperties: ?[*]vk.VkImageFormatProperties2) Error!void {
+pub fn GetPhysicalDeviceImageFormatProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pImageFormatInfo: ?*const vk.VkPhysicalDeviceImageFormatInfo2, pImageFormatProperties: [*c]vk.VkImageFormatProperties2) Error!void {
     const result = vk.vkGetPhysicalDeviceImageFormatProperties2KHR(
         physicalDevice,
         pImageFormatInfo,
@@ -4086,54 +3919,49 @@ pub fn GetPhysicalDeviceImageFormatProperties2KHR(physicalDevice: vk.VkPhysicalD
     try check(result);
 }
 
-pub fn GetPhysicalDeviceQueueFamilyProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pQueueFamilyPropertyCount: ?*u32, pQueueFamilyProperties: ?[*]vk.VkQueueFamilyProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceQueueFamilyProperties2KHR(
+pub fn GetPhysicalDeviceQueueFamilyProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pQueueFamilyPropertyCount: ?*u32, pQueueFamilyProperties: [*c]vk.VkQueueFamilyProperties2) void {
+    vk.vkGetPhysicalDeviceQueueFamilyProperties2KHR(
         physicalDevice,
         pQueueFamilyPropertyCount,
         pQueueFamilyProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceMemoryProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pMemoryProperties: ?[*]vk.VkPhysicalDeviceMemoryProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceMemoryProperties2KHR(
+pub fn GetPhysicalDeviceMemoryProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pMemoryProperties: [*c]vk.VkPhysicalDeviceMemoryProperties2) void {
+    vk.vkGetPhysicalDeviceMemoryProperties2KHR(
         physicalDevice,
         pMemoryProperties
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceSparseImageFormatProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pFormatInfo: ?*const vk.VkPhysicalDeviceSparseImageFormatInfo2, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkSparseImageFormatProperties2) Error!void {
-    const result = vk.vkGetPhysicalDeviceSparseImageFormatProperties2KHR(
+pub fn GetPhysicalDeviceSparseImageFormatProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pFormatInfo: ?*const vk.VkPhysicalDeviceSparseImageFormatInfo2, pPropertyCount: ?*u32, pProperties: [*c]vk.VkSparseImageFormatProperties2) void {
+    vk.vkGetPhysicalDeviceSparseImageFormatProperties2KHR(
         physicalDevice,
         pFormatInfo,
         pPropertyCount,
         pProperties
     );
-    try check(result);
 }
 
-pub fn GetDeviceGroupPeerMemoryFeaturesKHR(device: vk.VkDevice, heapIndex: u32, localDeviceIndex: u32, remoteDeviceIndex: u32, pPeerMemoryFeatures: ?[*]vk.VkPeerMemoryFeatureFlags) Error!void {
-    const result = vk.vkGetDeviceGroupPeerMemoryFeaturesKHR(
+pub fn GetDeviceGroupPeerMemoryFeaturesKHR(device: vk.VkDevice, heapIndex: u32, localDeviceIndex: u32, remoteDeviceIndex: u32, pPeerMemoryFeatures: [*c]vk.VkPeerMemoryFeatureFlags) void {
+    vk.vkGetDeviceGroupPeerMemoryFeaturesKHR(
         device,
         heapIndex,
         localDeviceIndex,
         remoteDeviceIndex,
         pPeerMemoryFeatures
     );
-    try check(result);
 }
 
-pub fn CmdSetDeviceMaskKHR(commandBuffer: vk.VkCommandBuffer, deviceMask: u32) Error!void {
-    const result = vk.vkCmdSetDeviceMaskKHR(
+pub fn CmdSetDeviceMaskKHR(commandBuffer: vk.VkCommandBuffer, deviceMask: u32) void {
+    vk.vkCmdSetDeviceMaskKHR(
         commandBuffer,
         deviceMask
     );
-    try check(result);
 }
 
-pub fn CmdDispatchBaseKHR(commandBuffer: vk.VkCommandBuffer, baseGroupX: u32, baseGroupY: u32, baseGroupZ: u32, groupCountX: u32, groupCountY: u32, groupCountZ: u32) Error!void {
-    const result = vk.vkCmdDispatchBaseKHR(
+pub fn CmdDispatchBaseKHR(commandBuffer: vk.VkCommandBuffer, baseGroupX: u32, baseGroupY: u32, baseGroupZ: u32, groupCountX: u32, groupCountY: u32, groupCountZ: u32) void {
+    vk.vkCmdDispatchBaseKHR(
         commandBuffer,
         baseGroupX,
         baseGroupY,
@@ -4142,19 +3970,17 @@ pub fn CmdDispatchBaseKHR(commandBuffer: vk.VkCommandBuffer, baseGroupX: u32, ba
         groupCountY,
         groupCountZ
     );
-    try check(result);
 }
 
-pub fn TrimCommandPoolKHR(device: vk.VkDevice, commandPool: vk.VkCommandPool, flags: vk.VkCommandPoolTrimFlags) Error!void {
-    const result = vk.vkTrimCommandPoolKHR(
+pub fn TrimCommandPoolKHR(device: vk.VkDevice, commandPool: vk.VkCommandPool, flags: vk.VkCommandPoolTrimFlags) void {
+    vk.vkTrimCommandPoolKHR(
         device,
         commandPool,
         flags
     );
-    try check(result);
 }
 
-pub fn EnumeratePhysicalDeviceGroupsKHR(instance: vk.VkInstance, pPhysicalDeviceGroupCount: ?*u32, pPhysicalDeviceGroupProperties: ?[*]vk.VkPhysicalDeviceGroupProperties) Error!void {
+pub fn EnumeratePhysicalDeviceGroupsKHR(instance: vk.VkInstance, pPhysicalDeviceGroupCount: ?*u32, pPhysicalDeviceGroupProperties: [*c]vk.VkPhysicalDeviceGroupProperties) Error!void {
     const result = vk.vkEnumeratePhysicalDeviceGroupsKHR(
         instance,
         pPhysicalDeviceGroupCount,
@@ -4163,13 +3989,12 @@ pub fn EnumeratePhysicalDeviceGroupsKHR(instance: vk.VkInstance, pPhysicalDevice
     try check(result);
 }
 
-pub fn GetPhysicalDeviceExternalBufferPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pExternalBufferInfo: ?*const vk.VkPhysicalDeviceExternalBufferInfo, pExternalBufferProperties: ?[*]vk.VkExternalBufferProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceExternalBufferPropertiesKHR(
+pub fn GetPhysicalDeviceExternalBufferPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pExternalBufferInfo: ?*const vk.VkPhysicalDeviceExternalBufferInfo, pExternalBufferProperties: [*c]vk.VkExternalBufferProperties) void {
+    vk.vkGetPhysicalDeviceExternalBufferPropertiesKHR(
         physicalDevice,
         pExternalBufferInfo,
         pExternalBufferProperties
     );
-    try check(result);
 }
 
 pub fn GetMemoryFdKHR(device: vk.VkDevice, pGetFdInfo: ?*const vk.VkMemoryGetFdInfoKHR, pFd: ?*vk.int) Error!void {
@@ -4181,7 +4006,7 @@ pub fn GetMemoryFdKHR(device: vk.VkDevice, pGetFdInfo: ?*const vk.VkMemoryGetFdI
     try check(result);
 }
 
-pub fn GetMemoryFdPropertiesKHR(device: vk.VkDevice, handleType: vk.VkExternalMemoryHandleTypeFlagBits, fd: vk.int, pMemoryFdProperties: ?[*]vk.VkMemoryFdPropertiesKHR) Error!void {
+pub fn GetMemoryFdPropertiesKHR(device: vk.VkDevice, handleType: vk.VkExternalMemoryHandleTypeFlagBits, fd: vk.int, pMemoryFdProperties: [*c]vk.VkMemoryFdPropertiesKHR) Error!void {
     const result = vk.vkGetMemoryFdPropertiesKHR(
         device,
         handleType,
@@ -4191,13 +4016,12 @@ pub fn GetMemoryFdPropertiesKHR(device: vk.VkDevice, handleType: vk.VkExternalMe
     try check(result);
 }
 
-pub fn GetPhysicalDeviceExternalSemaphorePropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pExternalSemaphoreInfo: ?*const vk.VkPhysicalDeviceExternalSemaphoreInfo, pExternalSemaphoreProperties: ?[*]vk.VkExternalSemaphoreProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR(
+pub fn GetPhysicalDeviceExternalSemaphorePropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pExternalSemaphoreInfo: ?*const vk.VkPhysicalDeviceExternalSemaphoreInfo, pExternalSemaphoreProperties: [*c]vk.VkExternalSemaphoreProperties) void {
+    vk.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR(
         physicalDevice,
         pExternalSemaphoreInfo,
         pExternalSemaphoreProperties
     );
-    try check(result);
 }
 
 pub fn ImportSemaphoreFdKHR(device: vk.VkDevice, pImportSemaphoreFdInfo: ?*const vk.VkImportSemaphoreFdInfoKHR) Error!void {
@@ -4217,8 +4041,8 @@ pub fn GetSemaphoreFdKHR(device: vk.VkDevice, pGetFdInfo: ?*const vk.VkSemaphore
     try check(result);
 }
 
-pub fn CmdPushDescriptorSetKHR(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, set: u32, descriptorWriteCount: u32, pDescriptorWrites: ?[*]const vk.VkWriteDescriptorSet) Error!void {
-    const result = vk.vkCmdPushDescriptorSetKHR(
+pub fn CmdPushDescriptorSetKHR(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, set: u32, descriptorWriteCount: u32, pDescriptorWrites: [*c]const vk.VkWriteDescriptorSet) void {
+    vk.vkCmdPushDescriptorSetKHR(
         commandBuffer,
         pipelineBindPoint,
         layout,
@@ -4226,18 +4050,16 @@ pub fn CmdPushDescriptorSetKHR(commandBuffer: vk.VkCommandBuffer, pipelineBindPo
         descriptorWriteCount,
         pDescriptorWrites
     );
-    try check(result);
 }
 
-pub fn CmdPushDescriptorSetWithTemplateKHR(commandBuffer: vk.VkCommandBuffer, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, layout: vk.VkPipelineLayout, set: u32, pData: ?*const void) Error!void {
-    const result = vk.vkCmdPushDescriptorSetWithTemplateKHR(
+pub fn CmdPushDescriptorSetWithTemplateKHR(commandBuffer: vk.VkCommandBuffer, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, layout: vk.VkPipelineLayout, set: u32, pData: ?*const void) void {
+    vk.vkCmdPushDescriptorSetWithTemplateKHR(
         commandBuffer,
         descriptorUpdateTemplate,
         layout,
         set,
         pData
     );
-    try check(result);
 }
 
 pub fn CreateDescriptorUpdateTemplateKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescriptorUpdateTemplateCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pDescriptorUpdateTemplate: ?*vk.VkDescriptorUpdateTemplate) Error!void {
@@ -4250,26 +4072,24 @@ pub fn CreateDescriptorUpdateTemplateKHR(device: vk.VkDevice, pCreateInfo: ?*con
     try check(result);
 }
 
-pub fn DestroyDescriptorUpdateTemplateKHR(device: vk.VkDevice, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyDescriptorUpdateTemplateKHR(
+pub fn DestroyDescriptorUpdateTemplateKHR(device: vk.VkDevice, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyDescriptorUpdateTemplateKHR(
         device,
         descriptorUpdateTemplate,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn UpdateDescriptorSetWithTemplateKHR(device: vk.VkDevice, descriptorSet: vk.VkDescriptorSet, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, pData: ?*const void) Error!void {
-    const result = vk.vkUpdateDescriptorSetWithTemplateKHR(
+pub fn UpdateDescriptorSetWithTemplateKHR(device: vk.VkDevice, descriptorSet: vk.VkDescriptorSet, descriptorUpdateTemplate: vk.VkDescriptorUpdateTemplate, pData: ?*const void) void {
+    vk.vkUpdateDescriptorSetWithTemplateKHR(
         device,
         descriptorSet,
         descriptorUpdateTemplate,
         pData
     );
-    try check(result);
 }
 
-pub fn CreateRenderPass2KHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRenderPassCreateInfo2, pAllocator: ?*const vk.VkAllocationCallbacks, pRenderPass: ?[*]vk.VkRenderPass) Error!void {
+pub fn CreateRenderPass2KHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRenderPassCreateInfo2, pAllocator: ?*const vk.VkAllocationCallbacks, pRenderPass: [*c]vk.VkRenderPass) Error!void {
     const result = vk.vkCreateRenderPass2KHR(
         device,
         pCreateInfo,
@@ -4279,30 +4099,27 @@ pub fn CreateRenderPass2KHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkRende
     try check(result);
 }
 
-pub fn CmdBeginRenderPass2KHR(commandBuffer: vk.VkCommandBuffer, pRenderPassBegin: ?*const vk.VkRenderPassBeginInfo, pSubpassBeginInfo: ?*const vk.VkSubpassBeginInfo) Error!void {
-    const result = vk.vkCmdBeginRenderPass2KHR(
+pub fn CmdBeginRenderPass2KHR(commandBuffer: vk.VkCommandBuffer, pRenderPassBegin: ?*const vk.VkRenderPassBeginInfo, pSubpassBeginInfo: ?*const vk.VkSubpassBeginInfo) void {
+    vk.vkCmdBeginRenderPass2KHR(
         commandBuffer,
         pRenderPassBegin,
         pSubpassBeginInfo
     );
-    try check(result);
 }
 
-pub fn CmdNextSubpass2KHR(commandBuffer: vk.VkCommandBuffer, pSubpassBeginInfo: ?*const vk.VkSubpassBeginInfo, pSubpassEndInfo: ?*const vk.VkSubpassEndInfo) Error!void {
-    const result = vk.vkCmdNextSubpass2KHR(
+pub fn CmdNextSubpass2KHR(commandBuffer: vk.VkCommandBuffer, pSubpassBeginInfo: ?*const vk.VkSubpassBeginInfo, pSubpassEndInfo: ?*const vk.VkSubpassEndInfo) void {
+    vk.vkCmdNextSubpass2KHR(
         commandBuffer,
         pSubpassBeginInfo,
         pSubpassEndInfo
     );
-    try check(result);
 }
 
-pub fn CmdEndRenderPass2KHR(commandBuffer: vk.VkCommandBuffer, pSubpassEndInfo: ?*const vk.VkSubpassEndInfo) Error!void {
-    const result = vk.vkCmdEndRenderPass2KHR(
+pub fn CmdEndRenderPass2KHR(commandBuffer: vk.VkCommandBuffer, pSubpassEndInfo: ?*const vk.VkSubpassEndInfo) void {
+    vk.vkCmdEndRenderPass2KHR(
         commandBuffer,
         pSubpassEndInfo
     );
-    try check(result);
 }
 
 pub fn GetSwapchainStatusKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR) Error!void {
@@ -4313,13 +4130,12 @@ pub fn GetSwapchainStatusKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR) 
     try check(result);
 }
 
-pub fn GetPhysicalDeviceExternalFencePropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pExternalFenceInfo: ?*const vk.VkPhysicalDeviceExternalFenceInfo, pExternalFenceProperties: ?[*]vk.VkExternalFenceProperties) Error!void {
-    const result = vk.vkGetPhysicalDeviceExternalFencePropertiesKHR(
+pub fn GetPhysicalDeviceExternalFencePropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pExternalFenceInfo: ?*const vk.VkPhysicalDeviceExternalFenceInfo, pExternalFenceProperties: [*c]vk.VkExternalFenceProperties) void {
+    vk.vkGetPhysicalDeviceExternalFencePropertiesKHR(
         physicalDevice,
         pExternalFenceInfo,
         pExternalFenceProperties
     );
-    try check(result);
 }
 
 pub fn ImportFenceFdKHR(device: vk.VkDevice, pImportFenceFdInfo: ?*const vk.VkImportFenceFdInfoKHR) Error!void {
@@ -4339,7 +4155,7 @@ pub fn GetFenceFdKHR(device: vk.VkDevice, pGetFdInfo: ?*const vk.VkFenceGetFdInf
     try check(result);
 }
 
-pub fn EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(physicalDevice: vk.VkPhysicalDevice, queueFamilyIndex: u32, pCounterCount: ?*u32, pCounters: ?[*]vk.VkPerformanceCounterKHR, pCounterDescriptions: ?[*]vk.VkPerformanceCounterDescriptionKHR) Error!void {
+pub fn EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(physicalDevice: vk.VkPhysicalDevice, queueFamilyIndex: u32, pCounterCount: ?*u32, pCounters: [*c]vk.VkPerformanceCounterKHR, pCounterDescriptions: [*c]vk.VkPerformanceCounterDescriptionKHR) Error!void {
     const result = vk.vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
         physicalDevice,
         queueFamilyIndex,
@@ -4350,13 +4166,12 @@ pub fn EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(physicalDev
     try check(result);
 }
 
-pub fn GetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR(physicalDevice: vk.VkPhysicalDevice, pPerformanceQueryCreateInfo: ?*const vk.VkQueryPoolPerformanceCreateInfoKHR, pNumPasses: ?[*]u32) Error!void {
-    const result = vk.vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR(
+pub fn GetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR(physicalDevice: vk.VkPhysicalDevice, pPerformanceQueryCreateInfo: ?*const vk.VkQueryPoolPerformanceCreateInfoKHR, pNumPasses: [*c]u32) void {
+    vk.vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR(
         physicalDevice,
         pPerformanceQueryCreateInfo,
         pNumPasses
     );
-    try check(result);
 }
 
 pub fn AcquireProfilingLockKHR(device: vk.VkDevice, pInfo: ?*const vk.VkAcquireProfilingLockInfoKHR) Error!void {
@@ -4367,14 +4182,13 @@ pub fn AcquireProfilingLockKHR(device: vk.VkDevice, pInfo: ?*const vk.VkAcquireP
     try check(result);
 }
 
-pub fn ReleaseProfilingLockKHR(device: vk.VkDevice) Error!void {
-    const result = vk.vkReleaseProfilingLockKHR(
+pub fn ReleaseProfilingLockKHR(device: vk.VkDevice) void {
+    vk.vkReleaseProfilingLockKHR(
         device
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceSurfaceCapabilities2KHR(physicalDevice: vk.VkPhysicalDevice, pSurfaceInfo: ?*const vk.VkPhysicalDeviceSurfaceInfo2KHR, pSurfaceCapabilities: ?[*]vk.VkSurfaceCapabilities2KHR) Error!void {
+pub fn GetPhysicalDeviceSurfaceCapabilities2KHR(physicalDevice: vk.VkPhysicalDevice, pSurfaceInfo: ?*const vk.VkPhysicalDeviceSurfaceInfo2KHR, pSurfaceCapabilities: [*c]vk.VkSurfaceCapabilities2KHR) Error!void {
     const result = vk.vkGetPhysicalDeviceSurfaceCapabilities2KHR(
         physicalDevice,
         pSurfaceInfo,
@@ -4383,7 +4197,7 @@ pub fn GetPhysicalDeviceSurfaceCapabilities2KHR(physicalDevice: vk.VkPhysicalDev
     try check(result);
 }
 
-pub fn GetPhysicalDeviceSurfaceFormats2KHR(physicalDevice: vk.VkPhysicalDevice, pSurfaceInfo: ?*const vk.VkPhysicalDeviceSurfaceInfo2KHR, pSurfaceFormatCount: ?*u32, pSurfaceFormats: ?[*]vk.VkSurfaceFormat2KHR) Error!void {
+pub fn GetPhysicalDeviceSurfaceFormats2KHR(physicalDevice: vk.VkPhysicalDevice, pSurfaceInfo: ?*const vk.VkPhysicalDeviceSurfaceInfo2KHR, pSurfaceFormatCount: ?*u32, pSurfaceFormats: [*c]vk.VkSurfaceFormat2KHR) Error!void {
     const result = vk.vkGetPhysicalDeviceSurfaceFormats2KHR(
         physicalDevice,
         pSurfaceInfo,
@@ -4393,7 +4207,7 @@ pub fn GetPhysicalDeviceSurfaceFormats2KHR(physicalDevice: vk.VkPhysicalDevice, 
     try check(result);
 }
 
-pub fn GetPhysicalDeviceDisplayProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkDisplayProperties2KHR) Error!void {
+pub fn GetPhysicalDeviceDisplayProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkDisplayProperties2KHR) Error!void {
     const result = vk.vkGetPhysicalDeviceDisplayProperties2KHR(
         physicalDevice,
         pPropertyCount,
@@ -4402,7 +4216,7 @@ pub fn GetPhysicalDeviceDisplayProperties2KHR(physicalDevice: vk.VkPhysicalDevic
     try check(result);
 }
 
-pub fn GetPhysicalDeviceDisplayPlaneProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkDisplayPlaneProperties2KHR) Error!void {
+pub fn GetPhysicalDeviceDisplayPlaneProperties2KHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkDisplayPlaneProperties2KHR) Error!void {
     const result = vk.vkGetPhysicalDeviceDisplayPlaneProperties2KHR(
         physicalDevice,
         pPropertyCount,
@@ -4411,7 +4225,7 @@ pub fn GetPhysicalDeviceDisplayPlaneProperties2KHR(physicalDevice: vk.VkPhysical
     try check(result);
 }
 
-pub fn GetDisplayModeProperties2KHR(physicalDevice: vk.VkPhysicalDevice, display: vk.VkDisplayKHR, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkDisplayModeProperties2KHR) Error!void {
+pub fn GetDisplayModeProperties2KHR(physicalDevice: vk.VkPhysicalDevice, display: vk.VkDisplayKHR, pPropertyCount: ?*u32, pProperties: [*c]vk.VkDisplayModeProperties2KHR) Error!void {
     const result = vk.vkGetDisplayModeProperties2KHR(
         physicalDevice,
         display,
@@ -4421,7 +4235,7 @@ pub fn GetDisplayModeProperties2KHR(physicalDevice: vk.VkPhysicalDevice, display
     try check(result);
 }
 
-pub fn GetDisplayPlaneCapabilities2KHR(physicalDevice: vk.VkPhysicalDevice, pDisplayPlaneInfo: ?*const vk.VkDisplayPlaneInfo2KHR, pCapabilities: ?[*]vk.VkDisplayPlaneCapabilities2KHR) Error!void {
+pub fn GetDisplayPlaneCapabilities2KHR(physicalDevice: vk.VkPhysicalDevice, pDisplayPlaneInfo: ?*const vk.VkDisplayPlaneInfo2KHR, pCapabilities: [*c]vk.VkDisplayPlaneCapabilities2KHR) Error!void {
     const result = vk.vkGetDisplayPlaneCapabilities2KHR(
         physicalDevice,
         pDisplayPlaneInfo,
@@ -4430,32 +4244,29 @@ pub fn GetDisplayPlaneCapabilities2KHR(physicalDevice: vk.VkPhysicalDevice, pDis
     try check(result);
 }
 
-pub fn GetImageMemoryRequirements2KHR(device: vk.VkDevice, pInfo: ?*const vk.VkImageMemoryRequirementsInfo2, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetImageMemoryRequirements2KHR(
+pub fn GetImageMemoryRequirements2KHR(device: vk.VkDevice, pInfo: ?*const vk.VkImageMemoryRequirementsInfo2, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetImageMemoryRequirements2KHR(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetBufferMemoryRequirements2KHR(device: vk.VkDevice, pInfo: ?*const vk.VkBufferMemoryRequirementsInfo2, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetBufferMemoryRequirements2KHR(
+pub fn GetBufferMemoryRequirements2KHR(device: vk.VkDevice, pInfo: ?*const vk.VkBufferMemoryRequirementsInfo2, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetBufferMemoryRequirements2KHR(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetImageSparseMemoryRequirements2KHR(device: vk.VkDevice, pInfo: ?*const vk.VkImageSparseMemoryRequirementsInfo2, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: ?[*]vk.VkSparseImageMemoryRequirements2) Error!void {
-    const result = vk.vkGetImageSparseMemoryRequirements2KHR(
+pub fn GetImageSparseMemoryRequirements2KHR(device: vk.VkDevice, pInfo: ?*const vk.VkImageSparseMemoryRequirementsInfo2, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: [*c]vk.VkSparseImageMemoryRequirements2) void {
+    vk.vkGetImageSparseMemoryRequirements2KHR(
         device,
         pInfo,
         pSparseMemoryRequirementCount,
         pSparseMemoryRequirements
     );
-    try check(result);
 }
 
 pub fn CreateSamplerYcbcrConversionKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkSamplerYcbcrConversionCreateInfo, pAllocator: ?*const vk.VkAllocationCallbacks, pYcbcrConversion: ?*vk.VkSamplerYcbcrConversion) Error!void {
@@ -4468,16 +4279,15 @@ pub fn CreateSamplerYcbcrConversionKHR(device: vk.VkDevice, pCreateInfo: ?*const
     try check(result);
 }
 
-pub fn DestroySamplerYcbcrConversionKHR(device: vk.VkDevice, ycbcrConversion: vk.VkSamplerYcbcrConversion, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroySamplerYcbcrConversionKHR(
+pub fn DestroySamplerYcbcrConversionKHR(device: vk.VkDevice, ycbcrConversion: vk.VkSamplerYcbcrConversion, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroySamplerYcbcrConversionKHR(
         device,
         ycbcrConversion,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn BindBufferMemory2KHR(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: ?[*]const vk.VkBindBufferMemoryInfo) Error!void {
+pub fn BindBufferMemory2KHR(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: [*c]const vk.VkBindBufferMemoryInfo) Error!void {
     const result = vk.vkBindBufferMemory2KHR(
         device,
         bindInfoCount,
@@ -4486,7 +4296,7 @@ pub fn BindBufferMemory2KHR(device: vk.VkDevice, bindInfoCount: u32, pBindInfos:
     try check(result);
 }
 
-pub fn BindImageMemory2KHR(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: ?[*]const vk.VkBindImageMemoryInfo) Error!void {
+pub fn BindImageMemory2KHR(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: [*c]const vk.VkBindImageMemoryInfo) Error!void {
     const result = vk.vkBindImageMemory2KHR(
         device,
         bindInfoCount,
@@ -4495,17 +4305,16 @@ pub fn BindImageMemory2KHR(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: 
     try check(result);
 }
 
-pub fn GetDescriptorSetLayoutSupportKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescriptorSetLayoutCreateInfo, pSupport: ?*vk.VkDescriptorSetLayoutSupport) Error!void {
-    const result = vk.vkGetDescriptorSetLayoutSupportKHR(
+pub fn GetDescriptorSetLayoutSupportKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkDescriptorSetLayoutCreateInfo, pSupport: ?*vk.VkDescriptorSetLayoutSupport) void {
+    vk.vkGetDescriptorSetLayoutSupportKHR(
         device,
         pCreateInfo,
         pSupport
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndirectCountKHR(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawIndirectCountKHR(
+pub fn CmdDrawIndirectCountKHR(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) void {
+    vk.vkCmdDrawIndirectCountKHR(
         commandBuffer,
         buffer,
         offset,
@@ -4514,11 +4323,10 @@ pub fn CmdDrawIndirectCountKHR(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkB
         maxDrawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndexedIndirectCountKHR(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawIndexedIndirectCountKHR(
+pub fn CmdDrawIndexedIndirectCountKHR(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) void {
+    vk.vkCmdDrawIndexedIndirectCountKHR(
         commandBuffer,
         buffer,
         offset,
@@ -4527,10 +4335,9 @@ pub fn CmdDrawIndexedIndirectCountKHR(commandBuffer: vk.VkCommandBuffer, buffer:
         maxDrawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn GetSemaphoreCounterValueKHR(device: vk.VkDevice, semaphore: vk.VkSemaphore, pValue: ?*vk.uint64_t) Error!void {
+pub fn GetSemaphoreCounterValueKHR(device: vk.VkDevice, semaphore: vk.VkSemaphore, pValue: ?*u64) Error!void {
     const result = vk.vkGetSemaphoreCounterValueKHR(
         device,
         semaphore,
@@ -4539,7 +4346,7 @@ pub fn GetSemaphoreCounterValueKHR(device: vk.VkDevice, semaphore: vk.VkSemaphor
     try check(result);
 }
 
-pub fn WaitSemaphoresKHR(device: vk.VkDevice, pWaitInfo: ?*const vk.VkSemaphoreWaitInfo, timeout: vk.uint64_t) Error!void {
+pub fn WaitSemaphoresKHR(device: vk.VkDevice, pWaitInfo: ?*const vk.VkSemaphoreWaitInfo, timeout: u64) Error!void {
     const result = vk.vkWaitSemaphoresKHR(
         device,
         pWaitInfo,
@@ -4556,7 +4363,7 @@ pub fn SignalSemaphoreKHR(device: vk.VkDevice, pSignalInfo: ?*const vk.VkSemapho
     try check(result);
 }
 
-pub fn GetPhysicalDeviceFragmentShadingRatesKHR(physicalDevice: vk.VkPhysicalDevice, pFragmentShadingRateCount: ?*u32, pFragmentShadingRates: ?[*]vk.VkPhysicalDeviceFragmentShadingRateKHR) Error!void {
+pub fn GetPhysicalDeviceFragmentShadingRatesKHR(physicalDevice: vk.VkPhysicalDevice, pFragmentShadingRateCount: ?*u32, pFragmentShadingRates: [*c]vk.VkPhysicalDeviceFragmentShadingRateKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceFragmentShadingRatesKHR(
         physicalDevice,
         pFragmentShadingRateCount,
@@ -4565,32 +4372,29 @@ pub fn GetPhysicalDeviceFragmentShadingRatesKHR(physicalDevice: vk.VkPhysicalDev
     try check(result);
 }
 
-pub fn CmdSetFragmentShadingRateKHR(commandBuffer: vk.VkCommandBuffer, pFragmentSize: ?*const vk.VkExtent2D, combinerOps: vk.VkFragmentShadingRateCombinerOpKHR) Error!void {
-    const result = vk.vkCmdSetFragmentShadingRateKHR(
+pub fn CmdSetFragmentShadingRateKHR(commandBuffer: vk.VkCommandBuffer, pFragmentSize: ?*const vk.VkExtent2D, combinerOps: vk.VkFragmentShadingRateCombinerOpKHR) void {
+    vk.vkCmdSetFragmentShadingRateKHR(
         commandBuffer,
         pFragmentSize,
         combinerOps
     );
-    try check(result);
 }
 
-pub fn CmdSetRenderingAttachmentLocationsKHR(commandBuffer: vk.VkCommandBuffer, pLocationInfo: ?*const vk.VkRenderingAttachmentLocationInfo) Error!void {
-    const result = vk.vkCmdSetRenderingAttachmentLocationsKHR(
+pub fn CmdSetRenderingAttachmentLocationsKHR(commandBuffer: vk.VkCommandBuffer, pLocationInfo: ?*const vk.VkRenderingAttachmentLocationInfo) void {
+    vk.vkCmdSetRenderingAttachmentLocationsKHR(
         commandBuffer,
         pLocationInfo
     );
-    try check(result);
 }
 
-pub fn CmdSetRenderingInputAttachmentIndicesKHR(commandBuffer: vk.VkCommandBuffer, pInputAttachmentIndexInfo: ?*const vk.VkRenderingInputAttachmentIndexInfo) Error!void {
-    const result = vk.vkCmdSetRenderingInputAttachmentIndicesKHR(
+pub fn CmdSetRenderingInputAttachmentIndicesKHR(commandBuffer: vk.VkCommandBuffer, pInputAttachmentIndexInfo: ?*const vk.VkRenderingInputAttachmentIndexInfo) void {
+    vk.vkCmdSetRenderingInputAttachmentIndicesKHR(
         commandBuffer,
         pInputAttachmentIndexInfo
     );
-    try check(result);
 }
 
-pub fn WaitForPresentKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, presentId: vk.uint64_t, timeout: vk.uint64_t) Error!void {
+pub fn WaitForPresentKHR(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, presentId: u64, timeout: u64) Error!void {
     const result = vk.vkWaitForPresentKHR(
         device,
         swapchain,
@@ -4617,13 +4421,12 @@ pub fn CreateDeferredOperationKHR(device: vk.VkDevice, pAllocator: ?*const vk.Vk
     try check(result);
 }
 
-pub fn DestroyDeferredOperationKHR(device: vk.VkDevice, operation: vk.VkDeferredOperationKHR, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyDeferredOperationKHR(
+pub fn DestroyDeferredOperationKHR(device: vk.VkDevice, operation: vk.VkDeferredOperationKHR, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyDeferredOperationKHR(
         device,
         operation,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn GetDeferredOperationResultKHR(device: vk.VkDevice, operation: vk.VkDeferredOperationKHR) Error!void {
@@ -4642,7 +4445,7 @@ pub fn DeferredOperationJoinKHR(device: vk.VkDevice, operation: vk.VkDeferredOpe
     try check(result);
 }
 
-pub fn GetPipelineExecutablePropertiesKHR(device: vk.VkDevice, pPipelineInfo: ?*const vk.VkPipelineInfoKHR, pExecutableCount: ?*u32, pProperties: ?[*]vk.VkPipelineExecutablePropertiesKHR) Error!void {
+pub fn GetPipelineExecutablePropertiesKHR(device: vk.VkDevice, pPipelineInfo: ?*const vk.VkPipelineInfoKHR, pExecutableCount: ?*u32, pProperties: [*c]vk.VkPipelineExecutablePropertiesKHR) Error!void {
     const result = vk.vkGetPipelineExecutablePropertiesKHR(
         device,
         pPipelineInfo,
@@ -4652,7 +4455,7 @@ pub fn GetPipelineExecutablePropertiesKHR(device: vk.VkDevice, pPipelineInfo: ?*
     try check(result);
 }
 
-pub fn GetPipelineExecutableStatisticsKHR(device: vk.VkDevice, pExecutableInfo: ?*const vk.VkPipelineExecutableInfoKHR, pStatisticCount: ?*u32, pStatistics: ?[*]vk.VkPipelineExecutableStatisticKHR) Error!void {
+pub fn GetPipelineExecutableStatisticsKHR(device: vk.VkDevice, pExecutableInfo: ?*const vk.VkPipelineExecutableInfoKHR, pStatisticCount: ?*u32, pStatistics: [*c]vk.VkPipelineExecutableStatisticKHR) Error!void {
     const result = vk.vkGetPipelineExecutableStatisticsKHR(
         device,
         pExecutableInfo,
@@ -4662,7 +4465,7 @@ pub fn GetPipelineExecutableStatisticsKHR(device: vk.VkDevice, pExecutableInfo: 
     try check(result);
 }
 
-pub fn GetPipelineExecutableInternalRepresentationsKHR(device: vk.VkDevice, pExecutableInfo: ?*const vk.VkPipelineExecutableInfoKHR, pInternalRepresentationCount: ?*u32, pInternalRepresentations: ?[*]vk.VkPipelineExecutableInternalRepresentationKHR) Error!void {
+pub fn GetPipelineExecutableInternalRepresentationsKHR(device: vk.VkDevice, pExecutableInfo: ?*const vk.VkPipelineExecutableInfoKHR, pInternalRepresentationCount: ?*u32, pInternalRepresentations: [*c]vk.VkPipelineExecutableInternalRepresentationKHR) Error!void {
     const result = vk.vkGetPipelineExecutableInternalRepresentationsKHR(
         device,
         pExecutableInfo,
@@ -4689,7 +4492,7 @@ pub fn UnmapMemory2KHR(device: vk.VkDevice, pMemoryUnmapInfo: ?*const vk.VkMemor
     try check(result);
 }
 
-pub fn GetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pQualityLevelInfo: ?*const vk.VkPhysicalDeviceVideoEncodeQualityLevelInfoKHR, pQualityLevelProperties: ?[*]vk.VkVideoEncodeQualityLevelPropertiesKHR) Error!void {
+pub fn GetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pQualityLevelInfo: ?*const vk.VkPhysicalDeviceVideoEncodeQualityLevelInfoKHR, pQualityLevelProperties: [*c]vk.VkVideoEncodeQualityLevelPropertiesKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR(
         physicalDevice,
         pQualityLevelInfo,
@@ -4709,61 +4512,55 @@ pub fn GetEncodedVideoSessionParametersKHR(device: vk.VkDevice, pVideoSessionPar
     try check(result);
 }
 
-pub fn CmdEncodeVideoKHR(commandBuffer: vk.VkCommandBuffer, pEncodeInfo: ?*const vk.VkVideoEncodeInfoKHR) Error!void {
-    const result = vk.vkCmdEncodeVideoKHR(
+pub fn CmdEncodeVideoKHR(commandBuffer: vk.VkCommandBuffer, pEncodeInfo: ?*const vk.VkVideoEncodeInfoKHR) void {
+    vk.vkCmdEncodeVideoKHR(
         commandBuffer,
         pEncodeInfo
     );
-    try check(result);
 }
 
-pub fn CmdSetEvent2KHR(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, pDependencyInfo: ?*const vk.VkDependencyInfo) Error!void {
-    const result = vk.vkCmdSetEvent2KHR(
+pub fn CmdSetEvent2KHR(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, pDependencyInfo: ?*const vk.VkDependencyInfo) void {
+    vk.vkCmdSetEvent2KHR(
         commandBuffer,
         event,
         pDependencyInfo
     );
-    try check(result);
 }
 
-pub fn CmdResetEvent2KHR(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, stageMask: vk.VkPipelineStageFlags2) Error!void {
-    const result = vk.vkCmdResetEvent2KHR(
+pub fn CmdResetEvent2KHR(commandBuffer: vk.VkCommandBuffer, event: vk.VkEvent, stageMask: vk.VkPipelineStageFlags2) void {
+    vk.vkCmdResetEvent2KHR(
         commandBuffer,
         event,
         stageMask
     );
-    try check(result);
 }
 
-pub fn CmdWaitEvents2KHR(commandBuffer: vk.VkCommandBuffer, eventCount: u32, pEvents: ?[*]const vk.VkEvent, pDependencyInfos: ?[*]const vk.VkDependencyInfo) Error!void {
-    const result = vk.vkCmdWaitEvents2KHR(
+pub fn CmdWaitEvents2KHR(commandBuffer: vk.VkCommandBuffer, eventCount: u32, pEvents: [*c]const vk.VkEvent, pDependencyInfos: [*c]const vk.VkDependencyInfo) void {
+    vk.vkCmdWaitEvents2KHR(
         commandBuffer,
         eventCount,
         pEvents,
         pDependencyInfos
     );
-    try check(result);
 }
 
-pub fn CmdPipelineBarrier2KHR(commandBuffer: vk.VkCommandBuffer, pDependencyInfo: ?*const vk.VkDependencyInfo) Error!void {
-    const result = vk.vkCmdPipelineBarrier2KHR(
+pub fn CmdPipelineBarrier2KHR(commandBuffer: vk.VkCommandBuffer, pDependencyInfo: ?*const vk.VkDependencyInfo) void {
+    vk.vkCmdPipelineBarrier2KHR(
         commandBuffer,
         pDependencyInfo
     );
-    try check(result);
 }
 
-pub fn CmdWriteTimestamp2KHR(commandBuffer: vk.VkCommandBuffer, stage: vk.VkPipelineStageFlags2, queryPool: vk.VkQueryPool, query: u32) Error!void {
-    const result = vk.vkCmdWriteTimestamp2KHR(
+pub fn CmdWriteTimestamp2KHR(commandBuffer: vk.VkCommandBuffer, stage: vk.VkPipelineStageFlags2, queryPool: vk.VkQueryPool, query: u32) void {
+    vk.vkCmdWriteTimestamp2KHR(
         commandBuffer,
         stage,
         queryPool,
         query
     );
-    try check(result);
 }
 
-pub fn QueueSubmit2KHR(queue: vk.VkQueue, submitCount: u32, pSubmits: ?[*]const vk.VkSubmitInfo2, fence: vk.VkFence) Error!void {
+pub fn QueueSubmit2KHR(queue: vk.VkQueue, submitCount: u32, pSubmits: [*c]const vk.VkSubmitInfo2, fence: vk.VkFence) Error!void {
     const result = vk.vkQueueSubmit2KHR(
         queue,
         submitCount,
@@ -4773,130 +4570,116 @@ pub fn QueueSubmit2KHR(queue: vk.VkQueue, submitCount: u32, pSubmits: ?[*]const 
     try check(result);
 }
 
-pub fn CmdCopyBuffer2KHR(commandBuffer: vk.VkCommandBuffer, pCopyBufferInfo: ?*const vk.VkCopyBufferInfo2) Error!void {
-    const result = vk.vkCmdCopyBuffer2KHR(
+pub fn CmdCopyBuffer2KHR(commandBuffer: vk.VkCommandBuffer, pCopyBufferInfo: ?*const vk.VkCopyBufferInfo2) void {
+    vk.vkCmdCopyBuffer2KHR(
         commandBuffer,
         pCopyBufferInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyImage2KHR(commandBuffer: vk.VkCommandBuffer, pCopyImageInfo: ?*const vk.VkCopyImageInfo2) Error!void {
-    const result = vk.vkCmdCopyImage2KHR(
+pub fn CmdCopyImage2KHR(commandBuffer: vk.VkCommandBuffer, pCopyImageInfo: ?*const vk.VkCopyImageInfo2) void {
+    vk.vkCmdCopyImage2KHR(
         commandBuffer,
         pCopyImageInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyBufferToImage2KHR(commandBuffer: vk.VkCommandBuffer, pCopyBufferToImageInfo: ?*const vk.VkCopyBufferToImageInfo2) Error!void {
-    const result = vk.vkCmdCopyBufferToImage2KHR(
+pub fn CmdCopyBufferToImage2KHR(commandBuffer: vk.VkCommandBuffer, pCopyBufferToImageInfo: ?*const vk.VkCopyBufferToImageInfo2) void {
+    vk.vkCmdCopyBufferToImage2KHR(
         commandBuffer,
         pCopyBufferToImageInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyImageToBuffer2KHR(commandBuffer: vk.VkCommandBuffer, pCopyImageToBufferInfo: ?*const vk.VkCopyImageToBufferInfo2) Error!void {
-    const result = vk.vkCmdCopyImageToBuffer2KHR(
+pub fn CmdCopyImageToBuffer2KHR(commandBuffer: vk.VkCommandBuffer, pCopyImageToBufferInfo: ?*const vk.VkCopyImageToBufferInfo2) void {
+    vk.vkCmdCopyImageToBuffer2KHR(
         commandBuffer,
         pCopyImageToBufferInfo
     );
-    try check(result);
 }
 
-pub fn CmdBlitImage2KHR(commandBuffer: vk.VkCommandBuffer, pBlitImageInfo: ?*const vk.VkBlitImageInfo2) Error!void {
-    const result = vk.vkCmdBlitImage2KHR(
+pub fn CmdBlitImage2KHR(commandBuffer: vk.VkCommandBuffer, pBlitImageInfo: ?*const vk.VkBlitImageInfo2) void {
+    vk.vkCmdBlitImage2KHR(
         commandBuffer,
         pBlitImageInfo
     );
-    try check(result);
 }
 
-pub fn CmdResolveImage2KHR(commandBuffer: vk.VkCommandBuffer, pResolveImageInfo: ?*const vk.VkResolveImageInfo2) Error!void {
-    const result = vk.vkCmdResolveImage2KHR(
+pub fn CmdResolveImage2KHR(commandBuffer: vk.VkCommandBuffer, pResolveImageInfo: ?*const vk.VkResolveImageInfo2) void {
+    vk.vkCmdResolveImage2KHR(
         commandBuffer,
         pResolveImageInfo
     );
-    try check(result);
 }
 
-pub fn CmdTraceRaysIndirect2KHR(commandBuffer: vk.VkCommandBuffer, indirectDeviceAddress: vk.VkDeviceAddress) Error!void {
-    const result = vk.vkCmdTraceRaysIndirect2KHR(
+pub fn CmdTraceRaysIndirect2KHR(commandBuffer: vk.VkCommandBuffer, indirectDeviceAddress: vk.VkDeviceAddress) void {
+    vk.vkCmdTraceRaysIndirect2KHR(
         commandBuffer,
         indirectDeviceAddress
     );
-    try check(result);
 }
 
-pub fn GetDeviceBufferMemoryRequirementsKHR(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceBufferMemoryRequirements, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetDeviceBufferMemoryRequirementsKHR(
+pub fn GetDeviceBufferMemoryRequirementsKHR(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceBufferMemoryRequirements, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetDeviceBufferMemoryRequirementsKHR(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetDeviceImageMemoryRequirementsKHR(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageMemoryRequirements, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetDeviceImageMemoryRequirementsKHR(
+pub fn GetDeviceImageMemoryRequirementsKHR(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageMemoryRequirements, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetDeviceImageMemoryRequirementsKHR(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn GetDeviceImageSparseMemoryRequirementsKHR(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageMemoryRequirements, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: ?[*]vk.VkSparseImageMemoryRequirements2) Error!void {
-    const result = vk.vkGetDeviceImageSparseMemoryRequirementsKHR(
+pub fn GetDeviceImageSparseMemoryRequirementsKHR(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageMemoryRequirements, pSparseMemoryRequirementCount: ?*u32, pSparseMemoryRequirements: [*c]vk.VkSparseImageMemoryRequirements2) void {
+    vk.vkGetDeviceImageSparseMemoryRequirementsKHR(
         device,
         pInfo,
         pSparseMemoryRequirementCount,
         pSparseMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn CmdBindIndexBuffer2KHR(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, size: vk.VkDeviceSize, indexType: vk.VkIndexType) Error!void {
-    const result = vk.vkCmdBindIndexBuffer2KHR(
+pub fn CmdBindIndexBuffer2KHR(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, size: vk.VkDeviceSize, indexType: vk.VkIndexType) void {
+    vk.vkCmdBindIndexBuffer2KHR(
         commandBuffer,
         buffer,
         offset,
         size,
         indexType
     );
-    try check(result);
 }
 
-pub fn GetRenderingAreaGranularityKHR(device: vk.VkDevice, pRenderingAreaInfo: ?*const vk.VkRenderingAreaInfo, pGranularity: ?*vk.VkExtent2D) Error!void {
-    const result = vk.vkGetRenderingAreaGranularityKHR(
+pub fn GetRenderingAreaGranularityKHR(device: vk.VkDevice, pRenderingAreaInfo: ?*const vk.VkRenderingAreaInfo, pGranularity: ?*vk.VkExtent2D) void {
+    vk.vkGetRenderingAreaGranularityKHR(
         device,
         pRenderingAreaInfo,
         pGranularity
     );
-    try check(result);
 }
 
-pub fn GetDeviceImageSubresourceLayoutKHR(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageSubresourceInfo, pLayout: ?*vk.VkSubresourceLayout2) Error!void {
-    const result = vk.vkGetDeviceImageSubresourceLayoutKHR(
+pub fn GetDeviceImageSubresourceLayoutKHR(device: vk.VkDevice, pInfo: ?*const vk.VkDeviceImageSubresourceInfo, pLayout: ?*vk.VkSubresourceLayout2) void {
+    vk.vkGetDeviceImageSubresourceLayoutKHR(
         device,
         pInfo,
         pLayout
     );
-    try check(result);
 }
 
-pub fn GetImageSubresourceLayout2KHR(device: vk.VkDevice, image: vk.VkImage, pSubresource: ?*const vk.VkImageSubresource2, pLayout: ?*vk.VkSubresourceLayout2) Error!void {
-    const result = vk.vkGetImageSubresourceLayout2KHR(
+pub fn GetImageSubresourceLayout2KHR(device: vk.VkDevice, image: vk.VkImage, pSubresource: ?*const vk.VkImageSubresource2, pLayout: ?*vk.VkSubresourceLayout2) void {
+    vk.vkGetImageSubresourceLayout2KHR(
         device,
         image,
         pSubresource,
         pLayout
     );
-    try check(result);
 }
 
-pub fn CreatePipelineBinariesKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkPipelineBinaryCreateInfoKHR, pAllocator: ?*const vk.VkAllocationCallbacks, pBinaries: ?[*]vk.VkPipelineBinaryHandlesInfoKHR) Error!void {
+pub fn CreatePipelineBinariesKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.VkPipelineBinaryCreateInfoKHR, pAllocator: ?*const vk.VkAllocationCallbacks, pBinaries: [*c]vk.VkPipelineBinaryHandlesInfoKHR) Error!void {
     const result = vk.vkCreatePipelineBinariesKHR(
         device,
         pCreateInfo,
@@ -4906,13 +4689,12 @@ pub fn CreatePipelineBinariesKHR(device: vk.VkDevice, pCreateInfo: ?*const vk.Vk
     try check(result);
 }
 
-pub fn DestroyPipelineBinaryKHR(device: vk.VkDevice, pipelineBinary: vk.VkPipelineBinaryKHR, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyPipelineBinaryKHR(
+pub fn DestroyPipelineBinaryKHR(device: vk.VkDevice, pipelineBinary: vk.VkPipelineBinaryKHR, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyPipelineBinaryKHR(
         device,
         pipelineBinary,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn GetPipelineKeyKHR(device: vk.VkDevice, pPipelineCreateInfo: ?*const vk.VkPipelineCreateInfoKHR, pPipelineKey: ?*vk.VkPipelineBinaryKeyKHR) Error!void {
@@ -4944,7 +4726,7 @@ pub fn ReleaseCapturedPipelineDataKHR(device: vk.VkDevice, pInfo: ?*const vk.VkR
     try check(result);
 }
 
-pub fn GetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkCooperativeMatrixPropertiesKHR) Error!void {
+pub fn GetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkCooperativeMatrixPropertiesKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(
         physicalDevice,
         pPropertyCount,
@@ -4953,16 +4735,15 @@ pub fn GetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice: vk.VkPhys
     try check(result);
 }
 
-pub fn CmdSetLineStippleKHR(commandBuffer: vk.VkCommandBuffer, lineStippleFactor: u32, lineStipplePattern: vk.uint16_t) Error!void {
-    const result = vk.vkCmdSetLineStippleKHR(
+pub fn CmdSetLineStippleKHR(commandBuffer: vk.VkCommandBuffer, lineStippleFactor: u32, lineStipplePattern: vk.uint16_t) void {
+    vk.vkCmdSetLineStippleKHR(
         commandBuffer,
         lineStippleFactor,
         lineStipplePattern
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceCalibrateableTimeDomainsKHR(physicalDevice: vk.VkPhysicalDevice, pTimeDomainCount: ?*u32, pTimeDomains: ?[*]vk.VkTimeDomainKHR) Error!void {
+pub fn GetPhysicalDeviceCalibrateableTimeDomainsKHR(physicalDevice: vk.VkPhysicalDevice, pTimeDomainCount: ?*u32, pTimeDomains: [*c]vk.VkTimeDomainKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(
         physicalDevice,
         pTimeDomainCount,
@@ -4971,7 +4752,7 @@ pub fn GetPhysicalDeviceCalibrateableTimeDomainsKHR(physicalDevice: vk.VkPhysica
     try check(result);
 }
 
-pub fn GetCalibratedTimestampsKHR(device: vk.VkDevice, timestampCount: u32, pTimestampInfos: ?[*]const vk.VkCalibratedTimestampInfoKHR, pTimestamps: ?[*]vk.uint64_t, pMaxDeviation: ?*vk.uint64_t) Error!void {
+pub fn GetCalibratedTimestampsKHR(device: vk.VkDevice, timestampCount: u32, pTimestampInfos: [*c]const vk.VkCalibratedTimestampInfoKHR, pTimestamps: [*c]u64, pMaxDeviation: ?*u64) Error!void {
     const result = vk.vkGetCalibratedTimestampsKHR(
         device,
         timestampCount,
@@ -4982,52 +4763,46 @@ pub fn GetCalibratedTimestampsKHR(device: vk.VkDevice, timestampCount: u32, pTim
     try check(result);
 }
 
-pub fn CmdBindDescriptorSets2KHR(commandBuffer: vk.VkCommandBuffer, pBindDescriptorSetsInfo: ?*const vk.VkBindDescriptorSetsInfo) Error!void {
-    const result = vk.vkCmdBindDescriptorSets2KHR(
+pub fn CmdBindDescriptorSets2KHR(commandBuffer: vk.VkCommandBuffer, pBindDescriptorSetsInfo: ?*const vk.VkBindDescriptorSetsInfo) void {
+    vk.vkCmdBindDescriptorSets2KHR(
         commandBuffer,
         pBindDescriptorSetsInfo
     );
-    try check(result);
 }
 
-pub fn CmdPushConstants2KHR(commandBuffer: vk.VkCommandBuffer, pPushConstantsInfo: ?*const vk.VkPushConstantsInfo) Error!void {
-    const result = vk.vkCmdPushConstants2KHR(
+pub fn CmdPushConstants2KHR(commandBuffer: vk.VkCommandBuffer, pPushConstantsInfo: ?*const vk.VkPushConstantsInfo) void {
+    vk.vkCmdPushConstants2KHR(
         commandBuffer,
         pPushConstantsInfo
     );
-    try check(result);
 }
 
-pub fn CmdPushDescriptorSet2KHR(commandBuffer: vk.VkCommandBuffer, pPushDescriptorSetInfo: ?*const vk.VkPushDescriptorSetInfo) Error!void {
-    const result = vk.vkCmdPushDescriptorSet2KHR(
+pub fn CmdPushDescriptorSet2KHR(commandBuffer: vk.VkCommandBuffer, pPushDescriptorSetInfo: ?*const vk.VkPushDescriptorSetInfo) void {
+    vk.vkCmdPushDescriptorSet2KHR(
         commandBuffer,
         pPushDescriptorSetInfo
     );
-    try check(result);
 }
 
-pub fn CmdPushDescriptorSetWithTemplate2KHR(commandBuffer: vk.VkCommandBuffer, pPushDescriptorSetWithTemplateInfo: ?*const vk.VkPushDescriptorSetWithTemplateInfo) Error!void {
-    const result = vk.vkCmdPushDescriptorSetWithTemplate2KHR(
+pub fn CmdPushDescriptorSetWithTemplate2KHR(commandBuffer: vk.VkCommandBuffer, pPushDescriptorSetWithTemplateInfo: ?*const vk.VkPushDescriptorSetWithTemplateInfo) void {
+    vk.vkCmdPushDescriptorSetWithTemplate2KHR(
         commandBuffer,
         pPushDescriptorSetWithTemplateInfo
     );
-    try check(result);
 }
 
-pub fn CmdSetDescriptorBufferOffsets2EXT(commandBuffer: vk.VkCommandBuffer, pSetDescriptorBufferOffsetsInfo: ?*const vk.VkSetDescriptorBufferOffsetsInfoEXT) Error!void {
-    const result = vk.vkCmdSetDescriptorBufferOffsets2EXT(
+pub fn CmdSetDescriptorBufferOffsets2EXT(commandBuffer: vk.VkCommandBuffer, pSetDescriptorBufferOffsetsInfo: ?*const vk.VkSetDescriptorBufferOffsetsInfoEXT) void {
+    vk.vkCmdSetDescriptorBufferOffsets2EXT(
         commandBuffer,
         pSetDescriptorBufferOffsetsInfo
     );
-    try check(result);
 }
 
-pub fn CmdBindDescriptorBufferEmbeddedSamplers2EXT(commandBuffer: vk.VkCommandBuffer, pBindDescriptorBufferEmbeddedSamplersInfo: ?*const vk.VkBindDescriptorBufferEmbeddedSamplersInfoEXT) Error!void {
-    const result = vk.vkCmdBindDescriptorBufferEmbeddedSamplers2EXT(
+pub fn CmdBindDescriptorBufferEmbeddedSamplers2EXT(commandBuffer: vk.VkCommandBuffer, pBindDescriptorBufferEmbeddedSamplersInfo: ?*const vk.VkBindDescriptorBufferEmbeddedSamplersInfoEXT) void {
+    vk.vkCmdBindDescriptorBufferEmbeddedSamplers2EXT(
         commandBuffer,
         pBindDescriptorBufferEmbeddedSamplersInfo
     );
-    try check(result);
 }
 
 pub fn CreateDebugReportCallbackEXT(instance: vk.VkInstance, pCreateInfo: ?*const vk.VkDebugReportCallbackCreateInfoEXT, pAllocator: ?*const vk.VkAllocationCallbacks, pCallback: ?*vk.VkDebugReportCallbackEXT) Error!void {
@@ -5040,17 +4815,16 @@ pub fn CreateDebugReportCallbackEXT(instance: vk.VkInstance, pCreateInfo: ?*cons
     try check(result);
 }
 
-pub fn DestroyDebugReportCallbackEXT(instance: vk.VkInstance, callback: vk.VkDebugReportCallbackEXT, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyDebugReportCallbackEXT(
+pub fn DestroyDebugReportCallbackEXT(instance: vk.VkInstance, callback: vk.VkDebugReportCallbackEXT, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyDebugReportCallbackEXT(
         instance,
         callback,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn DebugReportMessageEXT(instance: vk.VkInstance, flags: vk.VkDebugReportFlagsEXT, objectType: vk.VkDebugReportObjectTypeEXT, object: vk.uint64_t, location: vk.size_t, messageCode: i32, pLayerPrefix: ?*const u8, pMessage: ?*const u8) Error!void {
-    const result = vk.vkDebugReportMessageEXT(
+pub fn DebugReportMessageEXT(instance: vk.VkInstance, flags: vk.VkDebugReportFlagsEXT, objectType: vk.VkDebugReportObjectTypeEXT, object: u64, location: vk.size_t, messageCode: i32, pLayerPrefix: ?*const u8, pMessage: ?*const u8) void {
+    vk.vkDebugReportMessageEXT(
         instance,
         flags,
         objectType,
@@ -5060,7 +4834,6 @@ pub fn DebugReportMessageEXT(instance: vk.VkInstance, flags: vk.VkDebugReportFla
         pLayerPrefix,
         pMessage
     );
-    try check(result);
 }
 
 pub fn DebugMarkerSetObjectTagEXT(device: vk.VkDevice, pTagInfo: ?*const vk.VkDebugMarkerObjectTagInfoEXT) Error!void {
@@ -5079,31 +4852,28 @@ pub fn DebugMarkerSetObjectNameEXT(device: vk.VkDevice, pNameInfo: ?*const vk.Vk
     try check(result);
 }
 
-pub fn CmdDebugMarkerBeginEXT(commandBuffer: vk.VkCommandBuffer, pMarkerInfo: ?*const vk.VkDebugMarkerMarkerInfoEXT) Error!void {
-    const result = vk.vkCmdDebugMarkerBeginEXT(
+pub fn CmdDebugMarkerBeginEXT(commandBuffer: vk.VkCommandBuffer, pMarkerInfo: ?*const vk.VkDebugMarkerMarkerInfoEXT) void {
+    vk.vkCmdDebugMarkerBeginEXT(
         commandBuffer,
         pMarkerInfo
     );
-    try check(result);
 }
 
-pub fn CmdDebugMarkerEndEXT(commandBuffer: vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdDebugMarkerEndEXT(
+pub fn CmdDebugMarkerEndEXT(commandBuffer: vk.VkCommandBuffer) void {
+    vk.vkCmdDebugMarkerEndEXT(
         commandBuffer
     );
-    try check(result);
 }
 
-pub fn CmdDebugMarkerInsertEXT(commandBuffer: vk.VkCommandBuffer, pMarkerInfo: ?*const vk.VkDebugMarkerMarkerInfoEXT) Error!void {
-    const result = vk.vkCmdDebugMarkerInsertEXT(
+pub fn CmdDebugMarkerInsertEXT(commandBuffer: vk.VkCommandBuffer, pMarkerInfo: ?*const vk.VkDebugMarkerMarkerInfoEXT) void {
+    vk.vkCmdDebugMarkerInsertEXT(
         commandBuffer,
         pMarkerInfo
     );
-    try check(result);
 }
 
-pub fn CmdBindTransformFeedbackBuffersEXT(commandBuffer: vk.VkCommandBuffer, firstBinding: u32, bindingCount: u32, pBuffers: ?[*]const vk.VkBuffer, pOffsets: ?[*]const vk.VkDeviceSize, pSizes: ?[*]const vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdBindTransformFeedbackBuffersEXT(
+pub fn CmdBindTransformFeedbackBuffersEXT(commandBuffer: vk.VkCommandBuffer, firstBinding: u32, bindingCount: u32, pBuffers: [*c]const vk.VkBuffer, pOffsets: [*c]const vk.VkDeviceSize, pSizes: [*c]const vk.VkDeviceSize) void {
+    vk.vkCmdBindTransformFeedbackBuffersEXT(
         commandBuffer,
         firstBinding,
         bindingCount,
@@ -5111,54 +4881,49 @@ pub fn CmdBindTransformFeedbackBuffersEXT(commandBuffer: vk.VkCommandBuffer, fir
         pOffsets,
         pSizes
     );
-    try check(result);
 }
 
-pub fn CmdBeginTransformFeedbackEXT(commandBuffer: vk.VkCommandBuffer, firstCounterBuffer: u32, counterBufferCount: u32, pCounterBuffers: ?[*]const vk.VkBuffer, pCounterBufferOffsets: ?[*]const vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdBeginTransformFeedbackEXT(
+pub fn CmdBeginTransformFeedbackEXT(commandBuffer: vk.VkCommandBuffer, firstCounterBuffer: u32, counterBufferCount: u32, pCounterBuffers: [*c]const vk.VkBuffer, pCounterBufferOffsets: [*c]const vk.VkDeviceSize) void {
+    vk.vkCmdBeginTransformFeedbackEXT(
         commandBuffer,
         firstCounterBuffer,
         counterBufferCount,
         pCounterBuffers,
         pCounterBufferOffsets
     );
-    try check(result);
 }
 
-pub fn CmdEndTransformFeedbackEXT(commandBuffer: vk.VkCommandBuffer, firstCounterBuffer: u32, counterBufferCount: u32, pCounterBuffers: ?[*]const vk.VkBuffer, pCounterBufferOffsets: ?[*]const vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdEndTransformFeedbackEXT(
+pub fn CmdEndTransformFeedbackEXT(commandBuffer: vk.VkCommandBuffer, firstCounterBuffer: u32, counterBufferCount: u32, pCounterBuffers: [*c]const vk.VkBuffer, pCounterBufferOffsets: [*c]const vk.VkDeviceSize) void {
+    vk.vkCmdEndTransformFeedbackEXT(
         commandBuffer,
         firstCounterBuffer,
         counterBufferCount,
         pCounterBuffers,
         pCounterBufferOffsets
     );
-    try check(result);
 }
 
-pub fn CmdBeginQueryIndexedEXT(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, query: u32, flags: vk.VkQueryControlFlags, index: u32) Error!void {
-    const result = vk.vkCmdBeginQueryIndexedEXT(
+pub fn CmdBeginQueryIndexedEXT(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, query: u32, flags: vk.VkQueryControlFlags, index: u32) void {
+    vk.vkCmdBeginQueryIndexedEXT(
         commandBuffer,
         queryPool,
         query,
         flags,
         index
     );
-    try check(result);
 }
 
-pub fn CmdEndQueryIndexedEXT(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, query: u32, index: u32) Error!void {
-    const result = vk.vkCmdEndQueryIndexedEXT(
+pub fn CmdEndQueryIndexedEXT(commandBuffer: vk.VkCommandBuffer, queryPool: vk.VkQueryPool, query: u32, index: u32) void {
+    vk.vkCmdEndQueryIndexedEXT(
         commandBuffer,
         queryPool,
         query,
         index
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndirectByteCountEXT(commandBuffer: vk.VkCommandBuffer, instanceCount: u32, firstInstance: u32, counterBuffer: vk.VkBuffer, counterBufferOffset: vk.VkDeviceSize, counterOffset: u32, vertexStride: u32) Error!void {
-    const result = vk.vkCmdDrawIndirectByteCountEXT(
+pub fn CmdDrawIndirectByteCountEXT(commandBuffer: vk.VkCommandBuffer, instanceCount: u32, firstInstance: u32, counterBuffer: vk.VkBuffer, counterBufferOffset: vk.VkDeviceSize, counterOffset: u32, vertexStride: u32) void {
+    vk.vkCmdDrawIndirectByteCountEXT(
         commandBuffer,
         instanceCount,
         firstInstance,
@@ -5167,7 +4932,6 @@ pub fn CmdDrawIndirectByteCountEXT(commandBuffer: vk.VkCommandBuffer, instanceCo
         counterOffset,
         vertexStride
     );
-    try check(result);
 }
 
 pub fn CreateCuModuleNVX(device: vk.VkDevice, pCreateInfo: ?*const vk.VkCuModuleCreateInfoNVX, pAllocator: ?*const vk.VkAllocationCallbacks, pModule: ?*vk.VkCuModuleNVX) Error!void {
@@ -5190,33 +4954,30 @@ pub fn CreateCuFunctionNVX(device: vk.VkDevice, pCreateInfo: ?*const vk.VkCuFunc
     try check(result);
 }
 
-pub fn DestroyCuModuleNVX(device: vk.VkDevice, module: vk.VkCuModuleNVX, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyCuModuleNVX(
+pub fn DestroyCuModuleNVX(device: vk.VkDevice, module: vk.VkCuModuleNVX, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyCuModuleNVX(
         device,
         module,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn DestroyCuFunctionNVX(device: vk.VkDevice, function: vk.VkCuFunctionNVX, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyCuFunctionNVX(
+pub fn DestroyCuFunctionNVX(device: vk.VkDevice, function: vk.VkCuFunctionNVX, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyCuFunctionNVX(
         device,
         function,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn CmdCuLaunchKernelNVX(commandBuffer: vk.VkCommandBuffer, pLaunchInfo: ?*const vk.VkCuLaunchInfoNVX) Error!void {
-    const result = vk.vkCmdCuLaunchKernelNVX(
+pub fn CmdCuLaunchKernelNVX(commandBuffer: vk.VkCommandBuffer, pLaunchInfo: ?*const vk.VkCuLaunchInfoNVX) void {
+    vk.vkCmdCuLaunchKernelNVX(
         commandBuffer,
         pLaunchInfo
     );
-    try check(result);
 }
 
-pub fn GetImageViewAddressNVX(device: vk.VkDevice, imageView: vk.VkImageView, pProperties: ?[*]vk.VkImageViewAddressPropertiesNVX) Error!void {
+pub fn GetImageViewAddressNVX(device: vk.VkDevice, imageView: vk.VkImageView, pProperties: [*c]vk.VkImageViewAddressPropertiesNVX) Error!void {
     const result = vk.vkGetImageViewAddressNVX(
         device,
         imageView,
@@ -5225,8 +4986,8 @@ pub fn GetImageViewAddressNVX(device: vk.VkDevice, imageView: vk.VkImageView, pP
     try check(result);
 }
 
-pub fn CmdDrawIndirectCountAMD(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawIndirectCountAMD(
+pub fn CmdDrawIndirectCountAMD(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) void {
+    vk.vkCmdDrawIndirectCountAMD(
         commandBuffer,
         buffer,
         offset,
@@ -5235,11 +4996,10 @@ pub fn CmdDrawIndirectCountAMD(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkB
         maxDrawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdDrawIndexedIndirectCountAMD(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawIndexedIndirectCountAMD(
+pub fn CmdDrawIndexedIndirectCountAMD(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) void {
+    vk.vkCmdDrawIndexedIndirectCountAMD(
         commandBuffer,
         buffer,
         offset,
@@ -5248,7 +5008,6 @@ pub fn CmdDrawIndexedIndirectCountAMD(commandBuffer: vk.VkCommandBuffer, buffer:
         maxDrawCount,
         stride
     );
-    try check(result);
 }
 
 pub fn GetShaderInfoAMD(device: vk.VkDevice, pipeline: vk.VkPipeline, shaderStage: vk.VkShaderStageFlagBits, infoType: vk.VkShaderInfoTypeAMD, pInfoSize: ?*vk.size_t, pInfo: ?*void) Error!void {
@@ -5263,7 +5022,7 @@ pub fn GetShaderInfoAMD(device: vk.VkDevice, pipeline: vk.VkPipeline, shaderStag
     try check(result);
 }
 
-pub fn GetPhysicalDeviceExternalImageFormatPropertiesNV(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, _type: vk.VkImageType, tiling: vk.VkImageTiling, usage: vk.VkImageUsageFlags, flags: vk.VkImageCreateFlags, externalHandleType: vk.VkExternalMemoryHandleTypeFlagsNV, pExternalImageFormatProperties: ?[*]vk.VkExternalImageFormatPropertiesNV) Error!void {
+pub fn GetPhysicalDeviceExternalImageFormatPropertiesNV(physicalDevice: vk.VkPhysicalDevice, format: vk.VkFormat, _type: vk.VkImageType, tiling: vk.VkImageTiling, usage: vk.VkImageUsageFlags, flags: vk.VkImageCreateFlags, externalHandleType: vk.VkExternalMemoryHandleTypeFlagsNV, pExternalImageFormatProperties: [*c]vk.VkExternalImageFormatPropertiesNV) Error!void {
     const result = vk.vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
         physicalDevice,
         format,
@@ -5277,29 +5036,26 @@ pub fn GetPhysicalDeviceExternalImageFormatPropertiesNV(physicalDevice: vk.VkPhy
     try check(result);
 }
 
-pub fn CmdBeginConditionalRenderingEXT(commandBuffer: vk.VkCommandBuffer, pConditionalRenderingBegin: ?*const vk.VkConditionalRenderingBeginInfoEXT) Error!void {
-    const result = vk.vkCmdBeginConditionalRenderingEXT(
+pub fn CmdBeginConditionalRenderingEXT(commandBuffer: vk.VkCommandBuffer, pConditionalRenderingBegin: ?*const vk.VkConditionalRenderingBeginInfoEXT) void {
+    vk.vkCmdBeginConditionalRenderingEXT(
         commandBuffer,
         pConditionalRenderingBegin
     );
-    try check(result);
 }
 
-pub fn CmdEndConditionalRenderingEXT(commandBuffer: vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdEndConditionalRenderingEXT(
+pub fn CmdEndConditionalRenderingEXT(commandBuffer: vk.VkCommandBuffer) void {
+    vk.vkCmdEndConditionalRenderingEXT(
         commandBuffer
     );
-    try check(result);
 }
 
-pub fn CmdSetViewportWScalingNV(commandBuffer: vk.VkCommandBuffer, firstViewport: u32, viewportCount: u32, pViewportWScalings: ?[*]const vk.VkViewportWScalingNV) Error!void {
-    const result = vk.vkCmdSetViewportWScalingNV(
+pub fn CmdSetViewportWScalingNV(commandBuffer: vk.VkCommandBuffer, firstViewport: u32, viewportCount: u32, pViewportWScalings: [*c]const vk.VkViewportWScalingNV) void {
+    vk.vkCmdSetViewportWScalingNV(
         commandBuffer,
         firstViewport,
         viewportCount,
         pViewportWScalings
     );
-    try check(result);
 }
 
 pub fn ReleaseDisplayEXT(physicalDevice: vk.VkPhysicalDevice, display: vk.VkDisplayKHR) Error!void {
@@ -5310,7 +5066,7 @@ pub fn ReleaseDisplayEXT(physicalDevice: vk.VkPhysicalDevice, display: vk.VkDisp
     try check(result);
 }
 
-pub fn GetPhysicalDeviceSurfaceCapabilities2EXT(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pSurfaceCapabilities: ?[*]vk.VkSurfaceCapabilities2EXT) Error!void {
+pub fn GetPhysicalDeviceSurfaceCapabilities2EXT(physicalDevice: vk.VkPhysicalDevice, surface: vk.VkSurfaceKHR, pSurfaceCapabilities: [*c]vk.VkSurfaceCapabilities2EXT) Error!void {
     const result = vk.vkGetPhysicalDeviceSurfaceCapabilities2EXT(
         physicalDevice,
         surface,
@@ -5349,7 +5105,7 @@ pub fn RegisterDisplayEventEXT(device: vk.VkDevice, display: vk.VkDisplayKHR, pD
     try check(result);
 }
 
-pub fn GetSwapchainCounterEXT(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, counter: vk.VkSurfaceCounterFlagBitsEXT, pCounterValue: ?*vk.uint64_t) Error!void {
+pub fn GetSwapchainCounterEXT(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, counter: vk.VkSurfaceCounterFlagBitsEXT, pCounterValue: ?*u64) Error!void {
     const result = vk.vkGetSwapchainCounterEXT(
         device,
         swapchain,
@@ -5359,7 +5115,7 @@ pub fn GetSwapchainCounterEXT(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR,
     try check(result);
 }
 
-pub fn GetRefreshCycleDurationGOOGLE(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pDisplayTimingProperties: ?[*]vk.VkRefreshCycleDurationGOOGLE) Error!void {
+pub fn GetRefreshCycleDurationGOOGLE(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pDisplayTimingProperties: [*c]vk.VkRefreshCycleDurationGOOGLE) Error!void {
     const result = vk.vkGetRefreshCycleDurationGOOGLE(
         device,
         swapchain,
@@ -5368,7 +5124,7 @@ pub fn GetRefreshCycleDurationGOOGLE(device: vk.VkDevice, swapchain: vk.VkSwapch
     try check(result);
 }
 
-pub fn GetPastPresentationTimingGOOGLE(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pPresentationTimingCount: ?*u32, pPresentationTimings: ?[*]vk.VkPastPresentationTimingGOOGLE) Error!void {
+pub fn GetPastPresentationTimingGOOGLE(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pPresentationTimingCount: ?*u32, pPresentationTimings: [*c]vk.VkPastPresentationTimingGOOGLE) Error!void {
     const result = vk.vkGetPastPresentationTimingGOOGLE(
         device,
         swapchain,
@@ -5378,40 +5134,36 @@ pub fn GetPastPresentationTimingGOOGLE(device: vk.VkDevice, swapchain: vk.VkSwap
     try check(result);
 }
 
-pub fn CmdSetDiscardRectangleEXT(commandBuffer: vk.VkCommandBuffer, firstDiscardRectangle: u32, discardRectangleCount: u32, pDiscardRectangles: ?[*]const vk.VkRect2D) Error!void {
-    const result = vk.vkCmdSetDiscardRectangleEXT(
+pub fn CmdSetDiscardRectangleEXT(commandBuffer: vk.VkCommandBuffer, firstDiscardRectangle: u32, discardRectangleCount: u32, pDiscardRectangles: [*c]const vk.VkRect2D) void {
+    vk.vkCmdSetDiscardRectangleEXT(
         commandBuffer,
         firstDiscardRectangle,
         discardRectangleCount,
         pDiscardRectangles
     );
-    try check(result);
 }
 
-pub fn CmdSetDiscardRectangleEnableEXT(commandBuffer: vk.VkCommandBuffer, discardRectangleEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDiscardRectangleEnableEXT(
+pub fn CmdSetDiscardRectangleEnableEXT(commandBuffer: vk.VkCommandBuffer, discardRectangleEnable: vk.VkBool32) void {
+    vk.vkCmdSetDiscardRectangleEnableEXT(
         commandBuffer,
         discardRectangleEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetDiscardRectangleModeEXT(commandBuffer: vk.VkCommandBuffer, discardRectangleMode: vk.VkDiscardRectangleModeEXT) Error!void {
-    const result = vk.vkCmdSetDiscardRectangleModeEXT(
+pub fn CmdSetDiscardRectangleModeEXT(commandBuffer: vk.VkCommandBuffer, discardRectangleMode: vk.VkDiscardRectangleModeEXT) void {
+    vk.vkCmdSetDiscardRectangleModeEXT(
         commandBuffer,
         discardRectangleMode
     );
-    try check(result);
 }
 
-pub fn SetHdrMetadataEXT(device: vk.VkDevice, swapchainCount: u32, pSwapchains: ?[*]const vk.VkSwapchainKHR, pMetadata: ?*const vk.VkHdrMetadataEXT) Error!void {
-    const result = vk.vkSetHdrMetadataEXT(
+pub fn SetHdrMetadataEXT(device: vk.VkDevice, swapchainCount: u32, pSwapchains: [*c]const vk.VkSwapchainKHR, pMetadata: ?*const vk.VkHdrMetadataEXT) void {
+    vk.vkSetHdrMetadataEXT(
         device,
         swapchainCount,
         pSwapchains,
         pMetadata
     );
-    try check(result);
 }
 
 pub fn SetDebugUtilsObjectNameEXT(device: vk.VkDevice, pNameInfo: ?*const vk.VkDebugUtilsObjectNameInfoEXT) Error!void {
@@ -5430,50 +5182,44 @@ pub fn SetDebugUtilsObjectTagEXT(device: vk.VkDevice, pTagInfo: ?*const vk.VkDeb
     try check(result);
 }
 
-pub fn QueueBeginDebugUtilsLabelEXT(queue: vk.VkQueue, pLabelInfo: ?*const vk.VkDebugUtilsLabelEXT) Error!void {
-    const result = vk.vkQueueBeginDebugUtilsLabelEXT(
+pub fn QueueBeginDebugUtilsLabelEXT(queue: vk.VkQueue, pLabelInfo: ?*const vk.VkDebugUtilsLabelEXT) void {
+    vk.vkQueueBeginDebugUtilsLabelEXT(
         queue,
         pLabelInfo
     );
-    try check(result);
 }
 
-pub fn QueueEndDebugUtilsLabelEXT(queue: vk.VkQueue) Error!void {
-    const result = vk.vkQueueEndDebugUtilsLabelEXT(
+pub fn QueueEndDebugUtilsLabelEXT(queue: vk.VkQueue) void {
+    vk.vkQueueEndDebugUtilsLabelEXT(
         queue
     );
-    try check(result);
 }
 
-pub fn QueueInsertDebugUtilsLabelEXT(queue: vk.VkQueue, pLabelInfo: ?*const vk.VkDebugUtilsLabelEXT) Error!void {
-    const result = vk.vkQueueInsertDebugUtilsLabelEXT(
+pub fn QueueInsertDebugUtilsLabelEXT(queue: vk.VkQueue, pLabelInfo: ?*const vk.VkDebugUtilsLabelEXT) void {
+    vk.vkQueueInsertDebugUtilsLabelEXT(
         queue,
         pLabelInfo
     );
-    try check(result);
 }
 
-pub fn CmdBeginDebugUtilsLabelEXT(commandBuffer: vk.VkCommandBuffer, pLabelInfo: ?*const vk.VkDebugUtilsLabelEXT) Error!void {
-    const result = vk.vkCmdBeginDebugUtilsLabelEXT(
+pub fn CmdBeginDebugUtilsLabelEXT(commandBuffer: vk.VkCommandBuffer, pLabelInfo: ?*const vk.VkDebugUtilsLabelEXT) void {
+    vk.vkCmdBeginDebugUtilsLabelEXT(
         commandBuffer,
         pLabelInfo
     );
-    try check(result);
 }
 
-pub fn CmdEndDebugUtilsLabelEXT(commandBuffer: vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdEndDebugUtilsLabelEXT(
+pub fn CmdEndDebugUtilsLabelEXT(commandBuffer: vk.VkCommandBuffer) void {
+    vk.vkCmdEndDebugUtilsLabelEXT(
         commandBuffer
     );
-    try check(result);
 }
 
-pub fn CmdInsertDebugUtilsLabelEXT(commandBuffer: vk.VkCommandBuffer, pLabelInfo: ?*const vk.VkDebugUtilsLabelEXT) Error!void {
-    const result = vk.vkCmdInsertDebugUtilsLabelEXT(
+pub fn CmdInsertDebugUtilsLabelEXT(commandBuffer: vk.VkCommandBuffer, pLabelInfo: ?*const vk.VkDebugUtilsLabelEXT) void {
+    vk.vkCmdInsertDebugUtilsLabelEXT(
         commandBuffer,
         pLabelInfo
     );
-    try check(result);
 }
 
 pub fn CreateDebugUtilsMessengerEXT(instance: vk.VkInstance, pCreateInfo: ?*const vk.VkDebugUtilsMessengerCreateInfoEXT, pAllocator: ?*const vk.VkAllocationCallbacks, pMessenger: ?*vk.VkDebugUtilsMessengerEXT) Error!void {
@@ -5486,43 +5232,39 @@ pub fn CreateDebugUtilsMessengerEXT(instance: vk.VkInstance, pCreateInfo: ?*cons
     try check(result);
 }
 
-pub fn DestroyDebugUtilsMessengerEXT(instance: vk.VkInstance, messenger: vk.VkDebugUtilsMessengerEXT, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyDebugUtilsMessengerEXT(
+pub fn DestroyDebugUtilsMessengerEXT(instance: vk.VkInstance, messenger: vk.VkDebugUtilsMessengerEXT, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyDebugUtilsMessengerEXT(
         instance,
         messenger,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn SubmitDebugUtilsMessageEXT(instance: vk.VkInstance, messageSeverity: vk.VkDebugUtilsMessageSeverityFlagBitsEXT, messageTypes: vk.VkDebugUtilsMessageTypeFlagsEXT, pCallbackData: ?*const vk.VkDebugUtilsMessengerCallbackDataEXT) Error!void {
-    const result = vk.vkSubmitDebugUtilsMessageEXT(
+pub fn SubmitDebugUtilsMessageEXT(instance: vk.VkInstance, messageSeverity: vk.VkDebugUtilsMessageSeverityFlagBitsEXT, messageTypes: vk.VkDebugUtilsMessageTypeFlagsEXT, pCallbackData: ?*const vk.VkDebugUtilsMessengerCallbackDataEXT) void {
+    vk.vkSubmitDebugUtilsMessageEXT(
         instance,
         messageSeverity,
         messageTypes,
         pCallbackData
     );
-    try check(result);
 }
 
-pub fn CmdSetSampleLocationsEXT(commandBuffer: vk.VkCommandBuffer, pSampleLocationsInfo: ?*const vk.VkSampleLocationsInfoEXT) Error!void {
-    const result = vk.vkCmdSetSampleLocationsEXT(
+pub fn CmdSetSampleLocationsEXT(commandBuffer: vk.VkCommandBuffer, pSampleLocationsInfo: ?*const vk.VkSampleLocationsInfoEXT) void {
+    vk.vkCmdSetSampleLocationsEXT(
         commandBuffer,
         pSampleLocationsInfo
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceMultisamplePropertiesEXT(physicalDevice: vk.VkPhysicalDevice, samples: vk.VkSampleCountFlagBits, pMultisampleProperties: ?[*]vk.VkMultisamplePropertiesEXT) Error!void {
-    const result = vk.vkGetPhysicalDeviceMultisamplePropertiesEXT(
+pub fn GetPhysicalDeviceMultisamplePropertiesEXT(physicalDevice: vk.VkPhysicalDevice, samples: vk.VkSampleCountFlagBits, pMultisampleProperties: [*c]vk.VkMultisamplePropertiesEXT) void {
+    vk.vkGetPhysicalDeviceMultisamplePropertiesEXT(
         physicalDevice,
         samples,
         pMultisampleProperties
     );
-    try check(result);
 }
 
-pub fn GetImageDrmFormatModifierPropertiesEXT(device: vk.VkDevice, image: vk.VkImage, pProperties: ?[*]vk.VkImageDrmFormatModifierPropertiesEXT) Error!void {
+pub fn GetImageDrmFormatModifierPropertiesEXT(device: vk.VkDevice, image: vk.VkImage, pProperties: [*c]vk.VkImageDrmFormatModifierPropertiesEXT) Error!void {
     const result = vk.vkGetImageDrmFormatModifierPropertiesEXT(
         device,
         image,
@@ -5541,16 +5283,15 @@ pub fn CreateValidationCacheEXT(device: vk.VkDevice, pCreateInfo: ?*const vk.VkV
     try check(result);
 }
 
-pub fn DestroyValidationCacheEXT(device: vk.VkDevice, validationCache: vk.VkValidationCacheEXT, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyValidationCacheEXT(
+pub fn DestroyValidationCacheEXT(device: vk.VkDevice, validationCache: vk.VkValidationCacheEXT, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyValidationCacheEXT(
         device,
         validationCache,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn MergeValidationCachesEXT(device: vk.VkDevice, dstCache: vk.VkValidationCacheEXT, srcCacheCount: u32, pSrcCaches: ?[*]const vk.VkValidationCacheEXT) Error!void {
+pub fn MergeValidationCachesEXT(device: vk.VkDevice, dstCache: vk.VkValidationCacheEXT, srcCacheCount: u32, pSrcCaches: [*c]const vk.VkValidationCacheEXT) Error!void {
     const result = vk.vkMergeValidationCachesEXT(
         device,
         dstCache,
@@ -5570,33 +5311,30 @@ pub fn GetValidationCacheDataEXT(device: vk.VkDevice, validationCache: vk.VkVali
     try check(result);
 }
 
-pub fn CmdBindShadingRateImageNV(commandBuffer: vk.VkCommandBuffer, imageView: vk.VkImageView, imageLayout: vk.VkImageLayout) Error!void {
-    const result = vk.vkCmdBindShadingRateImageNV(
+pub fn CmdBindShadingRateImageNV(commandBuffer: vk.VkCommandBuffer, imageView: vk.VkImageView, imageLayout: vk.VkImageLayout) void {
+    vk.vkCmdBindShadingRateImageNV(
         commandBuffer,
         imageView,
         imageLayout
     );
-    try check(result);
 }
 
-pub fn CmdSetViewportShadingRatePaletteNV(commandBuffer: vk.VkCommandBuffer, firstViewport: u32, viewportCount: u32, pShadingRatePalettes: ?[*]const vk.VkShadingRatePaletteNV) Error!void {
-    const result = vk.vkCmdSetViewportShadingRatePaletteNV(
+pub fn CmdSetViewportShadingRatePaletteNV(commandBuffer: vk.VkCommandBuffer, firstViewport: u32, viewportCount: u32, pShadingRatePalettes: [*c]const vk.VkShadingRatePaletteNV) void {
+    vk.vkCmdSetViewportShadingRatePaletteNV(
         commandBuffer,
         firstViewport,
         viewportCount,
         pShadingRatePalettes
     );
-    try check(result);
 }
 
-pub fn CmdSetCoarseSampleOrderNV(commandBuffer: vk.VkCommandBuffer, sampleOrderType: vk.VkCoarseSampleOrderTypeNV, customSampleOrderCount: u32, pCustomSampleOrders: ?[*]const vk.VkCoarseSampleOrderCustomNV) Error!void {
-    const result = vk.vkCmdSetCoarseSampleOrderNV(
+pub fn CmdSetCoarseSampleOrderNV(commandBuffer: vk.VkCommandBuffer, sampleOrderType: vk.VkCoarseSampleOrderTypeNV, customSampleOrderCount: u32, pCustomSampleOrders: [*c]const vk.VkCoarseSampleOrderCustomNV) void {
+    vk.vkCmdSetCoarseSampleOrderNV(
         commandBuffer,
         sampleOrderType,
         customSampleOrderCount,
         pCustomSampleOrders
     );
-    try check(result);
 }
 
 pub fn CreateAccelerationStructureNV(device: vk.VkDevice, pCreateInfo: ?*const vk.VkAccelerationStructureCreateInfoNV, pAllocator: ?*const vk.VkAllocationCallbacks, pAccelerationStructure: ?*vk.VkAccelerationStructureNV) Error!void {
@@ -5609,25 +5347,23 @@ pub fn CreateAccelerationStructureNV(device: vk.VkDevice, pCreateInfo: ?*const v
     try check(result);
 }
 
-pub fn DestroyAccelerationStructureNV(device: vk.VkDevice, accelerationStructure: vk.VkAccelerationStructureNV, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyAccelerationStructureNV(
+pub fn DestroyAccelerationStructureNV(device: vk.VkDevice, accelerationStructure: vk.VkAccelerationStructureNV, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyAccelerationStructureNV(
         device,
         accelerationStructure,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn GetAccelerationStructureMemoryRequirementsNV(device: vk.VkDevice, pInfo: ?*const vk.VkAccelerationStructureMemoryRequirementsInfoNV, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2KHR) Error!void {
-    const result = vk.vkGetAccelerationStructureMemoryRequirementsNV(
+pub fn GetAccelerationStructureMemoryRequirementsNV(device: vk.VkDevice, pInfo: ?*const vk.VkAccelerationStructureMemoryRequirementsInfoNV, pMemoryRequirements: [*c]vk.VkMemoryRequirements2KHR) void {
+    vk.vkGetAccelerationStructureMemoryRequirementsNV(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn BindAccelerationStructureMemoryNV(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: ?[*]const vk.VkBindAccelerationStructureMemoryInfoNV) Error!void {
+pub fn BindAccelerationStructureMemoryNV(device: vk.VkDevice, bindInfoCount: u32, pBindInfos: [*c]const vk.VkBindAccelerationStructureMemoryInfoNV) Error!void {
     const result = vk.vkBindAccelerationStructureMemoryNV(
         device,
         bindInfoCount,
@@ -5636,8 +5372,8 @@ pub fn BindAccelerationStructureMemoryNV(device: vk.VkDevice, bindInfoCount: u32
     try check(result);
 }
 
-pub fn CmdBuildAccelerationStructureNV(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkAccelerationStructureInfoNV, instanceData: vk.VkBuffer, instanceOffset: vk.VkDeviceSize, update: vk.VkBool32, dst: vk.VkAccelerationStructureNV, src: vk.VkAccelerationStructureNV, scratch: vk.VkBuffer, scratchOffset: vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdBuildAccelerationStructureNV(
+pub fn CmdBuildAccelerationStructureNV(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkAccelerationStructureInfoNV, instanceData: vk.VkBuffer, instanceOffset: vk.VkDeviceSize, update: vk.VkBool32, dst: vk.VkAccelerationStructureNV, src: vk.VkAccelerationStructureNV, scratch: vk.VkBuffer, scratchOffset: vk.VkDeviceSize) void {
+    vk.vkCmdBuildAccelerationStructureNV(
         commandBuffer,
         pInfo,
         instanceData,
@@ -5648,21 +5384,19 @@ pub fn CmdBuildAccelerationStructureNV(commandBuffer: vk.VkCommandBuffer, pInfo:
         scratch,
         scratchOffset
     );
-    try check(result);
 }
 
-pub fn CmdCopyAccelerationStructureNV(commandBuffer: vk.VkCommandBuffer, dst: vk.VkAccelerationStructureNV, src: vk.VkAccelerationStructureNV, mode: vk.VkCopyAccelerationStructureModeKHR) Error!void {
-    const result = vk.vkCmdCopyAccelerationStructureNV(
+pub fn CmdCopyAccelerationStructureNV(commandBuffer: vk.VkCommandBuffer, dst: vk.VkAccelerationStructureNV, src: vk.VkAccelerationStructureNV, mode: vk.VkCopyAccelerationStructureModeKHR) void {
+    vk.vkCmdCopyAccelerationStructureNV(
         commandBuffer,
         dst,
         src,
         mode
     );
-    try check(result);
 }
 
-pub fn CmdTraceRaysNV(commandBuffer: vk.VkCommandBuffer, raygenShaderBindingTableBuffer: vk.VkBuffer, raygenShaderBindingOffset: vk.VkDeviceSize, missShaderBindingTableBuffer: vk.VkBuffer, missShaderBindingOffset: vk.VkDeviceSize, missShaderBindingStride: vk.VkDeviceSize, hitShaderBindingTableBuffer: vk.VkBuffer, hitShaderBindingOffset: vk.VkDeviceSize, hitShaderBindingStride: vk.VkDeviceSize, callableShaderBindingTableBuffer: vk.VkBuffer, callableShaderBindingOffset: vk.VkDeviceSize, callableShaderBindingStride: vk.VkDeviceSize, width: u32, height: u32, depth: u32) Error!void {
-    const result = vk.vkCmdTraceRaysNV(
+pub fn CmdTraceRaysNV(commandBuffer: vk.VkCommandBuffer, raygenShaderBindingTableBuffer: vk.VkBuffer, raygenShaderBindingOffset: vk.VkDeviceSize, missShaderBindingTableBuffer: vk.VkBuffer, missShaderBindingOffset: vk.VkDeviceSize, missShaderBindingStride: vk.VkDeviceSize, hitShaderBindingTableBuffer: vk.VkBuffer, hitShaderBindingOffset: vk.VkDeviceSize, hitShaderBindingStride: vk.VkDeviceSize, callableShaderBindingTableBuffer: vk.VkBuffer, callableShaderBindingOffset: vk.VkDeviceSize, callableShaderBindingStride: vk.VkDeviceSize, width: u32, height: u32, depth: u32) void {
+    vk.vkCmdTraceRaysNV(
         commandBuffer,
         raygenShaderBindingTableBuffer,
         raygenShaderBindingOffset,
@@ -5679,10 +5413,9 @@ pub fn CmdTraceRaysNV(commandBuffer: vk.VkCommandBuffer, raygenShaderBindingTabl
         height,
         depth
     );
-    try check(result);
 }
 
-pub fn CreateRayTracingPipelinesNV(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, createInfoCount: u32, pCreateInfos: ?[*]const vk.VkRayTracingPipelineCreateInfoNV, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelines: ?[*]vk.VkPipeline) Error!void {
+pub fn CreateRayTracingPipelinesNV(device: vk.VkDevice, pipelineCache: vk.VkPipelineCache, createInfoCount: u32, pCreateInfos: [*c]const vk.VkRayTracingPipelineCreateInfoNV, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelines: [*c]vk.VkPipeline) Error!void {
     const result = vk.vkCreateRayTracingPipelinesNV(
         device,
         pipelineCache,
@@ -5728,8 +5461,8 @@ pub fn GetAccelerationStructureHandleNV(device: vk.VkDevice, accelerationStructu
     try check(result);
 }
 
-pub fn CmdWriteAccelerationStructuresPropertiesNV(commandBuffer: vk.VkCommandBuffer, accelerationStructureCount: u32, pAccelerationStructures: ?[*]const vk.VkAccelerationStructureNV, queryType: vk.VkQueryType, queryPool: vk.VkQueryPool, firstQuery: u32) Error!void {
-    const result = vk.vkCmdWriteAccelerationStructuresPropertiesNV(
+pub fn CmdWriteAccelerationStructuresPropertiesNV(commandBuffer: vk.VkCommandBuffer, accelerationStructureCount: u32, pAccelerationStructures: [*c]const vk.VkAccelerationStructureNV, queryType: vk.VkQueryType, queryPool: vk.VkQueryPool, firstQuery: u32) void {
+    vk.vkCmdWriteAccelerationStructuresPropertiesNV(
         commandBuffer,
         accelerationStructureCount,
         pAccelerationStructures,
@@ -5737,7 +5470,6 @@ pub fn CmdWriteAccelerationStructuresPropertiesNV(commandBuffer: vk.VkCommandBuf
         queryPool,
         firstQuery
     );
-    try check(result);
 }
 
 pub fn CompileDeferredNV(device: vk.VkDevice, pipeline: vk.VkPipeline, shader: u32) Error!void {
@@ -5749,7 +5481,7 @@ pub fn CompileDeferredNV(device: vk.VkDevice, pipeline: vk.VkPipeline, shader: u
     try check(result);
 }
 
-pub fn GetMemoryHostPointerPropertiesEXT(device: vk.VkDevice, handleType: vk.VkExternalMemoryHandleTypeFlagBits, pHostPointer: ?*const void, pMemoryHostPointerProperties: ?[*]vk.VkMemoryHostPointerPropertiesEXT) Error!void {
+pub fn GetMemoryHostPointerPropertiesEXT(device: vk.VkDevice, handleType: vk.VkExternalMemoryHandleTypeFlagBits, pHostPointer: ?*const void, pMemoryHostPointerProperties: [*c]vk.VkMemoryHostPointerPropertiesEXT) Error!void {
     const result = vk.vkGetMemoryHostPointerPropertiesEXT(
         device,
         handleType,
@@ -5759,29 +5491,27 @@ pub fn GetMemoryHostPointerPropertiesEXT(device: vk.VkDevice, handleType: vk.VkE
     try check(result);
 }
 
-pub fn CmdWriteBufferMarkerAMD(commandBuffer: vk.VkCommandBuffer, pipelineStage: vk.VkPipelineStageFlagBits, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, marker: u32) Error!void {
-    const result = vk.vkCmdWriteBufferMarkerAMD(
+pub fn CmdWriteBufferMarkerAMD(commandBuffer: vk.VkCommandBuffer, pipelineStage: vk.VkPipelineStageFlagBits, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, marker: u32) void {
+    vk.vkCmdWriteBufferMarkerAMD(
         commandBuffer,
         pipelineStage,
         dstBuffer,
         dstOffset,
         marker
     );
-    try check(result);
 }
 
-pub fn CmdWriteBufferMarker2AMD(commandBuffer: vk.VkCommandBuffer, stage: vk.VkPipelineStageFlags2, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, marker: u32) Error!void {
-    const result = vk.vkCmdWriteBufferMarker2AMD(
+pub fn CmdWriteBufferMarker2AMD(commandBuffer: vk.VkCommandBuffer, stage: vk.VkPipelineStageFlags2, dstBuffer: vk.VkBuffer, dstOffset: vk.VkDeviceSize, marker: u32) void {
+    vk.vkCmdWriteBufferMarker2AMD(
         commandBuffer,
         stage,
         dstBuffer,
         dstOffset,
         marker
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceCalibrateableTimeDomainsEXT(physicalDevice: vk.VkPhysicalDevice, pTimeDomainCount: ?*u32, pTimeDomains: ?[*]vk.VkTimeDomainKHR) Error!void {
+pub fn GetPhysicalDeviceCalibrateableTimeDomainsEXT(physicalDevice: vk.VkPhysicalDevice, pTimeDomainCount: ?*u32, pTimeDomains: [*c]vk.VkTimeDomainKHR) Error!void {
     const result = vk.vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
         physicalDevice,
         pTimeDomainCount,
@@ -5790,7 +5520,7 @@ pub fn GetPhysicalDeviceCalibrateableTimeDomainsEXT(physicalDevice: vk.VkPhysica
     try check(result);
 }
 
-pub fn GetCalibratedTimestampsEXT(device: vk.VkDevice, timestampCount: u32, pTimestampInfos: ?[*]const vk.VkCalibratedTimestampInfoKHR, pTimestamps: ?[*]vk.uint64_t, pMaxDeviation: ?*vk.uint64_t) Error!void {
+pub fn GetCalibratedTimestampsEXT(device: vk.VkDevice, timestampCount: u32, pTimestampInfos: [*c]const vk.VkCalibratedTimestampInfoKHR, pTimestamps: [*c]u64, pMaxDeviation: ?*u64) Error!void {
     const result = vk.vkGetCalibratedTimestampsEXT(
         device,
         timestampCount,
@@ -5801,28 +5531,26 @@ pub fn GetCalibratedTimestampsEXT(device: vk.VkDevice, timestampCount: u32, pTim
     try check(result);
 }
 
-pub fn CmdDrawMeshTasksNV(commandBuffer: vk.VkCommandBuffer, taskCount: u32, firstTask: u32) Error!void {
-    const result = vk.vkCmdDrawMeshTasksNV(
+pub fn CmdDrawMeshTasksNV(commandBuffer: vk.VkCommandBuffer, taskCount: u32, firstTask: u32) void {
+    vk.vkCmdDrawMeshTasksNV(
         commandBuffer,
         taskCount,
         firstTask
     );
-    try check(result);
 }
 
-pub fn CmdDrawMeshTasksIndirectNV(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, drawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawMeshTasksIndirectNV(
+pub fn CmdDrawMeshTasksIndirectNV(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, drawCount: u32, stride: u32) void {
+    vk.vkCmdDrawMeshTasksIndirectNV(
         commandBuffer,
         buffer,
         offset,
         drawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdDrawMeshTasksIndirectCountNV(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawMeshTasksIndirectCountNV(
+pub fn CmdDrawMeshTasksIndirectCountNV(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) void {
+    vk.vkCmdDrawMeshTasksIndirectCountNV(
         commandBuffer,
         buffer,
         offset,
@@ -5831,53 +5559,47 @@ pub fn CmdDrawMeshTasksIndirectCountNV(commandBuffer: vk.VkCommandBuffer, buffer
         maxDrawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdSetExclusiveScissorEnableNV(commandBuffer: vk.VkCommandBuffer, firstExclusiveScissor: u32, exclusiveScissorCount: u32, pExclusiveScissorEnables: ?[*]const vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetExclusiveScissorEnableNV(
+pub fn CmdSetExclusiveScissorEnableNV(commandBuffer: vk.VkCommandBuffer, firstExclusiveScissor: u32, exclusiveScissorCount: u32, pExclusiveScissorEnables: [*c]const vk.VkBool32) void {
+    vk.vkCmdSetExclusiveScissorEnableNV(
         commandBuffer,
         firstExclusiveScissor,
         exclusiveScissorCount,
         pExclusiveScissorEnables
     );
-    try check(result);
 }
 
-pub fn CmdSetExclusiveScissorNV(commandBuffer: vk.VkCommandBuffer, firstExclusiveScissor: u32, exclusiveScissorCount: u32, pExclusiveScissors: ?[*]const vk.VkRect2D) Error!void {
-    const result = vk.vkCmdSetExclusiveScissorNV(
+pub fn CmdSetExclusiveScissorNV(commandBuffer: vk.VkCommandBuffer, firstExclusiveScissor: u32, exclusiveScissorCount: u32, pExclusiveScissors: [*c]const vk.VkRect2D) void {
+    vk.vkCmdSetExclusiveScissorNV(
         commandBuffer,
         firstExclusiveScissor,
         exclusiveScissorCount,
         pExclusiveScissors
     );
-    try check(result);
 }
 
-pub fn CmdSetCheckpointNV(commandBuffer: vk.VkCommandBuffer, pCheckpointMarker: ?*const void) Error!void {
-    const result = vk.vkCmdSetCheckpointNV(
+pub fn CmdSetCheckpointNV(commandBuffer: vk.VkCommandBuffer, pCheckpointMarker: ?*const void) void {
+    vk.vkCmdSetCheckpointNV(
         commandBuffer,
         pCheckpointMarker
     );
-    try check(result);
 }
 
-pub fn GetQueueCheckpointDataNV(queue: vk.VkQueue, pCheckpointDataCount: ?*u32, pCheckpointData: ?*vk.VkCheckpointDataNV) Error!void {
-    const result = vk.vkGetQueueCheckpointDataNV(
+pub fn GetQueueCheckpointDataNV(queue: vk.VkQueue, pCheckpointDataCount: ?*u32, pCheckpointData: ?*vk.VkCheckpointDataNV) void {
+    vk.vkGetQueueCheckpointDataNV(
         queue,
         pCheckpointDataCount,
         pCheckpointData
     );
-    try check(result);
 }
 
-pub fn GetQueueCheckpointData2NV(queue: vk.VkQueue, pCheckpointDataCount: ?*u32, pCheckpointData: ?*vk.VkCheckpointData2NV) Error!void {
-    const result = vk.vkGetQueueCheckpointData2NV(
+pub fn GetQueueCheckpointData2NV(queue: vk.VkQueue, pCheckpointDataCount: ?*u32, pCheckpointData: ?*vk.VkCheckpointData2NV) void {
+    vk.vkGetQueueCheckpointData2NV(
         queue,
         pCheckpointDataCount,
         pCheckpointData
     );
-    try check(result);
 }
 
 pub fn InitializePerformanceApiINTEL(device: vk.VkDevice, pInitializeInfo: ?*const vk.VkInitializePerformanceApiInfoINTEL) Error!void {
@@ -5888,11 +5610,10 @@ pub fn InitializePerformanceApiINTEL(device: vk.VkDevice, pInitializeInfo: ?*con
     try check(result);
 }
 
-pub fn UninitializePerformanceApiINTEL(device: vk.VkDevice) Error!void {
-    const result = vk.vkUninitializePerformanceApiINTEL(
+pub fn UninitializePerformanceApiINTEL(device: vk.VkDevice) void {
+    vk.vkUninitializePerformanceApiINTEL(
         device
     );
-    try check(result);
 }
 
 pub fn CmdSetPerformanceMarkerINTEL(commandBuffer: vk.VkCommandBuffer, pMarkerInfo: ?*const vk.VkPerformanceMarkerInfoINTEL) Error!void {
@@ -5953,13 +5674,12 @@ pub fn GetPerformanceParameterINTEL(device: vk.VkDevice, parameter: vk.VkPerform
     try check(result);
 }
 
-pub fn SetLocalDimmingAMD(device: vk.VkDevice, swapChain: vk.VkSwapchainKHR, localDimmingEnable: vk.VkBool32) Error!void {
-    const result = vk.vkSetLocalDimmingAMD(
+pub fn SetLocalDimmingAMD(device: vk.VkDevice, swapChain: vk.VkSwapchainKHR, localDimmingEnable: vk.VkBool32) void {
+    vk.vkSetLocalDimmingAMD(
         device,
         swapChain,
         localDimmingEnable
     );
-    try check(result);
 }
 
 pub fn GetBufferDeviceAddressEXT(device: vk.VkDevice, pInfo: ?*const vk.VkBufferDeviceAddressInfo) Error!void {
@@ -5970,7 +5690,7 @@ pub fn GetBufferDeviceAddressEXT(device: vk.VkDevice, pInfo: ?*const vk.VkBuffer
     try check(result);
 }
 
-pub fn GetPhysicalDeviceToolPropertiesEXT(physicalDevice: vk.VkPhysicalDevice, pToolCount: ?*u32, pToolProperties: ?[*]vk.VkPhysicalDeviceToolProperties) Error!void {
+pub fn GetPhysicalDeviceToolPropertiesEXT(physicalDevice: vk.VkPhysicalDevice, pToolCount: ?*u32, pToolProperties: [*c]vk.VkPhysicalDeviceToolProperties) Error!void {
     const result = vk.vkGetPhysicalDeviceToolPropertiesEXT(
         physicalDevice,
         pToolCount,
@@ -5979,7 +5699,7 @@ pub fn GetPhysicalDeviceToolPropertiesEXT(physicalDevice: vk.VkPhysicalDevice, p
     try check(result);
 }
 
-pub fn GetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkCooperativeMatrixPropertiesNV) Error!void {
+pub fn GetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkCooperativeMatrixPropertiesNV) Error!void {
     const result = vk.vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(
         physicalDevice,
         pPropertyCount,
@@ -5988,7 +5708,7 @@ pub fn GetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice: vk.VkPhysi
     try check(result);
 }
 
-pub fn GetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV(physicalDevice: vk.VkPhysicalDevice, pCombinationCount: ?*u32, pCombinations: ?[*]vk.VkFramebufferMixedSamplesCombinationNV) Error!void {
+pub fn GetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV(physicalDevice: vk.VkPhysicalDevice, pCombinationCount: ?*u32, pCombinations: [*c]vk.VkFramebufferMixedSamplesCombinationNV) Error!void {
     const result = vk.vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV(
         physicalDevice,
         pCombinationCount,
@@ -6007,69 +5727,62 @@ pub fn CreateHeadlessSurfaceEXT(instance: vk.VkInstance, pCreateInfo: ?*const vk
     try check(result);
 }
 
-pub fn CmdSetLineStippleEXT(commandBuffer: vk.VkCommandBuffer, lineStippleFactor: u32, lineStipplePattern: vk.uint16_t) Error!void {
-    const result = vk.vkCmdSetLineStippleEXT(
+pub fn CmdSetLineStippleEXT(commandBuffer: vk.VkCommandBuffer, lineStippleFactor: u32, lineStipplePattern: vk.uint16_t) void {
+    vk.vkCmdSetLineStippleEXT(
         commandBuffer,
         lineStippleFactor,
         lineStipplePattern
     );
-    try check(result);
 }
 
-pub fn ResetQueryPoolEXT(device: vk.VkDevice, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32) Error!void {
-    const result = vk.vkResetQueryPoolEXT(
+pub fn ResetQueryPoolEXT(device: vk.VkDevice, queryPool: vk.VkQueryPool, firstQuery: u32, queryCount: u32) void {
+    vk.vkResetQueryPoolEXT(
         device,
         queryPool,
         firstQuery,
         queryCount
     );
-    try check(result);
 }
 
-pub fn CmdSetCullModeEXT(commandBuffer: vk.VkCommandBuffer, cullMode: vk.VkCullModeFlags) Error!void {
-    const result = vk.vkCmdSetCullModeEXT(
+pub fn CmdSetCullModeEXT(commandBuffer: vk.VkCommandBuffer, cullMode: vk.VkCullModeFlags) void {
+    vk.vkCmdSetCullModeEXT(
         commandBuffer,
         cullMode
     );
-    try check(result);
 }
 
-pub fn CmdSetFrontFaceEXT(commandBuffer: vk.VkCommandBuffer, frontFace: vk.VkFrontFace) Error!void {
-    const result = vk.vkCmdSetFrontFaceEXT(
+pub fn CmdSetFrontFaceEXT(commandBuffer: vk.VkCommandBuffer, frontFace: vk.VkFrontFace) void {
+    vk.vkCmdSetFrontFaceEXT(
         commandBuffer,
         frontFace
     );
-    try check(result);
 }
 
-pub fn CmdSetPrimitiveTopologyEXT(commandBuffer: vk.VkCommandBuffer, primitiveTopology: vk.VkPrimitiveTopology) Error!void {
-    const result = vk.vkCmdSetPrimitiveTopologyEXT(
+pub fn CmdSetPrimitiveTopologyEXT(commandBuffer: vk.VkCommandBuffer, primitiveTopology: vk.VkPrimitiveTopology) void {
+    vk.vkCmdSetPrimitiveTopologyEXT(
         commandBuffer,
         primitiveTopology
     );
-    try check(result);
 }
 
-pub fn CmdSetViewportWithCountEXT(commandBuffer: vk.VkCommandBuffer, viewportCount: u32, pViewports: ?[*]const vk.VkViewport) Error!void {
-    const result = vk.vkCmdSetViewportWithCountEXT(
+pub fn CmdSetViewportWithCountEXT(commandBuffer: vk.VkCommandBuffer, viewportCount: u32, pViewports: [*c]const vk.VkViewport) void {
+    vk.vkCmdSetViewportWithCountEXT(
         commandBuffer,
         viewportCount,
         pViewports
     );
-    try check(result);
 }
 
-pub fn CmdSetScissorWithCountEXT(commandBuffer: vk.VkCommandBuffer, scissorCount: u32, pScissors: ?[*]const vk.VkRect2D) Error!void {
-    const result = vk.vkCmdSetScissorWithCountEXT(
+pub fn CmdSetScissorWithCountEXT(commandBuffer: vk.VkCommandBuffer, scissorCount: u32, pScissors: [*c]const vk.VkRect2D) void {
+    vk.vkCmdSetScissorWithCountEXT(
         commandBuffer,
         scissorCount,
         pScissors
     );
-    try check(result);
 }
 
-pub fn CmdBindVertexBuffers2EXT(commandBuffer: vk.VkCommandBuffer, firstBinding: u32, bindingCount: u32, pBuffers: ?[*]const vk.VkBuffer, pOffsets: ?[*]const vk.VkDeviceSize, pSizes: ?[*]const vk.VkDeviceSize, pStrides: ?[*]const vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdBindVertexBuffers2EXT(
+pub fn CmdBindVertexBuffers2EXT(commandBuffer: vk.VkCommandBuffer, firstBinding: u32, bindingCount: u32, pBuffers: [*c]const vk.VkBuffer, pOffsets: [*c]const vk.VkDeviceSize, pSizes: [*c]const vk.VkDeviceSize, pStrides: [*c]const vk.VkDeviceSize) void {
+    vk.vkCmdBindVertexBuffers2EXT(
         commandBuffer,
         firstBinding,
         bindingCount,
@@ -6078,51 +5791,45 @@ pub fn CmdBindVertexBuffers2EXT(commandBuffer: vk.VkCommandBuffer, firstBinding:
         pSizes,
         pStrides
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthTestEnableEXT(commandBuffer: vk.VkCommandBuffer, depthTestEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthTestEnableEXT(
+pub fn CmdSetDepthTestEnableEXT(commandBuffer: vk.VkCommandBuffer, depthTestEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthTestEnableEXT(
         commandBuffer,
         depthTestEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthWriteEnableEXT(commandBuffer: vk.VkCommandBuffer, depthWriteEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthWriteEnableEXT(
+pub fn CmdSetDepthWriteEnableEXT(commandBuffer: vk.VkCommandBuffer, depthWriteEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthWriteEnableEXT(
         commandBuffer,
         depthWriteEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthCompareOpEXT(commandBuffer: vk.VkCommandBuffer, depthCompareOp: vk.VkCompareOp) Error!void {
-    const result = vk.vkCmdSetDepthCompareOpEXT(
+pub fn CmdSetDepthCompareOpEXT(commandBuffer: vk.VkCommandBuffer, depthCompareOp: vk.VkCompareOp) void {
+    vk.vkCmdSetDepthCompareOpEXT(
         commandBuffer,
         depthCompareOp
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthBoundsTestEnableEXT(commandBuffer: vk.VkCommandBuffer, depthBoundsTestEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthBoundsTestEnableEXT(
+pub fn CmdSetDepthBoundsTestEnableEXT(commandBuffer: vk.VkCommandBuffer, depthBoundsTestEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthBoundsTestEnableEXT(
         commandBuffer,
         depthBoundsTestEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetStencilTestEnableEXT(commandBuffer: vk.VkCommandBuffer, stencilTestEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetStencilTestEnableEXT(
+pub fn CmdSetStencilTestEnableEXT(commandBuffer: vk.VkCommandBuffer, stencilTestEnable: vk.VkBool32) void {
+    vk.vkCmdSetStencilTestEnableEXT(
         commandBuffer,
         stencilTestEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetStencilOpEXT(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, failOp: vk.VkStencilOp, passOp: vk.VkStencilOp, depthFailOp: vk.VkStencilOp, compareOp: vk.VkCompareOp) Error!void {
-    const result = vk.vkCmdSetStencilOpEXT(
+pub fn CmdSetStencilOpEXT(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkStencilFaceFlags, failOp: vk.VkStencilOp, passOp: vk.VkStencilOp, depthFailOp: vk.VkStencilOp, compareOp: vk.VkCompareOp) void {
+    vk.vkCmdSetStencilOpEXT(
         commandBuffer,
         faceMask,
         failOp,
@@ -6130,7 +5837,6 @@ pub fn CmdSetStencilOpEXT(commandBuffer: vk.VkCommandBuffer, faceMask: vk.VkSten
         depthFailOp,
         compareOp
     );
-    try check(result);
 }
 
 pub fn CopyMemoryToImageEXT(device: vk.VkDevice, pCopyMemoryToImageInfo: ?*const vk.VkCopyMemoryToImageInfo) Error!void {
@@ -6157,7 +5863,7 @@ pub fn CopyImageToImageEXT(device: vk.VkDevice, pCopyImageToImageInfo: ?*const v
     try check(result);
 }
 
-pub fn TransitionImageLayoutEXT(device: vk.VkDevice, transitionCount: u32, pTransitions: ?[*]const vk.VkHostImageLayoutTransitionInfo) Error!void {
+pub fn TransitionImageLayoutEXT(device: vk.VkDevice, transitionCount: u32, pTransitions: [*c]const vk.VkHostImageLayoutTransitionInfo) Error!void {
     const result = vk.vkTransitionImageLayoutEXT(
         device,
         transitionCount,
@@ -6166,14 +5872,13 @@ pub fn TransitionImageLayoutEXT(device: vk.VkDevice, transitionCount: u32, pTran
     try check(result);
 }
 
-pub fn GetImageSubresourceLayout2EXT(device: vk.VkDevice, image: vk.VkImage, pSubresource: ?*const vk.VkImageSubresource2, pLayout: ?*vk.VkSubresourceLayout2) Error!void {
-    const result = vk.vkGetImageSubresourceLayout2EXT(
+pub fn GetImageSubresourceLayout2EXT(device: vk.VkDevice, image: vk.VkImage, pSubresource: ?*const vk.VkImageSubresource2, pLayout: ?*vk.VkSubresourceLayout2) void {
+    vk.vkGetImageSubresourceLayout2EXT(
         device,
         image,
         pSubresource,
         pLayout
     );
-    try check(result);
 }
 
 pub fn ReleaseSwapchainImagesEXT(device: vk.VkDevice, pReleaseInfo: ?*const vk.VkReleaseSwapchainImagesInfoEXT) Error!void {
@@ -6184,40 +5889,36 @@ pub fn ReleaseSwapchainImagesEXT(device: vk.VkDevice, pReleaseInfo: ?*const vk.V
     try check(result);
 }
 
-pub fn GetGeneratedCommandsMemoryRequirementsNV(device: vk.VkDevice, pInfo: ?*const vk.VkGeneratedCommandsMemoryRequirementsInfoNV, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetGeneratedCommandsMemoryRequirementsNV(
+pub fn GetGeneratedCommandsMemoryRequirementsNV(device: vk.VkDevice, pInfo: ?*const vk.VkGeneratedCommandsMemoryRequirementsInfoNV, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetGeneratedCommandsMemoryRequirementsNV(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn CmdPreprocessGeneratedCommandsNV(commandBuffer: vk.VkCommandBuffer, pGeneratedCommandsInfo: ?*const vk.VkGeneratedCommandsInfoNV) Error!void {
-    const result = vk.vkCmdPreprocessGeneratedCommandsNV(
+pub fn CmdPreprocessGeneratedCommandsNV(commandBuffer: vk.VkCommandBuffer, pGeneratedCommandsInfo: ?*const vk.VkGeneratedCommandsInfoNV) void {
+    vk.vkCmdPreprocessGeneratedCommandsNV(
         commandBuffer,
         pGeneratedCommandsInfo
     );
-    try check(result);
 }
 
-pub fn CmdExecuteGeneratedCommandsNV(commandBuffer: vk.VkCommandBuffer, isPreprocessed: vk.VkBool32, pGeneratedCommandsInfo: ?*const vk.VkGeneratedCommandsInfoNV) Error!void {
-    const result = vk.vkCmdExecuteGeneratedCommandsNV(
+pub fn CmdExecuteGeneratedCommandsNV(commandBuffer: vk.VkCommandBuffer, isPreprocessed: vk.VkBool32, pGeneratedCommandsInfo: ?*const vk.VkGeneratedCommandsInfoNV) void {
+    vk.vkCmdExecuteGeneratedCommandsNV(
         commandBuffer,
         isPreprocessed,
         pGeneratedCommandsInfo
     );
-    try check(result);
 }
 
-pub fn CmdBindPipelineShaderGroupNV(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, pipeline: vk.VkPipeline, groupIndex: u32) Error!void {
-    const result = vk.vkCmdBindPipelineShaderGroupNV(
+pub fn CmdBindPipelineShaderGroupNV(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, pipeline: vk.VkPipeline, groupIndex: u32) void {
+    vk.vkCmdBindPipelineShaderGroupNV(
         commandBuffer,
         pipelineBindPoint,
         pipeline,
         groupIndex
     );
-    try check(result);
 }
 
 pub fn CreateIndirectCommandsLayoutNV(device: vk.VkDevice, pCreateInfo: ?*const vk.VkIndirectCommandsLayoutCreateInfoNV, pAllocator: ?*const vk.VkAllocationCallbacks, pIndirectCommandsLayout: ?*vk.VkIndirectCommandsLayoutNV) Error!void {
@@ -6230,21 +5931,19 @@ pub fn CreateIndirectCommandsLayoutNV(device: vk.VkDevice, pCreateInfo: ?*const 
     try check(result);
 }
 
-pub fn DestroyIndirectCommandsLayoutNV(device: vk.VkDevice, indirectCommandsLayout: vk.VkIndirectCommandsLayoutNV, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyIndirectCommandsLayoutNV(
+pub fn DestroyIndirectCommandsLayoutNV(device: vk.VkDevice, indirectCommandsLayout: vk.VkIndirectCommandsLayoutNV, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyIndirectCommandsLayoutNV(
         device,
         indirectCommandsLayout,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthBias2EXT(commandBuffer: vk.VkCommandBuffer, pDepthBiasInfo: ?*const vk.VkDepthBiasInfoEXT) Error!void {
-    const result = vk.vkCmdSetDepthBias2EXT(
+pub fn CmdSetDepthBias2EXT(commandBuffer: vk.VkCommandBuffer, pDepthBiasInfo: ?*const vk.VkDepthBiasInfoEXT) void {
+    vk.vkCmdSetDepthBias2EXT(
         commandBuffer,
         pDepthBiasInfo
     );
-    try check(result);
 }
 
 pub fn AcquireDrmDisplayEXT(physicalDevice: vk.VkPhysicalDevice, drmFd: i32, display: vk.VkDisplayKHR) Error!void {
@@ -6276,16 +5975,15 @@ pub fn CreatePrivateDataSlotEXT(device: vk.VkDevice, pCreateInfo: ?*const vk.VkP
     try check(result);
 }
 
-pub fn DestroyPrivateDataSlotEXT(device: vk.VkDevice, privateDataSlot: vk.VkPrivateDataSlot, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyPrivateDataSlotEXT(
+pub fn DestroyPrivateDataSlotEXT(device: vk.VkDevice, privateDataSlot: vk.VkPrivateDataSlot, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyPrivateDataSlotEXT(
         device,
         privateDataSlot,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn SetPrivateDataEXT(device: vk.VkDevice, objectType: vk.VkObjectType, objectHandle: vk.uint64_t, privateDataSlot: vk.VkPrivateDataSlot, data: vk.uint64_t) Error!void {
+pub fn SetPrivateDataEXT(device: vk.VkDevice, objectType: vk.VkObjectType, objectHandle: u64, privateDataSlot: vk.VkPrivateDataSlot, data: u64) Error!void {
     const result = vk.vkSetPrivateDataEXT(
         device,
         objectType,
@@ -6296,15 +5994,14 @@ pub fn SetPrivateDataEXT(device: vk.VkDevice, objectType: vk.VkObjectType, objec
     try check(result);
 }
 
-pub fn GetPrivateDataEXT(device: vk.VkDevice, objectType: vk.VkObjectType, objectHandle: vk.uint64_t, privateDataSlot: vk.VkPrivateDataSlot, pData: ?*vk.uint64_t) Error!void {
-    const result = vk.vkGetPrivateDataEXT(
+pub fn GetPrivateDataEXT(device: vk.VkDevice, objectType: vk.VkObjectType, objectHandle: u64, privateDataSlot: vk.VkPrivateDataSlot, pData: ?*u64) void {
+    vk.vkGetPrivateDataEXT(
         device,
         objectType,
         objectHandle,
         privateDataSlot,
         pData
     );
-    try check(result);
 }
 
 pub fn CreateCudaModuleNV(device: vk.VkDevice, pCreateInfo: ?*const vk.VkCudaModuleCreateInfoNV, pAllocator: ?*const vk.VkAllocationCallbacks, pModule: ?*vk.VkCudaModuleNV) Error!void {
@@ -6337,72 +6034,65 @@ pub fn CreateCudaFunctionNV(device: vk.VkDevice, pCreateInfo: ?*const vk.VkCudaF
     try check(result);
 }
 
-pub fn DestroyCudaModuleNV(device: vk.VkDevice, module: vk.VkCudaModuleNV, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyCudaModuleNV(
+pub fn DestroyCudaModuleNV(device: vk.VkDevice, module: vk.VkCudaModuleNV, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyCudaModuleNV(
         device,
         module,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn DestroyCudaFunctionNV(device: vk.VkDevice, function: vk.VkCudaFunctionNV, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyCudaFunctionNV(
+pub fn DestroyCudaFunctionNV(device: vk.VkDevice, function: vk.VkCudaFunctionNV, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyCudaFunctionNV(
         device,
         function,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn CmdCudaLaunchKernelNV(commandBuffer: vk.VkCommandBuffer, pLaunchInfo: ?*const vk.VkCudaLaunchInfoNV) Error!void {
-    const result = vk.vkCmdCudaLaunchKernelNV(
+pub fn CmdCudaLaunchKernelNV(commandBuffer: vk.VkCommandBuffer, pLaunchInfo: ?*const vk.VkCudaLaunchInfoNV) void {
+    vk.vkCmdCudaLaunchKernelNV(
         commandBuffer,
         pLaunchInfo
     );
-    try check(result);
 }
 
-pub fn GetDescriptorSetLayoutSizeEXT(device: vk.VkDevice, layout: vk.VkDescriptorSetLayout, pLayoutSizeInBytes: ?[*]vk.VkDeviceSize) Error!void {
-    const result = vk.vkGetDescriptorSetLayoutSizeEXT(
+pub fn GetDescriptorSetLayoutSizeEXT(device: vk.VkDevice, layout: vk.VkDescriptorSetLayout, pLayoutSizeInBytes: [*c]vk.VkDeviceSize) void {
+    vk.vkGetDescriptorSetLayoutSizeEXT(
         device,
         layout,
         pLayoutSizeInBytes
     );
-    try check(result);
 }
 
-pub fn GetDescriptorSetLayoutBindingOffsetEXT(device: vk.VkDevice, layout: vk.VkDescriptorSetLayout, binding: u32, pOffset: ?*vk.VkDeviceSize) Error!void {
-    const result = vk.vkGetDescriptorSetLayoutBindingOffsetEXT(
+pub fn GetDescriptorSetLayoutBindingOffsetEXT(device: vk.VkDevice, layout: vk.VkDescriptorSetLayout, binding: u32, pOffset: ?*vk.VkDeviceSize) void {
+    vk.vkGetDescriptorSetLayoutBindingOffsetEXT(
         device,
         layout,
         binding,
         pOffset
     );
-    try check(result);
 }
 
-pub fn GetDescriptorEXT(device: vk.VkDevice, pDescriptorInfo: ?*const vk.VkDescriptorGetInfoEXT, dataSize: vk.size_t, pDescriptor: ?*void) Error!void {
-    const result = vk.vkGetDescriptorEXT(
+pub fn GetDescriptorEXT(device: vk.VkDevice, pDescriptorInfo: ?*const vk.VkDescriptorGetInfoEXT, dataSize: vk.size_t, pDescriptor: ?*void) void {
+    vk.vkGetDescriptorEXT(
         device,
         pDescriptorInfo,
         dataSize,
         pDescriptor
     );
-    try check(result);
 }
 
-pub fn CmdBindDescriptorBuffersEXT(commandBuffer: vk.VkCommandBuffer, bufferCount: u32, pBindingInfos: ?[*]const vk.VkDescriptorBufferBindingInfoEXT) Error!void {
-    const result = vk.vkCmdBindDescriptorBuffersEXT(
+pub fn CmdBindDescriptorBuffersEXT(commandBuffer: vk.VkCommandBuffer, bufferCount: u32, pBindingInfos: [*c]const vk.VkDescriptorBufferBindingInfoEXT) void {
+    vk.vkCmdBindDescriptorBuffersEXT(
         commandBuffer,
         bufferCount,
         pBindingInfos
     );
-    try check(result);
 }
 
-pub fn CmdSetDescriptorBufferOffsetsEXT(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, firstSet: u32, setCount: u32, pBufferIndices: ?[*]const u32, pOffsets: ?[*]const vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdSetDescriptorBufferOffsetsEXT(
+pub fn CmdSetDescriptorBufferOffsetsEXT(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, firstSet: u32, setCount: u32, pBufferIndices: [*c]const u32, pOffsets: [*c]const vk.VkDeviceSize) void {
+    vk.vkCmdSetDescriptorBufferOffsetsEXT(
         commandBuffer,
         pipelineBindPoint,
         layout,
@@ -6411,17 +6101,15 @@ pub fn CmdSetDescriptorBufferOffsetsEXT(commandBuffer: vk.VkCommandBuffer, pipel
         pBufferIndices,
         pOffsets
     );
-    try check(result);
 }
 
-pub fn CmdBindDescriptorBufferEmbeddedSamplersEXT(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, set: u32) Error!void {
-    const result = vk.vkCmdBindDescriptorBufferEmbeddedSamplersEXT(
+pub fn CmdBindDescriptorBufferEmbeddedSamplersEXT(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, layout: vk.VkPipelineLayout, set: u32) void {
+    vk.vkCmdBindDescriptorBufferEmbeddedSamplersEXT(
         commandBuffer,
         pipelineBindPoint,
         layout,
         set
     );
-    try check(result);
 }
 
 pub fn GetBufferOpaqueCaptureDescriptorDataEXT(device: vk.VkDevice, pInfo: ?*const vk.VkBufferCaptureDescriptorDataInfoEXT, pData: ?*void) Error!void {
@@ -6469,16 +6157,15 @@ pub fn GetAccelerationStructureOpaqueCaptureDescriptorDataEXT(device: vk.VkDevic
     try check(result);
 }
 
-pub fn CmdSetFragmentShadingRateEnumNV(commandBuffer: vk.VkCommandBuffer, shadingRate: vk.VkFragmentShadingRateNV, combinerOps: vk.VkFragmentShadingRateCombinerOpKHR) Error!void {
-    const result = vk.vkCmdSetFragmentShadingRateEnumNV(
+pub fn CmdSetFragmentShadingRateEnumNV(commandBuffer: vk.VkCommandBuffer, shadingRate: vk.VkFragmentShadingRateNV, combinerOps: vk.VkFragmentShadingRateCombinerOpKHR) void {
+    vk.vkCmdSetFragmentShadingRateEnumNV(
         commandBuffer,
         shadingRate,
         combinerOps
     );
-    try check(result);
 }
 
-pub fn GetDeviceFaultInfoEXT(device: vk.VkDevice, pFaultCounts: ?[*]vk.VkDeviceFaultCountsEXT, pFaultInfo: ?*vk.VkDeviceFaultInfoEXT) Error!void {
+pub fn GetDeviceFaultInfoEXT(device: vk.VkDevice, pFaultCounts: [*c]vk.VkDeviceFaultCountsEXT, pFaultInfo: ?*vk.VkDeviceFaultInfoEXT) Error!void {
     const result = vk.vkGetDeviceFaultInfoEXT(
         device,
         pFaultCounts,
@@ -6487,15 +6174,14 @@ pub fn GetDeviceFaultInfoEXT(device: vk.VkDevice, pFaultCounts: ?[*]vk.VkDeviceF
     try check(result);
 }
 
-pub fn CmdSetVertexInputEXT(commandBuffer: vk.VkCommandBuffer, vertexBindingDescriptionCount: u32, pVertexBindingDescriptions: ?[*]const vk.VkVertexInputBindingDescription2EXT, vertexAttributeDescriptionCount: u32, pVertexAttributeDescriptions: ?[*]const vk.VkVertexInputAttributeDescription2EXT) Error!void {
-    const result = vk.vkCmdSetVertexInputEXT(
+pub fn CmdSetVertexInputEXT(commandBuffer: vk.VkCommandBuffer, vertexBindingDescriptionCount: u32, pVertexBindingDescriptions: [*c]const vk.VkVertexInputBindingDescription2EXT, vertexAttributeDescriptionCount: u32, pVertexAttributeDescriptions: [*c]const vk.VkVertexInputAttributeDescription2EXT) void {
+    vk.vkCmdSetVertexInputEXT(
         commandBuffer,
         vertexBindingDescriptionCount,
         pVertexBindingDescriptions,
         vertexAttributeDescriptionCount,
         pVertexAttributeDescriptions
     );
-    try check(result);
 }
 
 pub fn GetDeviceSubpassShadingMaxWorkgroupSizeHUAWEI(device: vk.VkDevice, renderpass: vk.VkRenderPass, pMaxWorkgroupSize: ?*vk.VkExtent2D) Error!void {
@@ -6507,23 +6193,21 @@ pub fn GetDeviceSubpassShadingMaxWorkgroupSizeHUAWEI(device: vk.VkDevice, render
     try check(result);
 }
 
-pub fn CmdSubpassShadingHUAWEI(commandBuffer: vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdSubpassShadingHUAWEI(
+pub fn CmdSubpassShadingHUAWEI(commandBuffer: vk.VkCommandBuffer) void {
+    vk.vkCmdSubpassShadingHUAWEI(
         commandBuffer
     );
-    try check(result);
 }
 
-pub fn CmdBindInvocationMaskHUAWEI(commandBuffer: vk.VkCommandBuffer, imageView: vk.VkImageView, imageLayout: vk.VkImageLayout) Error!void {
-    const result = vk.vkCmdBindInvocationMaskHUAWEI(
+pub fn CmdBindInvocationMaskHUAWEI(commandBuffer: vk.VkCommandBuffer, imageView: vk.VkImageView, imageLayout: vk.VkImageLayout) void {
+    vk.vkCmdBindInvocationMaskHUAWEI(
         commandBuffer,
         imageView,
         imageLayout
     );
-    try check(result);
 }
 
-pub fn GetMemoryRemoteAddressNV(device: vk.VkDevice, pMemoryGetRemoteAddressInfo: ?*const vk.VkMemoryGetRemoteAddressInfoNV, pAddress: ?[*]vk.VkRemoteAddressNV) Error!void {
+pub fn GetMemoryRemoteAddressNV(device: vk.VkDevice, pMemoryGetRemoteAddressInfo: ?*const vk.VkMemoryGetRemoteAddressInfoNV, pAddress: [*c]vk.VkRemoteAddressNV) Error!void {
     const result = vk.vkGetMemoryRemoteAddressNV(
         device,
         pMemoryGetRemoteAddressInfo,
@@ -6532,7 +6216,7 @@ pub fn GetMemoryRemoteAddressNV(device: vk.VkDevice, pMemoryGetRemoteAddressInfo
     try check(result);
 }
 
-pub fn GetPipelinePropertiesEXT(device: vk.VkDevice, pPipelineInfo: ?*const vk.VkPipelineInfoEXT, pPipelineProperties: ?[*]vk.VkBaseOutStructure) Error!void {
+pub fn GetPipelinePropertiesEXT(device: vk.VkDevice, pPipelineInfo: ?*const vk.VkPipelineInfoEXT, pPipelineProperties: [*c]vk.VkBaseOutStructure) Error!void {
     const result = vk.vkGetPipelinePropertiesEXT(
         device,
         pPipelineInfo,
@@ -6541,48 +6225,43 @@ pub fn GetPipelinePropertiesEXT(device: vk.VkDevice, pPipelineInfo: ?*const vk.V
     try check(result);
 }
 
-pub fn CmdSetPatchControlPointsEXT(commandBuffer: vk.VkCommandBuffer, patchControlPoints: u32) Error!void {
-    const result = vk.vkCmdSetPatchControlPointsEXT(
+pub fn CmdSetPatchControlPointsEXT(commandBuffer: vk.VkCommandBuffer, patchControlPoints: u32) void {
+    vk.vkCmdSetPatchControlPointsEXT(
         commandBuffer,
         patchControlPoints
     );
-    try check(result);
 }
 
-pub fn CmdSetRasterizerDiscardEnableEXT(commandBuffer: vk.VkCommandBuffer, rasterizerDiscardEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetRasterizerDiscardEnableEXT(
+pub fn CmdSetRasterizerDiscardEnableEXT(commandBuffer: vk.VkCommandBuffer, rasterizerDiscardEnable: vk.VkBool32) void {
+    vk.vkCmdSetRasterizerDiscardEnableEXT(
         commandBuffer,
         rasterizerDiscardEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthBiasEnableEXT(commandBuffer: vk.VkCommandBuffer, depthBiasEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthBiasEnableEXT(
+pub fn CmdSetDepthBiasEnableEXT(commandBuffer: vk.VkCommandBuffer, depthBiasEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthBiasEnableEXT(
         commandBuffer,
         depthBiasEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetLogicOpEXT(commandBuffer: vk.VkCommandBuffer, logicOp: vk.VkLogicOp) Error!void {
-    const result = vk.vkCmdSetLogicOpEXT(
+pub fn CmdSetLogicOpEXT(commandBuffer: vk.VkCommandBuffer, logicOp: vk.VkLogicOp) void {
+    vk.vkCmdSetLogicOpEXT(
         commandBuffer,
         logicOp
     );
-    try check(result);
 }
 
-pub fn CmdSetPrimitiveRestartEnableEXT(commandBuffer: vk.VkCommandBuffer, primitiveRestartEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetPrimitiveRestartEnableEXT(
+pub fn CmdSetPrimitiveRestartEnableEXT(commandBuffer: vk.VkCommandBuffer, primitiveRestartEnable: vk.VkBool32) void {
+    vk.vkCmdSetPrimitiveRestartEnableEXT(
         commandBuffer,
         primitiveRestartEnable
     );
-    try check(result);
 }
 
-pub fn CmdDrawMultiEXT(commandBuffer: vk.VkCommandBuffer, drawCount: u32, pVertexInfo: ?*const vk.VkMultiDrawInfoEXT, instanceCount: u32, firstInstance: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawMultiEXT(
+pub fn CmdDrawMultiEXT(commandBuffer: vk.VkCommandBuffer, drawCount: u32, pVertexInfo: ?*const vk.VkMultiDrawInfoEXT, instanceCount: u32, firstInstance: u32, stride: u32) void {
+    vk.vkCmdDrawMultiEXT(
         commandBuffer,
         drawCount,
         pVertexInfo,
@@ -6590,11 +6269,10 @@ pub fn CmdDrawMultiEXT(commandBuffer: vk.VkCommandBuffer, drawCount: u32, pVerte
         firstInstance,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdDrawMultiIndexedEXT(commandBuffer: vk.VkCommandBuffer, drawCount: u32, pIndexInfo: ?*const vk.VkMultiDrawIndexedInfoEXT, instanceCount: u32, firstInstance: u32, stride: u32, pVertexOffset: ?*const i32) Error!void {
-    const result = vk.vkCmdDrawMultiIndexedEXT(
+pub fn CmdDrawMultiIndexedEXT(commandBuffer: vk.VkCommandBuffer, drawCount: u32, pIndexInfo: ?*const vk.VkMultiDrawIndexedInfoEXT, instanceCount: u32, firstInstance: u32, stride: u32, pVertexOffset: ?*const i32) void {
+    vk.vkCmdDrawMultiIndexedEXT(
         commandBuffer,
         drawCount,
         pIndexInfo,
@@ -6603,7 +6281,6 @@ pub fn CmdDrawMultiIndexedEXT(commandBuffer: vk.VkCommandBuffer, drawCount: u32,
         stride,
         pVertexOffset
     );
-    try check(result);
 }
 
 pub fn CreateMicromapEXT(device: vk.VkDevice, pCreateInfo: ?*const vk.VkMicromapCreateInfoEXT, pAllocator: ?*const vk.VkAllocationCallbacks, pMicromap: ?*vk.VkMicromapEXT) Error!void {
@@ -6616,25 +6293,23 @@ pub fn CreateMicromapEXT(device: vk.VkDevice, pCreateInfo: ?*const vk.VkMicromap
     try check(result);
 }
 
-pub fn DestroyMicromapEXT(device: vk.VkDevice, micromap: vk.VkMicromapEXT, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyMicromapEXT(
+pub fn DestroyMicromapEXT(device: vk.VkDevice, micromap: vk.VkMicromapEXT, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyMicromapEXT(
         device,
         micromap,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn CmdBuildMicromapsEXT(commandBuffer: vk.VkCommandBuffer, infoCount: u32, pInfos: ?[*]const vk.VkMicromapBuildInfoEXT) Error!void {
-    const result = vk.vkCmdBuildMicromapsEXT(
+pub fn CmdBuildMicromapsEXT(commandBuffer: vk.VkCommandBuffer, infoCount: u32, pInfos: [*c]const vk.VkMicromapBuildInfoEXT) void {
+    vk.vkCmdBuildMicromapsEXT(
         commandBuffer,
         infoCount,
         pInfos
     );
-    try check(result);
 }
 
-pub fn BuildMicromapsEXT(device: vk.VkDevice, deferredOperation: vk.VkDeferredOperationKHR, infoCount: u32, pInfos: ?[*]const vk.VkMicromapBuildInfoEXT) Error!void {
+pub fn BuildMicromapsEXT(device: vk.VkDevice, deferredOperation: vk.VkDeferredOperationKHR, infoCount: u32, pInfos: [*c]const vk.VkMicromapBuildInfoEXT) Error!void {
     const result = vk.vkBuildMicromapsEXT(
         device,
         deferredOperation,
@@ -6671,7 +6346,7 @@ pub fn CopyMemoryToMicromapEXT(device: vk.VkDevice, deferredOperation: vk.VkDefe
     try check(result);
 }
 
-pub fn WriteMicromapsPropertiesEXT(device: vk.VkDevice, micromapCount: u32, pMicromaps: ?[*]const vk.VkMicromapEXT, queryType: vk.VkQueryType, dataSize: vk.size_t, pData: ?*void, stride: vk.size_t) Error!void {
+pub fn WriteMicromapsPropertiesEXT(device: vk.VkDevice, micromapCount: u32, pMicromaps: [*c]const vk.VkMicromapEXT, queryType: vk.VkQueryType, dataSize: vk.size_t, pData: ?*void, stride: vk.size_t) Error!void {
     const result = vk.vkWriteMicromapsPropertiesEXT(
         device,
         micromapCount,
@@ -6684,32 +6359,29 @@ pub fn WriteMicromapsPropertiesEXT(device: vk.VkDevice, micromapCount: u32, pMic
     try check(result);
 }
 
-pub fn CmdCopyMicromapEXT(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyMicromapInfoEXT) Error!void {
-    const result = vk.vkCmdCopyMicromapEXT(
+pub fn CmdCopyMicromapEXT(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyMicromapInfoEXT) void {
+    vk.vkCmdCopyMicromapEXT(
         commandBuffer,
         pInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyMicromapToMemoryEXT(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyMicromapToMemoryInfoEXT) Error!void {
-    const result = vk.vkCmdCopyMicromapToMemoryEXT(
+pub fn CmdCopyMicromapToMemoryEXT(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyMicromapToMemoryInfoEXT) void {
+    vk.vkCmdCopyMicromapToMemoryEXT(
         commandBuffer,
         pInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyMemoryToMicromapEXT(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyMemoryToMicromapInfoEXT) Error!void {
-    const result = vk.vkCmdCopyMemoryToMicromapEXT(
+pub fn CmdCopyMemoryToMicromapEXT(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyMemoryToMicromapInfoEXT) void {
+    vk.vkCmdCopyMemoryToMicromapEXT(
         commandBuffer,
         pInfo
     );
-    try check(result);
 }
 
-pub fn CmdWriteMicromapsPropertiesEXT(commandBuffer: vk.VkCommandBuffer, micromapCount: u32, pMicromaps: ?[*]const vk.VkMicromapEXT, queryType: vk.VkQueryType, queryPool: vk.VkQueryPool, firstQuery: u32) Error!void {
-    const result = vk.vkCmdWriteMicromapsPropertiesEXT(
+pub fn CmdWriteMicromapsPropertiesEXT(commandBuffer: vk.VkCommandBuffer, micromapCount: u32, pMicromaps: [*c]const vk.VkMicromapEXT, queryType: vk.VkQueryType, queryPool: vk.VkQueryPool, firstQuery: u32) void {
+    vk.vkCmdWriteMicromapsPropertiesEXT(
         commandBuffer,
         micromapCount,
         pMicromaps,
@@ -6717,86 +6389,77 @@ pub fn CmdWriteMicromapsPropertiesEXT(commandBuffer: vk.VkCommandBuffer, microma
         queryPool,
         firstQuery
     );
-    try check(result);
 }
 
-pub fn GetDeviceMicromapCompatibilityEXT(device: vk.VkDevice, pVersionInfo: ?*const vk.VkMicromapVersionInfoEXT, pCompatibility: ?*vk.VkAccelerationStructureCompatibilityKHR) Error!void {
-    const result = vk.vkGetDeviceMicromapCompatibilityEXT(
+pub fn GetDeviceMicromapCompatibilityEXT(device: vk.VkDevice, pVersionInfo: ?*const vk.VkMicromapVersionInfoEXT, pCompatibility: ?*vk.VkAccelerationStructureCompatibilityKHR) void {
+    vk.vkGetDeviceMicromapCompatibilityEXT(
         device,
         pVersionInfo,
         pCompatibility
     );
-    try check(result);
 }
 
-pub fn GetMicromapBuildSizesEXT(device: vk.VkDevice, buildType: vk.VkAccelerationStructureBuildTypeKHR, pBuildInfo: ?*const vk.VkMicromapBuildInfoEXT, pSizeInfo: ?*vk.VkMicromapBuildSizesInfoEXT) Error!void {
-    const result = vk.vkGetMicromapBuildSizesEXT(
+pub fn GetMicromapBuildSizesEXT(device: vk.VkDevice, buildType: vk.VkAccelerationStructureBuildTypeKHR, pBuildInfo: ?*const vk.VkMicromapBuildInfoEXT, pSizeInfo: ?*vk.VkMicromapBuildSizesInfoEXT) void {
+    vk.vkGetMicromapBuildSizesEXT(
         device,
         buildType,
         pBuildInfo,
         pSizeInfo
     );
-    try check(result);
 }
 
-pub fn CmdDrawClusterHUAWEI(commandBuffer: vk.VkCommandBuffer, groupCountX: u32, groupCountY: u32, groupCountZ: u32) Error!void {
-    const result = vk.vkCmdDrawClusterHUAWEI(
+pub fn CmdDrawClusterHUAWEI(commandBuffer: vk.VkCommandBuffer, groupCountX: u32, groupCountY: u32, groupCountZ: u32) void {
+    vk.vkCmdDrawClusterHUAWEI(
         commandBuffer,
         groupCountX,
         groupCountY,
         groupCountZ
     );
-    try check(result);
 }
 
-pub fn CmdDrawClusterIndirectHUAWEI(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize) Error!void {
-    const result = vk.vkCmdDrawClusterIndirectHUAWEI(
+pub fn CmdDrawClusterIndirectHUAWEI(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize) void {
+    vk.vkCmdDrawClusterIndirectHUAWEI(
         commandBuffer,
         buffer,
         offset
     );
-    try check(result);
 }
 
-pub fn SetDeviceMemoryPriorityEXT(device: vk.VkDevice, memory: vk.VkDeviceMemory, priority: f32) Error!void {
-    const result = vk.vkSetDeviceMemoryPriorityEXT(
+pub fn SetDeviceMemoryPriorityEXT(device: vk.VkDevice, memory: vk.VkDeviceMemory, priority: f32) void {
+    vk.vkSetDeviceMemoryPriorityEXT(
         device,
         memory,
         priority
     );
-    try check(result);
 }
 
-pub fn GetDescriptorSetLayoutHostMappingInfoVALVE(device: vk.VkDevice, pBindingReference: ?*const vk.VkDescriptorSetBindingReferenceVALVE, pHostMapping: ?*vk.VkDescriptorSetLayoutHostMappingInfoVALVE) Error!void {
-    const result = vk.vkGetDescriptorSetLayoutHostMappingInfoVALVE(
+pub fn GetDescriptorSetLayoutHostMappingInfoVALVE(device: vk.VkDevice, pBindingReference: ?*const vk.VkDescriptorSetBindingReferenceVALVE, pHostMapping: ?*vk.VkDescriptorSetLayoutHostMappingInfoVALVE) void {
+    vk.vkGetDescriptorSetLayoutHostMappingInfoVALVE(
         device,
         pBindingReference,
         pHostMapping
     );
-    try check(result);
 }
 
-pub fn GetDescriptorSetHostMappingVALVE(device: vk.VkDevice, descriptorSet: vk.VkDescriptorSet, ppData: ?*void) Error!void {
-    const result = vk.vkGetDescriptorSetHostMappingVALVE(
+pub fn GetDescriptorSetHostMappingVALVE(device: vk.VkDevice, descriptorSet: vk.VkDescriptorSet, ppData: ?*void) void {
+    vk.vkGetDescriptorSetHostMappingVALVE(
         device,
         descriptorSet,
         ppData
     );
-    try check(result);
 }
 
-pub fn CmdCopyMemoryIndirectNV(commandBuffer: vk.VkCommandBuffer, copyBufferAddress: vk.VkDeviceAddress, copyCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdCopyMemoryIndirectNV(
+pub fn CmdCopyMemoryIndirectNV(commandBuffer: vk.VkCommandBuffer, copyBufferAddress: vk.VkDeviceAddress, copyCount: u32, stride: u32) void {
+    vk.vkCmdCopyMemoryIndirectNV(
         commandBuffer,
         copyBufferAddress,
         copyCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdCopyMemoryToImageIndirectNV(commandBuffer: vk.VkCommandBuffer, copyBufferAddress: vk.VkDeviceAddress, copyCount: u32, stride: u32, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, pImageSubresources: ?[*]const vk.VkImageSubresourceLayers) Error!void {
-    const result = vk.vkCmdCopyMemoryToImageIndirectNV(
+pub fn CmdCopyMemoryToImageIndirectNV(commandBuffer: vk.VkCommandBuffer, copyBufferAddress: vk.VkDeviceAddress, copyCount: u32, stride: u32, dstImage: vk.VkImage, dstImageLayout: vk.VkImageLayout, pImageSubresources: [*c]const vk.VkImageSubresourceLayers) void {
+    vk.vkCmdCopyMemoryToImageIndirectNV(
         commandBuffer,
         copyBufferAddress,
         copyCount,
@@ -6805,44 +6468,39 @@ pub fn CmdCopyMemoryToImageIndirectNV(commandBuffer: vk.VkCommandBuffer, copyBuf
         dstImageLayout,
         pImageSubresources
     );
-    try check(result);
 }
 
-pub fn CmdDecompressMemoryNV(commandBuffer: vk.VkCommandBuffer, decompressRegionCount: u32, pDecompressMemoryRegions: ?[*]const vk.VkDecompressMemoryRegionNV) Error!void {
-    const result = vk.vkCmdDecompressMemoryNV(
+pub fn CmdDecompressMemoryNV(commandBuffer: vk.VkCommandBuffer, decompressRegionCount: u32, pDecompressMemoryRegions: [*c]const vk.VkDecompressMemoryRegionNV) void {
+    vk.vkCmdDecompressMemoryNV(
         commandBuffer,
         decompressRegionCount,
         pDecompressMemoryRegions
     );
-    try check(result);
 }
 
-pub fn CmdDecompressMemoryIndirectCountNV(commandBuffer: vk.VkCommandBuffer, indirectCommandsAddress: vk.VkDeviceAddress, indirectCommandsCountAddress: vk.VkDeviceAddress, stride: u32) Error!void {
-    const result = vk.vkCmdDecompressMemoryIndirectCountNV(
+pub fn CmdDecompressMemoryIndirectCountNV(commandBuffer: vk.VkCommandBuffer, indirectCommandsAddress: vk.VkDeviceAddress, indirectCommandsCountAddress: vk.VkDeviceAddress, stride: u32) void {
+    vk.vkCmdDecompressMemoryIndirectCountNV(
         commandBuffer,
         indirectCommandsAddress,
         indirectCommandsCountAddress,
         stride
     );
-    try check(result);
 }
 
-pub fn GetPipelineIndirectMemoryRequirementsNV(device: vk.VkDevice, pCreateInfo: ?*const vk.VkComputePipelineCreateInfo, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetPipelineIndirectMemoryRequirementsNV(
+pub fn GetPipelineIndirectMemoryRequirementsNV(device: vk.VkDevice, pCreateInfo: ?*const vk.VkComputePipelineCreateInfo, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetPipelineIndirectMemoryRequirementsNV(
         device,
         pCreateInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn CmdUpdatePipelineIndirectBufferNV(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, pipeline: vk.VkPipeline) Error!void {
-    const result = vk.vkCmdUpdatePipelineIndirectBufferNV(
+pub fn CmdUpdatePipelineIndirectBufferNV(commandBuffer: vk.VkCommandBuffer, pipelineBindPoint: vk.VkPipelineBindPoint, pipeline: vk.VkPipeline) void {
+    vk.vkCmdUpdatePipelineIndirectBufferNV(
         commandBuffer,
         pipelineBindPoint,
         pipeline
     );
-    try check(result);
 }
 
 pub fn GetPipelineIndirectDeviceAddressNV(device: vk.VkDevice, pInfo: ?*const vk.VkPipelineIndirectDeviceAddressInfoNV) Error!void {
@@ -6853,285 +6511,252 @@ pub fn GetPipelineIndirectDeviceAddressNV(device: vk.VkDevice, pInfo: ?*const vk
     try check(result);
 }
 
-pub fn CmdSetDepthClampEnableEXT(commandBuffer: vk.VkCommandBuffer, depthClampEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthClampEnableEXT(
+pub fn CmdSetDepthClampEnableEXT(commandBuffer: vk.VkCommandBuffer, depthClampEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthClampEnableEXT(
         commandBuffer,
         depthClampEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetPolygonModeEXT(commandBuffer: vk.VkCommandBuffer, polygonMode: vk.VkPolygonMode) Error!void {
-    const result = vk.vkCmdSetPolygonModeEXT(
+pub fn CmdSetPolygonModeEXT(commandBuffer: vk.VkCommandBuffer, polygonMode: vk.VkPolygonMode) void {
+    vk.vkCmdSetPolygonModeEXT(
         commandBuffer,
         polygonMode
     );
-    try check(result);
 }
 
-pub fn CmdSetRasterizationSamplesEXT(commandBuffer: vk.VkCommandBuffer, rasterizationSamples: vk.VkSampleCountFlagBits) Error!void {
-    const result = vk.vkCmdSetRasterizationSamplesEXT(
+pub fn CmdSetRasterizationSamplesEXT(commandBuffer: vk.VkCommandBuffer, rasterizationSamples: vk.VkSampleCountFlagBits) void {
+    vk.vkCmdSetRasterizationSamplesEXT(
         commandBuffer,
         rasterizationSamples
     );
-    try check(result);
 }
 
-pub fn CmdSetSampleMaskEXT(commandBuffer: vk.VkCommandBuffer, samples: vk.VkSampleCountFlagBits, pSampleMask: ?*const vk.VkSampleMask) Error!void {
-    const result = vk.vkCmdSetSampleMaskEXT(
+pub fn CmdSetSampleMaskEXT(commandBuffer: vk.VkCommandBuffer, samples: vk.VkSampleCountFlagBits, pSampleMask: ?*const vk.VkSampleMask) void {
+    vk.vkCmdSetSampleMaskEXT(
         commandBuffer,
         samples,
         pSampleMask
     );
-    try check(result);
 }
 
-pub fn CmdSetAlphaToCoverageEnableEXT(commandBuffer: vk.VkCommandBuffer, alphaToCoverageEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetAlphaToCoverageEnableEXT(
+pub fn CmdSetAlphaToCoverageEnableEXT(commandBuffer: vk.VkCommandBuffer, alphaToCoverageEnable: vk.VkBool32) void {
+    vk.vkCmdSetAlphaToCoverageEnableEXT(
         commandBuffer,
         alphaToCoverageEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetAlphaToOneEnableEXT(commandBuffer: vk.VkCommandBuffer, alphaToOneEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetAlphaToOneEnableEXT(
+pub fn CmdSetAlphaToOneEnableEXT(commandBuffer: vk.VkCommandBuffer, alphaToOneEnable: vk.VkBool32) void {
+    vk.vkCmdSetAlphaToOneEnableEXT(
         commandBuffer,
         alphaToOneEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetLogicOpEnableEXT(commandBuffer: vk.VkCommandBuffer, logicOpEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetLogicOpEnableEXT(
+pub fn CmdSetLogicOpEnableEXT(commandBuffer: vk.VkCommandBuffer, logicOpEnable: vk.VkBool32) void {
+    vk.vkCmdSetLogicOpEnableEXT(
         commandBuffer,
         logicOpEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetColorBlendEnableEXT(commandBuffer: vk.VkCommandBuffer, firstAttachment: u32, attachmentCount: u32, pColorBlendEnables: ?[*]const vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetColorBlendEnableEXT(
+pub fn CmdSetColorBlendEnableEXT(commandBuffer: vk.VkCommandBuffer, firstAttachment: u32, attachmentCount: u32, pColorBlendEnables: [*c]const vk.VkBool32) void {
+    vk.vkCmdSetColorBlendEnableEXT(
         commandBuffer,
         firstAttachment,
         attachmentCount,
         pColorBlendEnables
     );
-    try check(result);
 }
 
-pub fn CmdSetColorBlendEquationEXT(commandBuffer: vk.VkCommandBuffer, firstAttachment: u32, attachmentCount: u32, pColorBlendEquations: ?[*]const vk.VkColorBlendEquationEXT) Error!void {
-    const result = vk.vkCmdSetColorBlendEquationEXT(
+pub fn CmdSetColorBlendEquationEXT(commandBuffer: vk.VkCommandBuffer, firstAttachment: u32, attachmentCount: u32, pColorBlendEquations: [*c]const vk.VkColorBlendEquationEXT) void {
+    vk.vkCmdSetColorBlendEquationEXT(
         commandBuffer,
         firstAttachment,
         attachmentCount,
         pColorBlendEquations
     );
-    try check(result);
 }
 
-pub fn CmdSetColorWriteMaskEXT(commandBuffer: vk.VkCommandBuffer, firstAttachment: u32, attachmentCount: u32, pColorWriteMasks: ?[*]const vk.VkColorComponentFlags) Error!void {
-    const result = vk.vkCmdSetColorWriteMaskEXT(
+pub fn CmdSetColorWriteMaskEXT(commandBuffer: vk.VkCommandBuffer, firstAttachment: u32, attachmentCount: u32, pColorWriteMasks: [*c]const vk.VkColorComponentFlags) void {
+    vk.vkCmdSetColorWriteMaskEXT(
         commandBuffer,
         firstAttachment,
         attachmentCount,
         pColorWriteMasks
     );
-    try check(result);
 }
 
-pub fn CmdSetTessellationDomainOriginEXT(commandBuffer: vk.VkCommandBuffer, domainOrigin: vk.VkTessellationDomainOrigin) Error!void {
-    const result = vk.vkCmdSetTessellationDomainOriginEXT(
+pub fn CmdSetTessellationDomainOriginEXT(commandBuffer: vk.VkCommandBuffer, domainOrigin: vk.VkTessellationDomainOrigin) void {
+    vk.vkCmdSetTessellationDomainOriginEXT(
         commandBuffer,
         domainOrigin
     );
-    try check(result);
 }
 
-pub fn CmdSetRasterizationStreamEXT(commandBuffer: vk.VkCommandBuffer, rasterizationStream: u32) Error!void {
-    const result = vk.vkCmdSetRasterizationStreamEXT(
+pub fn CmdSetRasterizationStreamEXT(commandBuffer: vk.VkCommandBuffer, rasterizationStream: u32) void {
+    vk.vkCmdSetRasterizationStreamEXT(
         commandBuffer,
         rasterizationStream
     );
-    try check(result);
 }
 
-pub fn CmdSetConservativeRasterizationModeEXT(commandBuffer: vk.VkCommandBuffer, conservativeRasterizationMode: vk.VkConservativeRasterizationModeEXT) Error!void {
-    const result = vk.vkCmdSetConservativeRasterizationModeEXT(
+pub fn CmdSetConservativeRasterizationModeEXT(commandBuffer: vk.VkCommandBuffer, conservativeRasterizationMode: vk.VkConservativeRasterizationModeEXT) void {
+    vk.vkCmdSetConservativeRasterizationModeEXT(
         commandBuffer,
         conservativeRasterizationMode
     );
-    try check(result);
 }
 
-pub fn CmdSetExtraPrimitiveOverestimationSizeEXT(commandBuffer: vk.VkCommandBuffer, extraPrimitiveOverestimationSize: f32) Error!void {
-    const result = vk.vkCmdSetExtraPrimitiveOverestimationSizeEXT(
+pub fn CmdSetExtraPrimitiveOverestimationSizeEXT(commandBuffer: vk.VkCommandBuffer, extraPrimitiveOverestimationSize: f32) void {
+    vk.vkCmdSetExtraPrimitiveOverestimationSizeEXT(
         commandBuffer,
         extraPrimitiveOverestimationSize
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthClipEnableEXT(commandBuffer: vk.VkCommandBuffer, depthClipEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthClipEnableEXT(
+pub fn CmdSetDepthClipEnableEXT(commandBuffer: vk.VkCommandBuffer, depthClipEnable: vk.VkBool32) void {
+    vk.vkCmdSetDepthClipEnableEXT(
         commandBuffer,
         depthClipEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetSampleLocationsEnableEXT(commandBuffer: vk.VkCommandBuffer, sampleLocationsEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetSampleLocationsEnableEXT(
+pub fn CmdSetSampleLocationsEnableEXT(commandBuffer: vk.VkCommandBuffer, sampleLocationsEnable: vk.VkBool32) void {
+    vk.vkCmdSetSampleLocationsEnableEXT(
         commandBuffer,
         sampleLocationsEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetColorBlendAdvancedEXT(commandBuffer: vk.VkCommandBuffer, firstAttachment: u32, attachmentCount: u32, pColorBlendAdvanced: ?*const vk.VkColorBlendAdvancedEXT) Error!void {
-    const result = vk.vkCmdSetColorBlendAdvancedEXT(
+pub fn CmdSetColorBlendAdvancedEXT(commandBuffer: vk.VkCommandBuffer, firstAttachment: u32, attachmentCount: u32, pColorBlendAdvanced: ?*const vk.VkColorBlendAdvancedEXT) void {
+    vk.vkCmdSetColorBlendAdvancedEXT(
         commandBuffer,
         firstAttachment,
         attachmentCount,
         pColorBlendAdvanced
     );
-    try check(result);
 }
 
-pub fn CmdSetProvokingVertexModeEXT(commandBuffer: vk.VkCommandBuffer, provokingVertexMode: vk.VkProvokingVertexModeEXT) Error!void {
-    const result = vk.vkCmdSetProvokingVertexModeEXT(
+pub fn CmdSetProvokingVertexModeEXT(commandBuffer: vk.VkCommandBuffer, provokingVertexMode: vk.VkProvokingVertexModeEXT) void {
+    vk.vkCmdSetProvokingVertexModeEXT(
         commandBuffer,
         provokingVertexMode
     );
-    try check(result);
 }
 
-pub fn CmdSetLineRasterizationModeEXT(commandBuffer: vk.VkCommandBuffer, lineRasterizationMode: vk.VkLineRasterizationModeEXT) Error!void {
-    const result = vk.vkCmdSetLineRasterizationModeEXT(
+pub fn CmdSetLineRasterizationModeEXT(commandBuffer: vk.VkCommandBuffer, lineRasterizationMode: vk.VkLineRasterizationModeEXT) void {
+    vk.vkCmdSetLineRasterizationModeEXT(
         commandBuffer,
         lineRasterizationMode
     );
-    try check(result);
 }
 
-pub fn CmdSetLineStippleEnableEXT(commandBuffer: vk.VkCommandBuffer, stippledLineEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetLineStippleEnableEXT(
+pub fn CmdSetLineStippleEnableEXT(commandBuffer: vk.VkCommandBuffer, stippledLineEnable: vk.VkBool32) void {
+    vk.vkCmdSetLineStippleEnableEXT(
         commandBuffer,
         stippledLineEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthClipNegativeOneToOneEXT(commandBuffer: vk.VkCommandBuffer, negativeOneToOne: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetDepthClipNegativeOneToOneEXT(
+pub fn CmdSetDepthClipNegativeOneToOneEXT(commandBuffer: vk.VkCommandBuffer, negativeOneToOne: vk.VkBool32) void {
+    vk.vkCmdSetDepthClipNegativeOneToOneEXT(
         commandBuffer,
         negativeOneToOne
     );
-    try check(result);
 }
 
-pub fn CmdSetViewportWScalingEnableNV(commandBuffer: vk.VkCommandBuffer, viewportWScalingEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetViewportWScalingEnableNV(
+pub fn CmdSetViewportWScalingEnableNV(commandBuffer: vk.VkCommandBuffer, viewportWScalingEnable: vk.VkBool32) void {
+    vk.vkCmdSetViewportWScalingEnableNV(
         commandBuffer,
         viewportWScalingEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetViewportSwizzleNV(commandBuffer: vk.VkCommandBuffer, firstViewport: u32, viewportCount: u32, pViewportSwizzles: ?[*]const vk.VkViewportSwizzleNV) Error!void {
-    const result = vk.vkCmdSetViewportSwizzleNV(
+pub fn CmdSetViewportSwizzleNV(commandBuffer: vk.VkCommandBuffer, firstViewport: u32, viewportCount: u32, pViewportSwizzles: [*c]const vk.VkViewportSwizzleNV) void {
+    vk.vkCmdSetViewportSwizzleNV(
         commandBuffer,
         firstViewport,
         viewportCount,
         pViewportSwizzles
     );
-    try check(result);
 }
 
-pub fn CmdSetCoverageToColorEnableNV(commandBuffer: vk.VkCommandBuffer, coverageToColorEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetCoverageToColorEnableNV(
+pub fn CmdSetCoverageToColorEnableNV(commandBuffer: vk.VkCommandBuffer, coverageToColorEnable: vk.VkBool32) void {
+    vk.vkCmdSetCoverageToColorEnableNV(
         commandBuffer,
         coverageToColorEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetCoverageToColorLocationNV(commandBuffer: vk.VkCommandBuffer, coverageToColorLocation: u32) Error!void {
-    const result = vk.vkCmdSetCoverageToColorLocationNV(
+pub fn CmdSetCoverageToColorLocationNV(commandBuffer: vk.VkCommandBuffer, coverageToColorLocation: u32) void {
+    vk.vkCmdSetCoverageToColorLocationNV(
         commandBuffer,
         coverageToColorLocation
     );
-    try check(result);
 }
 
-pub fn CmdSetCoverageModulationModeNV(commandBuffer: vk.VkCommandBuffer, coverageModulationMode: vk.VkCoverageModulationModeNV) Error!void {
-    const result = vk.vkCmdSetCoverageModulationModeNV(
+pub fn CmdSetCoverageModulationModeNV(commandBuffer: vk.VkCommandBuffer, coverageModulationMode: vk.VkCoverageModulationModeNV) void {
+    vk.vkCmdSetCoverageModulationModeNV(
         commandBuffer,
         coverageModulationMode
     );
-    try check(result);
 }
 
-pub fn CmdSetCoverageModulationTableEnableNV(commandBuffer: vk.VkCommandBuffer, coverageModulationTableEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetCoverageModulationTableEnableNV(
+pub fn CmdSetCoverageModulationTableEnableNV(commandBuffer: vk.VkCommandBuffer, coverageModulationTableEnable: vk.VkBool32) void {
+    vk.vkCmdSetCoverageModulationTableEnableNV(
         commandBuffer,
         coverageModulationTableEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetCoverageModulationTableNV(commandBuffer: vk.VkCommandBuffer, coverageModulationTableCount: u32, pCoverageModulationTable: ?*const f32) Error!void {
-    const result = vk.vkCmdSetCoverageModulationTableNV(
+pub fn CmdSetCoverageModulationTableNV(commandBuffer: vk.VkCommandBuffer, coverageModulationTableCount: u32, pCoverageModulationTable: ?*const f32) void {
+    vk.vkCmdSetCoverageModulationTableNV(
         commandBuffer,
         coverageModulationTableCount,
         pCoverageModulationTable
     );
-    try check(result);
 }
 
-pub fn CmdSetShadingRateImageEnableNV(commandBuffer: vk.VkCommandBuffer, shadingRateImageEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetShadingRateImageEnableNV(
+pub fn CmdSetShadingRateImageEnableNV(commandBuffer: vk.VkCommandBuffer, shadingRateImageEnable: vk.VkBool32) void {
+    vk.vkCmdSetShadingRateImageEnableNV(
         commandBuffer,
         shadingRateImageEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetRepresentativeFragmentTestEnableNV(commandBuffer: vk.VkCommandBuffer, representativeFragmentTestEnable: vk.VkBool32) Error!void {
-    const result = vk.vkCmdSetRepresentativeFragmentTestEnableNV(
+pub fn CmdSetRepresentativeFragmentTestEnableNV(commandBuffer: vk.VkCommandBuffer, representativeFragmentTestEnable: vk.VkBool32) void {
+    vk.vkCmdSetRepresentativeFragmentTestEnableNV(
         commandBuffer,
         representativeFragmentTestEnable
     );
-    try check(result);
 }
 
-pub fn CmdSetCoverageReductionModeNV(commandBuffer: vk.VkCommandBuffer, coverageReductionMode: vk.VkCoverageReductionModeNV) Error!void {
-    const result = vk.vkCmdSetCoverageReductionModeNV(
+pub fn CmdSetCoverageReductionModeNV(commandBuffer: vk.VkCommandBuffer, coverageReductionMode: vk.VkCoverageReductionModeNV) void {
+    vk.vkCmdSetCoverageReductionModeNV(
         commandBuffer,
         coverageReductionMode
     );
-    try check(result);
 }
 
-pub fn GetShaderModuleIdentifierEXT(device: vk.VkDevice, shaderModule: vk.VkShaderModule, pIdentifier: ?*vk.VkShaderModuleIdentifierEXT) Error!void {
-    const result = vk.vkGetShaderModuleIdentifierEXT(
+pub fn GetShaderModuleIdentifierEXT(device: vk.VkDevice, shaderModule: vk.VkShaderModule, pIdentifier: ?*vk.VkShaderModuleIdentifierEXT) void {
+    vk.vkGetShaderModuleIdentifierEXT(
         device,
         shaderModule,
         pIdentifier
     );
-    try check(result);
 }
 
-pub fn GetShaderModuleCreateInfoIdentifierEXT(device: vk.VkDevice, pCreateInfo: ?*const vk.VkShaderModuleCreateInfo, pIdentifier: ?*vk.VkShaderModuleIdentifierEXT) Error!void {
-    const result = vk.vkGetShaderModuleCreateInfoIdentifierEXT(
+pub fn GetShaderModuleCreateInfoIdentifierEXT(device: vk.VkDevice, pCreateInfo: ?*const vk.VkShaderModuleCreateInfo, pIdentifier: ?*vk.VkShaderModuleIdentifierEXT) void {
+    vk.vkGetShaderModuleCreateInfoIdentifierEXT(
         device,
         pCreateInfo,
         pIdentifier
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceOpticalFlowImageFormatsNV(physicalDevice: vk.VkPhysicalDevice, pOpticalFlowImageFormatInfo: ?*const vk.VkOpticalFlowImageFormatInfoNV, pFormatCount: ?*u32, pImageFormatProperties: ?[*]vk.VkOpticalFlowImageFormatPropertiesNV) Error!void {
+pub fn GetPhysicalDeviceOpticalFlowImageFormatsNV(physicalDevice: vk.VkPhysicalDevice, pOpticalFlowImageFormatInfo: ?*const vk.VkOpticalFlowImageFormatInfoNV, pFormatCount: ?*u32, pImageFormatProperties: [*c]vk.VkOpticalFlowImageFormatPropertiesNV) Error!void {
     const result = vk.vkGetPhysicalDeviceOpticalFlowImageFormatsNV(
         physicalDevice,
         pOpticalFlowImageFormatInfo,
@@ -7151,13 +6776,12 @@ pub fn CreateOpticalFlowSessionNV(device: vk.VkDevice, pCreateInfo: ?*const vk.V
     try check(result);
 }
 
-pub fn DestroyOpticalFlowSessionNV(device: vk.VkDevice, session: vk.VkOpticalFlowSessionNV, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyOpticalFlowSessionNV(
+pub fn DestroyOpticalFlowSessionNV(device: vk.VkDevice, session: vk.VkOpticalFlowSessionNV, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyOpticalFlowSessionNV(
         device,
         session,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn BindOpticalFlowSessionImageNV(device: vk.VkDevice, session: vk.VkOpticalFlowSessionNV, bindingPoint: vk.VkOpticalFlowSessionBindingPointNV, view: vk.VkImageView, layout: vk.VkImageLayout) Error!void {
@@ -7171,24 +6795,22 @@ pub fn BindOpticalFlowSessionImageNV(device: vk.VkDevice, session: vk.VkOpticalF
     try check(result);
 }
 
-pub fn CmdOpticalFlowExecuteNV(commandBuffer: vk.VkCommandBuffer, session: vk.VkOpticalFlowSessionNV, pExecuteInfo: ?*const vk.VkOpticalFlowExecuteInfoNV) Error!void {
-    const result = vk.vkCmdOpticalFlowExecuteNV(
+pub fn CmdOpticalFlowExecuteNV(commandBuffer: vk.VkCommandBuffer, session: vk.VkOpticalFlowSessionNV, pExecuteInfo: ?*const vk.VkOpticalFlowExecuteInfoNV) void {
+    vk.vkCmdOpticalFlowExecuteNV(
         commandBuffer,
         session,
         pExecuteInfo
     );
-    try check(result);
 }
 
-pub fn AntiLagUpdateAMD(device: vk.VkDevice, pData: ?*const vk.VkAntiLagDataAMD) Error!void {
-    const result = vk.vkAntiLagUpdateAMD(
+pub fn AntiLagUpdateAMD(device: vk.VkDevice, pData: ?*const vk.VkAntiLagDataAMD) void {
+    vk.vkAntiLagUpdateAMD(
         device,
         pData
     );
-    try check(result);
 }
 
-pub fn CreateShadersEXT(device: vk.VkDevice, createInfoCount: u32, pCreateInfos: ?[*]const vk.VkShaderCreateInfoEXT, pAllocator: ?*const vk.VkAllocationCallbacks, pShaders: ?[*]vk.VkShaderEXT) Error!void {
+pub fn CreateShadersEXT(device: vk.VkDevice, createInfoCount: u32, pCreateInfos: [*c]const vk.VkShaderCreateInfoEXT, pAllocator: ?*const vk.VkAllocationCallbacks, pShaders: [*c]vk.VkShaderEXT) Error!void {
     const result = vk.vkCreateShadersEXT(
         device,
         createInfoCount,
@@ -7199,13 +6821,12 @@ pub fn CreateShadersEXT(device: vk.VkDevice, createInfoCount: u32, pCreateInfos:
     try check(result);
 }
 
-pub fn DestroyShaderEXT(device: vk.VkDevice, shader: vk.VkShaderEXT, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyShaderEXT(
+pub fn DestroyShaderEXT(device: vk.VkDevice, shader: vk.VkShaderEXT, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyShaderEXT(
         device,
         shader,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn GetShaderBinaryDataEXT(device: vk.VkDevice, shader: vk.VkShaderEXT, pDataSize: ?*vk.size_t, pData: ?*void) Error!void {
@@ -7218,26 +6839,24 @@ pub fn GetShaderBinaryDataEXT(device: vk.VkDevice, shader: vk.VkShaderEXT, pData
     try check(result);
 }
 
-pub fn CmdBindShadersEXT(commandBuffer: vk.VkCommandBuffer, stageCount: u32, pStages: ?[*]vk.VkShaderStageFlagBits, pShaders: ?[*]const vk.VkShaderEXT) Error!void {
-    const result = vk.vkCmdBindShadersEXT(
+pub fn CmdBindShadersEXT(commandBuffer: vk.VkCommandBuffer, stageCount: u32, pStages: [*c]vk.VkShaderStageFlagBits, pShaders: [*c]const vk.VkShaderEXT) void {
+    vk.vkCmdBindShadersEXT(
         commandBuffer,
         stageCount,
         pStages,
         pShaders
     );
-    try check(result);
 }
 
-pub fn CmdSetDepthClampRangeEXT(commandBuffer: vk.VkCommandBuffer, depthClampMode: vk.VkDepthClampModeEXT, pDepthClampRange: ?*const vk.VkDepthClampRangeEXT) Error!void {
-    const result = vk.vkCmdSetDepthClampRangeEXT(
+pub fn CmdSetDepthClampRangeEXT(commandBuffer: vk.VkCommandBuffer, depthClampMode: vk.VkDepthClampModeEXT, pDepthClampRange: ?*const vk.VkDepthClampRangeEXT) void {
+    vk.vkCmdSetDepthClampRangeEXT(
         commandBuffer,
         depthClampMode,
         pDepthClampRange
     );
-    try check(result);
 }
 
-pub fn GetFramebufferTilePropertiesQCOM(device: vk.VkDevice, framebuffer: vk.VkFramebuffer, pPropertiesCount: ?*u32, pProperties: ?[*]vk.VkTilePropertiesQCOM) Error!void {
+pub fn GetFramebufferTilePropertiesQCOM(device: vk.VkDevice, framebuffer: vk.VkFramebuffer, pPropertiesCount: ?*u32, pProperties: [*c]vk.VkTilePropertiesQCOM) Error!void {
     const result = vk.vkGetFramebufferTilePropertiesQCOM(
         device,
         framebuffer,
@@ -7247,7 +6866,7 @@ pub fn GetFramebufferTilePropertiesQCOM(device: vk.VkDevice, framebuffer: vk.VkF
     try check(result);
 }
 
-pub fn GetDynamicRenderingTilePropertiesQCOM(device: vk.VkDevice, pRenderingInfo: ?*const vk.VkRenderingInfo, pProperties: ?[*]vk.VkTilePropertiesQCOM) Error!void {
+pub fn GetDynamicRenderingTilePropertiesQCOM(device: vk.VkDevice, pRenderingInfo: ?*const vk.VkRenderingInfo, pProperties: [*c]vk.VkTilePropertiesQCOM) Error!void {
     const result = vk.vkGetDynamicRenderingTilePropertiesQCOM(
         device,
         pRenderingInfo,
@@ -7256,7 +6875,7 @@ pub fn GetDynamicRenderingTilePropertiesQCOM(device: vk.VkDevice, pRenderingInfo
     try check(result);
 }
 
-pub fn GetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkCooperativeVectorPropertiesNV) Error!void {
+pub fn GetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkCooperativeVectorPropertiesNV) Error!void {
     const result = vk.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
         physicalDevice,
         pPropertyCount,
@@ -7273,13 +6892,12 @@ pub fn ConvertCooperativeVectorMatrixNV(device: vk.VkDevice, pInfo: ?*const vk.V
     try check(result);
 }
 
-pub fn CmdConvertCooperativeVectorMatrixNV(commandBuffer: vk.VkCommandBuffer, infoCount: u32, pInfos: ?[*]const vk.VkConvertCooperativeVectorMatrixInfoNV) Error!void {
-    const result = vk.vkCmdConvertCooperativeVectorMatrixNV(
+pub fn CmdConvertCooperativeVectorMatrixNV(commandBuffer: vk.VkCommandBuffer, infoCount: u32, pInfos: [*c]const vk.VkConvertCooperativeVectorMatrixInfoNV) void {
+    vk.vkCmdConvertCooperativeVectorMatrixNV(
         commandBuffer,
         infoCount,
         pInfos
     );
-    try check(result);
 }
 
 pub fn SetLatencySleepModeNV(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pSleepModeInfo: ?*const vk.VkLatencySleepModeInfoNV) Error!void {
@@ -7300,99 +6918,88 @@ pub fn LatencySleepNV(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pSleepI
     try check(result);
 }
 
-pub fn SetLatencyMarkerNV(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pLatencyMarkerInfo: ?*const vk.VkSetLatencyMarkerInfoNV) Error!void {
-    const result = vk.vkSetLatencyMarkerNV(
+pub fn SetLatencyMarkerNV(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pLatencyMarkerInfo: ?*const vk.VkSetLatencyMarkerInfoNV) void {
+    vk.vkSetLatencyMarkerNV(
         device,
         swapchain,
         pLatencyMarkerInfo
     );
-    try check(result);
 }
 
-pub fn GetLatencyTimingsNV(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pLatencyMarkerInfo: ?*vk.VkGetLatencyMarkerInfoNV) Error!void {
-    const result = vk.vkGetLatencyTimingsNV(
+pub fn GetLatencyTimingsNV(device: vk.VkDevice, swapchain: vk.VkSwapchainKHR, pLatencyMarkerInfo: ?*vk.VkGetLatencyMarkerInfoNV) void {
+    vk.vkGetLatencyTimingsNV(
         device,
         swapchain,
         pLatencyMarkerInfo
     );
-    try check(result);
 }
 
-pub fn QueueNotifyOutOfBandNV(queue: vk.VkQueue, pQueueTypeInfo: ?*const vk.VkOutOfBandQueueTypeInfoNV) Error!void {
-    const result = vk.vkQueueNotifyOutOfBandNV(
+pub fn QueueNotifyOutOfBandNV(queue: vk.VkQueue, pQueueTypeInfo: ?*const vk.VkOutOfBandQueueTypeInfoNV) void {
+    vk.vkQueueNotifyOutOfBandNV(
         queue,
         pQueueTypeInfo
     );
-    try check(result);
 }
 
-pub fn CmdSetAttachmentFeedbackLoopEnableEXT(commandBuffer: vk.VkCommandBuffer, aspectMask: vk.VkImageAspectFlags) Error!void {
-    const result = vk.vkCmdSetAttachmentFeedbackLoopEnableEXT(
+pub fn CmdSetAttachmentFeedbackLoopEnableEXT(commandBuffer: vk.VkCommandBuffer, aspectMask: vk.VkImageAspectFlags) void {
+    vk.vkCmdSetAttachmentFeedbackLoopEnableEXT(
         commandBuffer,
         aspectMask
     );
-    try check(result);
 }
 
-pub fn GetClusterAccelerationStructureBuildSizesNV(device: vk.VkDevice, pInfo: ?*const vk.VkClusterAccelerationStructureInputInfoNV, pSizeInfo: ?*vk.VkAccelerationStructureBuildSizesInfoKHR) Error!void {
-    const result = vk.vkGetClusterAccelerationStructureBuildSizesNV(
+pub fn GetClusterAccelerationStructureBuildSizesNV(device: vk.VkDevice, pInfo: ?*const vk.VkClusterAccelerationStructureInputInfoNV, pSizeInfo: ?*vk.VkAccelerationStructureBuildSizesInfoKHR) void {
+    vk.vkGetClusterAccelerationStructureBuildSizesNV(
         device,
         pInfo,
         pSizeInfo
     );
-    try check(result);
 }
 
-pub fn CmdBuildClusterAccelerationStructureIndirectNV(commandBuffer: vk.VkCommandBuffer, pCommandInfos: ?[*]const vk.VkClusterAccelerationStructureCommandsInfoNV) Error!void {
-    const result = vk.vkCmdBuildClusterAccelerationStructureIndirectNV(
+pub fn CmdBuildClusterAccelerationStructureIndirectNV(commandBuffer: vk.VkCommandBuffer, pCommandInfos: [*c]const vk.VkClusterAccelerationStructureCommandsInfoNV) void {
+    vk.vkCmdBuildClusterAccelerationStructureIndirectNV(
         commandBuffer,
         pCommandInfos
     );
-    try check(result);
 }
 
-pub fn GetPartitionedAccelerationStructuresBuildSizesNV(device: vk.VkDevice, pInfo: ?*const vk.VkPartitionedAccelerationStructureInstancesInputNV, pSizeInfo: ?*vk.VkAccelerationStructureBuildSizesInfoKHR) Error!void {
-    const result = vk.vkGetPartitionedAccelerationStructuresBuildSizesNV(
+pub fn GetPartitionedAccelerationStructuresBuildSizesNV(device: vk.VkDevice, pInfo: ?*const vk.VkPartitionedAccelerationStructureInstancesInputNV, pSizeInfo: ?*vk.VkAccelerationStructureBuildSizesInfoKHR) void {
+    vk.vkGetPartitionedAccelerationStructuresBuildSizesNV(
         device,
         pInfo,
         pSizeInfo
     );
-    try check(result);
 }
 
-pub fn CmdBuildPartitionedAccelerationStructuresNV(commandBuffer: vk.VkCommandBuffer, pBuildInfo: ?*const vk.VkBuildPartitionedAccelerationStructureInfoNV) Error!void {
-    const result = vk.vkCmdBuildPartitionedAccelerationStructuresNV(
+pub fn CmdBuildPartitionedAccelerationStructuresNV(commandBuffer: vk.VkCommandBuffer, pBuildInfo: ?*const vk.VkBuildPartitionedAccelerationStructureInfoNV) void {
+    vk.vkCmdBuildPartitionedAccelerationStructuresNV(
         commandBuffer,
         pBuildInfo
     );
-    try check(result);
 }
 
-pub fn GetGeneratedCommandsMemoryRequirementsEXT(device: vk.VkDevice, pInfo: ?*const vk.VkGeneratedCommandsMemoryRequirementsInfoEXT, pMemoryRequirements: ?[*]vk.VkMemoryRequirements2) Error!void {
-    const result = vk.vkGetGeneratedCommandsMemoryRequirementsEXT(
+pub fn GetGeneratedCommandsMemoryRequirementsEXT(device: vk.VkDevice, pInfo: ?*const vk.VkGeneratedCommandsMemoryRequirementsInfoEXT, pMemoryRequirements: [*c]vk.VkMemoryRequirements2) void {
+    vk.vkGetGeneratedCommandsMemoryRequirementsEXT(
         device,
         pInfo,
         pMemoryRequirements
     );
-    try check(result);
 }
 
-pub fn CmdPreprocessGeneratedCommandsEXT(commandBuffer: vk.VkCommandBuffer, pGeneratedCommandsInfo: ?*const vk.VkGeneratedCommandsInfoEXT, stateCommandBuffer: vk.VkCommandBuffer) Error!void {
-    const result = vk.vkCmdPreprocessGeneratedCommandsEXT(
+pub fn CmdPreprocessGeneratedCommandsEXT(commandBuffer: vk.VkCommandBuffer, pGeneratedCommandsInfo: ?*const vk.VkGeneratedCommandsInfoEXT, stateCommandBuffer: vk.VkCommandBuffer) void {
+    vk.vkCmdPreprocessGeneratedCommandsEXT(
         commandBuffer,
         pGeneratedCommandsInfo,
         stateCommandBuffer
     );
-    try check(result);
 }
 
-pub fn CmdExecuteGeneratedCommandsEXT(commandBuffer: vk.VkCommandBuffer, isPreprocessed: vk.VkBool32, pGeneratedCommandsInfo: ?*const vk.VkGeneratedCommandsInfoEXT) Error!void {
-    const result = vk.vkCmdExecuteGeneratedCommandsEXT(
+pub fn CmdExecuteGeneratedCommandsEXT(commandBuffer: vk.VkCommandBuffer, isPreprocessed: vk.VkBool32, pGeneratedCommandsInfo: ?*const vk.VkGeneratedCommandsInfoEXT) void {
+    vk.vkCmdExecuteGeneratedCommandsEXT(
         commandBuffer,
         isPreprocessed,
         pGeneratedCommandsInfo
     );
-    try check(result);
 }
 
 pub fn CreateIndirectCommandsLayoutEXT(device: vk.VkDevice, pCreateInfo: ?*const vk.VkIndirectCommandsLayoutCreateInfoEXT, pAllocator: ?*const vk.VkAllocationCallbacks, pIndirectCommandsLayout: ?*vk.VkIndirectCommandsLayoutEXT) Error!void {
@@ -7405,13 +7012,12 @@ pub fn CreateIndirectCommandsLayoutEXT(device: vk.VkDevice, pCreateInfo: ?*const
     try check(result);
 }
 
-pub fn DestroyIndirectCommandsLayoutEXT(device: vk.VkDevice, indirectCommandsLayout: vk.VkIndirectCommandsLayoutEXT, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyIndirectCommandsLayoutEXT(
+pub fn DestroyIndirectCommandsLayoutEXT(device: vk.VkDevice, indirectCommandsLayout: vk.VkIndirectCommandsLayoutEXT, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyIndirectCommandsLayoutEXT(
         device,
         indirectCommandsLayout,
         pAllocator
     );
-    try check(result);
 }
 
 pub fn CreateIndirectExecutionSetEXT(device: vk.VkDevice, pCreateInfo: ?*const vk.VkIndirectExecutionSetCreateInfoEXT, pAllocator: ?*const vk.VkAllocationCallbacks, pIndirectExecutionSet: ?*vk.VkIndirectExecutionSetEXT) Error!void {
@@ -7424,36 +7030,33 @@ pub fn CreateIndirectExecutionSetEXT(device: vk.VkDevice, pCreateInfo: ?*const v
     try check(result);
 }
 
-pub fn DestroyIndirectExecutionSetEXT(device: vk.VkDevice, indirectExecutionSet: vk.VkIndirectExecutionSetEXT, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyIndirectExecutionSetEXT(
+pub fn DestroyIndirectExecutionSetEXT(device: vk.VkDevice, indirectExecutionSet: vk.VkIndirectExecutionSetEXT, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyIndirectExecutionSetEXT(
         device,
         indirectExecutionSet,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn UpdateIndirectExecutionSetPipelineEXT(device: vk.VkDevice, indirectExecutionSet: vk.VkIndirectExecutionSetEXT, executionSetWriteCount: u32, pExecutionSetWrites: ?[*]const vk.VkWriteIndirectExecutionSetPipelineEXT) Error!void {
-    const result = vk.vkUpdateIndirectExecutionSetPipelineEXT(
+pub fn UpdateIndirectExecutionSetPipelineEXT(device: vk.VkDevice, indirectExecutionSet: vk.VkIndirectExecutionSetEXT, executionSetWriteCount: u32, pExecutionSetWrites: [*c]const vk.VkWriteIndirectExecutionSetPipelineEXT) void {
+    vk.vkUpdateIndirectExecutionSetPipelineEXT(
         device,
         indirectExecutionSet,
         executionSetWriteCount,
         pExecutionSetWrites
     );
-    try check(result);
 }
 
-pub fn UpdateIndirectExecutionSetShaderEXT(device: vk.VkDevice, indirectExecutionSet: vk.VkIndirectExecutionSetEXT, executionSetWriteCount: u32, pExecutionSetWrites: ?[*]const vk.VkWriteIndirectExecutionSetShaderEXT) Error!void {
-    const result = vk.vkUpdateIndirectExecutionSetShaderEXT(
+pub fn UpdateIndirectExecutionSetShaderEXT(device: vk.VkDevice, indirectExecutionSet: vk.VkIndirectExecutionSetEXT, executionSetWriteCount: u32, pExecutionSetWrites: [*c]const vk.VkWriteIndirectExecutionSetShaderEXT) void {
+    vk.vkUpdateIndirectExecutionSetShaderEXT(
         device,
         indirectExecutionSet,
         executionSetWriteCount,
         pExecutionSetWrites
     );
-    try check(result);
 }
 
-pub fn GetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: ?[*]vk.VkCooperativeMatrixFlexibleDimensionsPropertiesNV) Error!void {
+pub fn GetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(physicalDevice: vk.VkPhysicalDevice, pPropertyCount: ?*u32, pProperties: [*c]vk.VkCooperativeMatrixFlexibleDimensionsPropertiesNV) Error!void {
     const result = vk.vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
         physicalDevice,
         pPropertyCount,
@@ -7472,27 +7075,25 @@ pub fn CreateAccelerationStructureKHR(device: vk.VkDevice, pCreateInfo: ?*const 
     try check(result);
 }
 
-pub fn DestroyAccelerationStructureKHR(device: vk.VkDevice, accelerationStructure: vk.VkAccelerationStructureKHR, pAllocator: ?*const vk.VkAllocationCallbacks) Error!void {
-    const result = vk.vkDestroyAccelerationStructureKHR(
+pub fn DestroyAccelerationStructureKHR(device: vk.VkDevice, accelerationStructure: vk.VkAccelerationStructureKHR, pAllocator: ?*const vk.VkAllocationCallbacks) void {
+    vk.vkDestroyAccelerationStructureKHR(
         device,
         accelerationStructure,
         pAllocator
     );
-    try check(result);
 }
 
-pub fn CmdBuildAccelerationStructuresKHR(commandBuffer: vk.VkCommandBuffer, infoCount: u32, pInfos: ?[*]const vk.VkAccelerationStructureBuildGeometryInfoKHR, ppBuildRangeInfos: ?*const ?[*]const vk.VkAccelerationStructureBuildRangeInfoKHR) Error!void {
-    const result = vk.vkCmdBuildAccelerationStructuresKHR(
+pub fn CmdBuildAccelerationStructuresKHR(commandBuffer: vk.VkCommandBuffer, infoCount: u32, pInfos: [*c]const vk.VkAccelerationStructureBuildGeometryInfoKHR, ppBuildRangeInfos: ?*const [*c]const vk.VkAccelerationStructureBuildRangeInfoKHR) void {
+    vk.vkCmdBuildAccelerationStructuresKHR(
         commandBuffer,
         infoCount,
         pInfos,
         ppBuildRangeInfos
     );
-    try check(result);
 }
 
-pub fn CmdBuildAccelerationStructuresIndirectKHR(commandBuffer: vk.VkCommandBuffer, infoCount: u32, pInfos: ?[*]const vk.VkAccelerationStructureBuildGeometryInfoKHR, pIndirectDeviceAddresses: ?[*]const vk.VkDeviceAddress, pIndirectStrides: ?[*]const u32, ppMaxPrimitiveCounts: ?*const ?[*]const u32) Error!void {
-    const result = vk.vkCmdBuildAccelerationStructuresIndirectKHR(
+pub fn CmdBuildAccelerationStructuresIndirectKHR(commandBuffer: vk.VkCommandBuffer, infoCount: u32, pInfos: [*c]const vk.VkAccelerationStructureBuildGeometryInfoKHR, pIndirectDeviceAddresses: [*c]const vk.VkDeviceAddress, pIndirectStrides: [*c]const u32, ppMaxPrimitiveCounts: ?*const [*c]const u32) void {
+    vk.vkCmdBuildAccelerationStructuresIndirectKHR(
         commandBuffer,
         infoCount,
         pInfos,
@@ -7500,10 +7101,9 @@ pub fn CmdBuildAccelerationStructuresIndirectKHR(commandBuffer: vk.VkCommandBuff
         pIndirectStrides,
         ppMaxPrimitiveCounts
     );
-    try check(result);
 }
 
-pub fn BuildAccelerationStructuresKHR(device: vk.VkDevice, deferredOperation: vk.VkDeferredOperationKHR, infoCount: u32, pInfos: ?[*]const vk.VkAccelerationStructureBuildGeometryInfoKHR, ppBuildRangeInfos: ?*const ?[*]const vk.VkAccelerationStructureBuildRangeInfoKHR) Error!void {
+pub fn BuildAccelerationStructuresKHR(device: vk.VkDevice, deferredOperation: vk.VkDeferredOperationKHR, infoCount: u32, pInfos: [*c]const vk.VkAccelerationStructureBuildGeometryInfoKHR, ppBuildRangeInfos: ?*const [*c]const vk.VkAccelerationStructureBuildRangeInfoKHR) Error!void {
     const result = vk.vkBuildAccelerationStructuresKHR(
         device,
         deferredOperation,
@@ -7541,7 +7141,7 @@ pub fn CopyMemoryToAccelerationStructureKHR(device: vk.VkDevice, deferredOperati
     try check(result);
 }
 
-pub fn WriteAccelerationStructuresPropertiesKHR(device: vk.VkDevice, accelerationStructureCount: u32, pAccelerationStructures: ?[*]const vk.VkAccelerationStructureKHR, queryType: vk.VkQueryType, dataSize: vk.size_t, pData: ?*void, stride: vk.size_t) Error!void {
+pub fn WriteAccelerationStructuresPropertiesKHR(device: vk.VkDevice, accelerationStructureCount: u32, pAccelerationStructures: [*c]const vk.VkAccelerationStructureKHR, queryType: vk.VkQueryType, dataSize: vk.size_t, pData: ?*void, stride: vk.size_t) Error!void {
     const result = vk.vkWriteAccelerationStructuresPropertiesKHR(
         device,
         accelerationStructureCount,
@@ -7554,28 +7154,25 @@ pub fn WriteAccelerationStructuresPropertiesKHR(device: vk.VkDevice, acceleratio
     try check(result);
 }
 
-pub fn CmdCopyAccelerationStructureKHR(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyAccelerationStructureInfoKHR) Error!void {
-    const result = vk.vkCmdCopyAccelerationStructureKHR(
+pub fn CmdCopyAccelerationStructureKHR(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyAccelerationStructureInfoKHR) void {
+    vk.vkCmdCopyAccelerationStructureKHR(
         commandBuffer,
         pInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyAccelerationStructureToMemoryKHR(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyAccelerationStructureToMemoryInfoKHR) Error!void {
-    const result = vk.vkCmdCopyAccelerationStructureToMemoryKHR(
+pub fn CmdCopyAccelerationStructureToMemoryKHR(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyAccelerationStructureToMemoryInfoKHR) void {
+    vk.vkCmdCopyAccelerationStructureToMemoryKHR(
         commandBuffer,
         pInfo
     );
-    try check(result);
 }
 
-pub fn CmdCopyMemoryToAccelerationStructureKHR(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyMemoryToAccelerationStructureInfoKHR) Error!void {
-    const result = vk.vkCmdCopyMemoryToAccelerationStructureKHR(
+pub fn CmdCopyMemoryToAccelerationStructureKHR(commandBuffer: vk.VkCommandBuffer, pInfo: ?*const vk.VkCopyMemoryToAccelerationStructureInfoKHR) void {
+    vk.vkCmdCopyMemoryToAccelerationStructureKHR(
         commandBuffer,
         pInfo
     );
-    try check(result);
 }
 
 pub fn GetAccelerationStructureDeviceAddressKHR(device: vk.VkDevice, pInfo: ?*const vk.VkAccelerationStructureDeviceAddressInfoKHR) Error!void {
@@ -7586,8 +7183,8 @@ pub fn GetAccelerationStructureDeviceAddressKHR(device: vk.VkDevice, pInfo: ?*co
     try check(result);
 }
 
-pub fn CmdWriteAccelerationStructuresPropertiesKHR(commandBuffer: vk.VkCommandBuffer, accelerationStructureCount: u32, pAccelerationStructures: ?[*]const vk.VkAccelerationStructureKHR, queryType: vk.VkQueryType, queryPool: vk.VkQueryPool, firstQuery: u32) Error!void {
-    const result = vk.vkCmdWriteAccelerationStructuresPropertiesKHR(
+pub fn CmdWriteAccelerationStructuresPropertiesKHR(commandBuffer: vk.VkCommandBuffer, accelerationStructureCount: u32, pAccelerationStructures: [*c]const vk.VkAccelerationStructureKHR, queryType: vk.VkQueryType, queryPool: vk.VkQueryPool, firstQuery: u32) void {
+    vk.vkCmdWriteAccelerationStructuresPropertiesKHR(
         commandBuffer,
         accelerationStructureCount,
         pAccelerationStructures,
@@ -7595,31 +7192,28 @@ pub fn CmdWriteAccelerationStructuresPropertiesKHR(commandBuffer: vk.VkCommandBu
         queryPool,
         firstQuery
     );
-    try check(result);
 }
 
-pub fn GetDeviceAccelerationStructureCompatibilityKHR(device: vk.VkDevice, pVersionInfo: ?*const vk.VkAccelerationStructureVersionInfoKHR, pCompatibility: ?*vk.VkAccelerationStructureCompatibilityKHR) Error!void {
-    const result = vk.vkGetDeviceAccelerationStructureCompatibilityKHR(
+pub fn GetDeviceAccelerationStructureCompatibilityKHR(device: vk.VkDevice, pVersionInfo: ?*const vk.VkAccelerationStructureVersionInfoKHR, pCompatibility: ?*vk.VkAccelerationStructureCompatibilityKHR) void {
+    vk.vkGetDeviceAccelerationStructureCompatibilityKHR(
         device,
         pVersionInfo,
         pCompatibility
     );
-    try check(result);
 }
 
-pub fn GetAccelerationStructureBuildSizesKHR(device: vk.VkDevice, buildType: vk.VkAccelerationStructureBuildTypeKHR, pBuildInfo: ?*const vk.VkAccelerationStructureBuildGeometryInfoKHR, pMaxPrimitiveCounts: ?[*]const u32, pSizeInfo: ?*vk.VkAccelerationStructureBuildSizesInfoKHR) Error!void {
-    const result = vk.vkGetAccelerationStructureBuildSizesKHR(
+pub fn GetAccelerationStructureBuildSizesKHR(device: vk.VkDevice, buildType: vk.VkAccelerationStructureBuildTypeKHR, pBuildInfo: ?*const vk.VkAccelerationStructureBuildGeometryInfoKHR, pMaxPrimitiveCounts: [*c]const u32, pSizeInfo: ?*vk.VkAccelerationStructureBuildSizesInfoKHR) void {
+    vk.vkGetAccelerationStructureBuildSizesKHR(
         device,
         buildType,
         pBuildInfo,
         pMaxPrimitiveCounts,
         pSizeInfo
     );
-    try check(result);
 }
 
-pub fn CmdTraceRaysKHR(commandBuffer: vk.VkCommandBuffer, pRaygenShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pMissShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pHitShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pCallableShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, width: u32, height: u32, depth: u32) Error!void {
-    const result = vk.vkCmdTraceRaysKHR(
+pub fn CmdTraceRaysKHR(commandBuffer: vk.VkCommandBuffer, pRaygenShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pMissShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pHitShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pCallableShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, width: u32, height: u32, depth: u32) void {
+    vk.vkCmdTraceRaysKHR(
         commandBuffer,
         pRaygenShaderBindingTable,
         pMissShaderBindingTable,
@@ -7629,10 +7223,9 @@ pub fn CmdTraceRaysKHR(commandBuffer: vk.VkCommandBuffer, pRaygenShaderBindingTa
         height,
         depth
     );
-    try check(result);
 }
 
-pub fn CreateRayTracingPipelinesKHR(device: vk.VkDevice, deferredOperation: vk.VkDeferredOperationKHR, pipelineCache: vk.VkPipelineCache, createInfoCount: u32, pCreateInfos: ?[*]const vk.VkRayTracingPipelineCreateInfoKHR, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelines: ?[*]vk.VkPipeline) Error!void {
+pub fn CreateRayTracingPipelinesKHR(device: vk.VkDevice, deferredOperation: vk.VkDeferredOperationKHR, pipelineCache: vk.VkPipelineCache, createInfoCount: u32, pCreateInfos: [*c]const vk.VkRayTracingPipelineCreateInfoKHR, pAllocator: ?*const vk.VkAllocationCallbacks, pPipelines: [*c]vk.VkPipeline) Error!void {
     const result = vk.vkCreateRayTracingPipelinesKHR(
         device,
         deferredOperation,
@@ -7657,8 +7250,8 @@ pub fn GetRayTracingCaptureReplayShaderGroupHandlesKHR(device: vk.VkDevice, pipe
     try check(result);
 }
 
-pub fn CmdTraceRaysIndirectKHR(commandBuffer: vk.VkCommandBuffer, pRaygenShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pMissShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pHitShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pCallableShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, indirectDeviceAddress: vk.VkDeviceAddress) Error!void {
-    const result = vk.vkCmdTraceRaysIndirectKHR(
+pub fn CmdTraceRaysIndirectKHR(commandBuffer: vk.VkCommandBuffer, pRaygenShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pMissShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pHitShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, pCallableShaderBindingTable: ?*const vk.VkStridedDeviceAddressRegionKHR, indirectDeviceAddress: vk.VkDeviceAddress) void {
+    vk.vkCmdTraceRaysIndirectKHR(
         commandBuffer,
         pRaygenShaderBindingTable,
         pMissShaderBindingTable,
@@ -7666,7 +7259,6 @@ pub fn CmdTraceRaysIndirectKHR(commandBuffer: vk.VkCommandBuffer, pRaygenShaderB
         pCallableShaderBindingTable,
         indirectDeviceAddress
     );
-    try check(result);
 }
 
 pub fn GetRayTracingShaderGroupStackSizeKHR(device: vk.VkDevice, pipeline: vk.VkPipeline, group: u32, groupShader: vk.VkShaderGroupShaderKHR) Error!void {
@@ -7679,37 +7271,34 @@ pub fn GetRayTracingShaderGroupStackSizeKHR(device: vk.VkDevice, pipeline: vk.Vk
     try check(result);
 }
 
-pub fn CmdSetRayTracingPipelineStackSizeKHR(commandBuffer: vk.VkCommandBuffer, pipelineStackSize: u32) Error!void {
-    const result = vk.vkCmdSetRayTracingPipelineStackSizeKHR(
+pub fn CmdSetRayTracingPipelineStackSizeKHR(commandBuffer: vk.VkCommandBuffer, pipelineStackSize: u32) void {
+    vk.vkCmdSetRayTracingPipelineStackSizeKHR(
         commandBuffer,
         pipelineStackSize
     );
-    try check(result);
 }
 
-pub fn CmdDrawMeshTasksEXT(commandBuffer: vk.VkCommandBuffer, groupCountX: u32, groupCountY: u32, groupCountZ: u32) Error!void {
-    const result = vk.vkCmdDrawMeshTasksEXT(
+pub fn CmdDrawMeshTasksEXT(commandBuffer: vk.VkCommandBuffer, groupCountX: u32, groupCountY: u32, groupCountZ: u32) void {
+    vk.vkCmdDrawMeshTasksEXT(
         commandBuffer,
         groupCountX,
         groupCountY,
         groupCountZ
     );
-    try check(result);
 }
 
-pub fn CmdDrawMeshTasksIndirectEXT(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, drawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawMeshTasksIndirectEXT(
+pub fn CmdDrawMeshTasksIndirectEXT(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, drawCount: u32, stride: u32) void {
+    vk.vkCmdDrawMeshTasksIndirectEXT(
         commandBuffer,
         buffer,
         offset,
         drawCount,
         stride
     );
-    try check(result);
 }
 
-pub fn CmdDrawMeshTasksIndirectCountEXT(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) Error!void {
-    const result = vk.vkCmdDrawMeshTasksIndirectCountEXT(
+pub fn CmdDrawMeshTasksIndirectCountEXT(commandBuffer: vk.VkCommandBuffer, buffer: vk.VkBuffer, offset: vk.VkDeviceSize, countBuffer: vk.VkBuffer, countBufferOffset: vk.VkDeviceSize, maxDrawCount: u32, stride: u32) void {
+    vk.vkCmdDrawMeshTasksIndirectCountEXT(
         commandBuffer,
         buffer,
         offset,
@@ -7718,6 +7307,5 @@ pub fn CmdDrawMeshTasksIndirectCountEXT(commandBuffer: vk.VkCommandBuffer, buffe
         maxDrawCount,
         stride
     );
-    try check(result);
 }
 
