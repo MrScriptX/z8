@@ -51,6 +51,7 @@ pub const Chunk = struct {
 
     perm_table_buffer: buffers.AllocatedBuffer,
     data_buffer: buffers.AllocatedBuffer,
+    // chunk_map: buffers.AllocatedBuffer,
 
     constants: shader.ClassificationShader.PushConstant,
     perm_table: [256]u32 = @splat(0),
@@ -79,7 +80,8 @@ pub const Chunk = struct {
             
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
-            
+            // .chunk_map = buffers.AllocatedBuffer.init(r._vma, @sizeOf(MapData), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+
             .compute_passes = .{
                 .classification = try allocator.create(engine.compute.Instance),
                 .face_culling = try allocator.create(engine.compute.Instance),
@@ -409,18 +411,18 @@ pub const Chunk = struct {
         voxels: [voxel_count]Voxel = @splat(.{}),
     };
 
-    // pub const MapData = struct {
-    //     voxels: [voxel_count]Voxel = @splat(.{}),
-    // };
+    pub const MapData = struct {
+        voxels: [voxel_count]Voxel2 = @splat(.{}),
+    };
 
     pub const Voxel = struct {
         data: @Vector(2, u32) = @splat(0), // type
     };
 
-    // pub const Voxel2 = struct {
-    //     faces: [6]bool = .{ false, false, false, false, false, false }, // face culling
-    //     type: u32 = 0, // type 
-    // };
+    pub const Voxel2 = struct { // u32 total
+        _type: u10 = 0, // type 
+        faces: [6]bool = .{ false, false, false, false, false, false }, // face culling
+    };
 };
 
 pub const Material = struct {
