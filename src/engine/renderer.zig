@@ -92,6 +92,7 @@ pub const Renderer = struct {
     pub var _grey_image: vk.image.image_t = undefined;
 
     // memory allocators
+    allocator: std.mem.Allocator,
     _arena: std.heap.ArenaAllocator = undefined,
     _vma: c.VmaAllocator = undefined,
 
@@ -122,8 +123,7 @@ pub const Renderer = struct {
 
     // immediate submit structures
     submit: submit_t,
-    graphic_queue: *tasks.TaskManager = undefined,
-    compute_queue: *tasks.TaskManager = undefined,
+    compute_queue: ?*tasks.TaskManager,
 
     // scene
     scene_descriptor: c.VkDescriptorSetLayout = undefined,
@@ -135,7 +135,10 @@ pub const Renderer = struct {
 
     pub fn init(allocator: std.mem.Allocator, window: ?*sdl.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !Renderer {
         var renderer = Renderer{
+            .allocator = allocator,
             ._arena = std.heap.ArenaAllocator.init(allocator),
+
+            .compute_queue = null,
 
             .camera = camera,
             .stats = stats_t{},
@@ -152,19 +155,14 @@ pub const Renderer = struct {
         try renderer.init_commands(allocator);
         try renderer.init_descriptors(allocator);
 
-        renderer.graphic_queue = try renderer._arena.allocator().create(tasks.TaskManager);
-        renderer.graphic_queue = tasks.TaskManager.init(allocator, renderer._device, renderer._queues.graphics, renderer._queue_indices.graphics);
-        renderer.graphic_queue.start() catch {
-            std.log.err("Failed to start graphics tasks manager", .{});
-            @panic("Unrecoverable error");
-        };
-
-        renderer.compute_queue = try renderer._arena.allocator().create(tasks.TaskManager);
-        renderer.compute_queue = tasks.TaskManager.init(allocator, renderer._device, renderer._queues.compute, renderer._queue_indices.compute);
-        renderer.compute_queue.start() catch {
-            std.log.err("Failed to start compute tasks manager", .{});
-            @panic("Unrecoverable error");
-        };
+        if (renderer._queue_indices.compute != renderer._queue_indices.graphics) {
+            renderer.compute_queue = try allocator.create(tasks.TaskManager);
+            renderer.compute_queue = tasks.TaskManager.init(allocator, renderer._device, renderer._queues.compute, renderer._queue_indices.compute);
+            renderer.compute_queue.?.start() catch {
+                std.log.err("Failed to start compute tasks manager", .{});
+                @panic("Unrecoverable error");
+            };
+        }
 
         std.log.info("Initiliazing GUI...", .{});
         _gui_context = gui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
@@ -199,13 +197,11 @@ pub const Renderer = struct {
         vk.image.destroy_image(self._device, self._vma, &_grey_image);
         vk.image.destroy_image(self._device, self._vma, &_black_image);
 
-        self.graphic_queue.stop();
-        self.graphic_queue.deinit();
-        self._arena.allocator().destroy(self.graphic_queue);
-
-        self.compute_queue.stop();
-        self.compute_queue.deinit();
-        self._arena.allocator().destroy(self.compute_queue);
+        if (self.compute_queue) |queue| {
+            queue.stop();
+            queue.deinit();
+            self.allocator.destroy(queue);
+        }
 
         for (&self._frames) |*frame| {
             frame.deinit(self._device, self._vma);

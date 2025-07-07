@@ -278,22 +278,33 @@ pub const Chunk = struct {
 
         c.vkCmdDispatch(cmd, x, y, z);
 
-        const chunk_data_barrier = c.VkBufferMemoryBarrier {
-            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_SHADER_READ_BIT,
+        const chunk_data_barrier = c.VkBufferMemoryBarrier2 {
+            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            
             .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
+            .srcStageMask = c.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstAccessMask = c.VK_ACCESS_SHADER_READ_BIT,
+            .dstStageMask = c.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            
             .buffer = self.data_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(Data),
         };
 
-        const cl_pass_barriers = [_]c.VkBufferMemoryBarrier {
+        const barriers = [_]c.VkBufferMemoryBarrier2 {
             chunk_data_barrier,
         };
 
-        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(cl_pass_barriers.len), @ptrCast(&cl_pass_barriers), 0, null);
+        const dependency_info = vk.DependencyInfo {
+            .sType = c.VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .pNext = null,
+            .bufferMemoryBarrierCount = @intCast(barriers.len),
+            .pBufferMemoryBarriers = @ptrCast(&barriers)
+        };
+        vk.CmdPipelineBarrier2(cmd, &dependency_info);
     }
 
     fn dispatch_face_culling(self: *const Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
@@ -302,22 +313,33 @@ pub const Chunk = struct {
 
         c.vkCmdDispatch(cmd, x, y, z);
 
-        const faces_barrier = c.VkBufferMemoryBarrier {
-            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_SHADER_READ_BIT,
+        const faces_barrier = c.VkBufferMemoryBarrier2 {
+            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            
             .srcQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
+            .srcStageMask = c.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+
             .dstQueueFamilyIndex = c.VK_QUEUE_FAMILY_IGNORED,
+            .dstAccessMask = c.VK_ACCESS_SHADER_READ_BIT,
+            .dstStageMask = c.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            
             .buffer = self.data_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(Data),
         };
 
-        const culling_barriers = [_]c.VkBufferMemoryBarrier {
+        const barriers = [_]c.VkBufferMemoryBarrier2 {
             faces_barrier,
         };
 
-        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(culling_barriers.len), @ptrCast(&culling_barriers), 0, null);
+        const dependency_info = vk.DependencyInfo {
+            .sType = c.VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .pNext = null,
+            .bufferMemoryBarrierCount = @intCast(barriers.len),
+            .pBufferMemoryBarriers = @ptrCast(&barriers)
+        };
+        vk.CmdPipelineBarrier2(cmd, &dependency_info);
     }
 
     fn dispatch_meshing(self: *const Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32, src_queue: u32, dst_queue: u32) void {
@@ -326,83 +348,51 @@ pub const Chunk = struct {
         
         c.vkCmdDispatch(cmd, x, y, z);
 
-        const vertex_barrier = c.VkBufferMemoryBarrier {
-            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+        const solid_mesh_barrier = c.VkBufferMemoryBarrier2 {
+            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            
             .srcQueueFamilyIndex = src_queue,
+            .srcAccessMask = c.VK_ACCESS_2_SHADER_WRITE_BIT,
+            .srcStageMask = c.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            
+            
             .dstQueueFamilyIndex = dst_queue,
-            .buffer = self.solid_mesh.vertices_buffer.buffer,
-            .offset = 0,
-            .size = self.solid_mesh.vertices_buffer.info.size
-        };
-
-        const index_barrier = c.VkBufferMemoryBarrier {
-            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_INDEX_READ_BIT | c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-            .srcQueueFamilyIndex = src_queue,
-            .dstQueueFamilyIndex = dst_queue,
-            .buffer = self.solid_mesh.indices_buffer.buffer,
-            .offset = 0,
-            .size = self.solid_mesh.indices_buffer.info.size
-        };
-
-        const indirect_barrier = c.VkBufferMemoryBarrier{
-            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-            .srcQueueFamilyIndex = src_queue,
-            .dstQueueFamilyIndex = dst_queue,
+            .dstStageMask = c.VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
+
             .buffer = self.solid_mesh.indirect_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
 
-        const water_vertex_barrier = c.VkBufferMemoryBarrier {
-            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+        const water_mesh_barrier = c.VkBufferMemoryBarrier2 {
+            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            
             .srcQueueFamilyIndex = src_queue,
-            .dstQueueFamilyIndex = dst_queue,
-            .buffer = self.water_mesh.vertices_buffer.buffer,
-            .offset = 0,
-            .size = self.water_mesh.vertices_buffer.info.size
-        };
+            .srcAccessMask = c.VK_ACCESS_2_SHADER_WRITE_BIT,
+            .srcStageMask = c.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
 
-        const water_index_barrier = c.VkBufferMemoryBarrier {
-            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
-            .dstAccessMask = c.VK_ACCESS_INDEX_READ_BIT | c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-            .srcQueueFamilyIndex = src_queue,
             .dstQueueFamilyIndex = dst_queue,
-            .buffer = self.water_mesh.indices_buffer.buffer,
-            .offset = 0,
-            .size = self.water_mesh.indices_buffer.info.size
-        };
-
-        const water_indirect_barrier = c.VkBufferMemoryBarrier {
-            .sType = c.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = c.VK_ACCESS_SHADER_WRITE_BIT,
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-            .srcQueueFamilyIndex = src_queue,
-            .dstQueueFamilyIndex = dst_queue,
+            .dstStageMask = c.VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
+
             .buffer = self.water_mesh.indirect_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
 
-
-        const barriers = [_]c.VkBufferMemoryBarrier {
-            vertex_barrier,
-            index_barrier,
-            indirect_barrier,
-            water_vertex_barrier,
-            water_index_barrier,
-            water_indirect_barrier
+        const barriers = [_]c.VkBufferMemoryBarrier2 {
+            solid_mesh_barrier,
+            water_mesh_barrier
         };
 
-        c.vkCmdPipelineBarrier(cmd, c.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, c.VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | c.VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, null, @intCast(barriers.len), @ptrCast(&barriers), 0, null);
+        const dependency_info = vk.DependencyInfo {
+            .sType = c.VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .pNext = null,
+            .bufferMemoryBarrierCount = @intCast(barriers.len),
+            .pBufferMemoryBarriers = @ptrCast(&barriers)
+        };
+        vk.CmdPipelineBarrier2(cmd, &dependency_info);
     }
 
     pub const Data = struct { // will be fill by GPU
@@ -542,6 +532,7 @@ pub const Material = struct {
 
 const std = @import("std");
 const za = @import("zalgebra");
+const vk = @import("../../engine/vulkan/vk_wrapper.zig");
 const c = @import("../../clibs.zig");
 
 const shader = @import("../../levels/voxel/shaders.zig");

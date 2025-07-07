@@ -311,41 +311,53 @@ pub const VoxelScene = struct {
 
         // process world queue
         for (self.world.items) |*it| {
+            // check if chunk is in radius
+
+            // check if chunk needs to be built
             if (!it.update) {
                 it.update = true; // mark as queued for update (for later use)
 
-                // TODO : enqueue Task in TaskManager and remove the break;
-                // it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, self.pipelines.default, self.pipelines.water, r) catch {
-                //     std.log.err("Failed to create chunk : Out of memory", .{});
-                //     @panic("Out Of Memory !");
-                // };
+                if (r.compute_queue) |task_queue| {
+                    const ctx = allocator.create(Ctx) catch {
+                        std.log.warn("Failed to allocate memory for chunk context", .{});
+                        it.update = false;
+                        continue;
+                    };
+                    ctx.* = .{
+                        .it = it,
+                        .r = r,
+                        .allocator = allocator,
+                        .self = self,
+                        .src_queue = task_queue.submit.queue_index,
+                        .dst_queue = r._queue_indices.graphics
+                    };
+                    task_queue.enqueue(&build_chunk, &on_build_success, @ptrCast(ctx)) catch {
+                        std.log.warn("Queuing chunk for build failed", .{});
+                        it.update = false;
+                        continue;
+                    };
+                }
+                else {
+                    const mat: chunk.Materials = switch(self.state.pipeline) {
+                        0 => self.pipelines.default,
+                        1 => self.pipelines.polygone,
+                        2 => self.pipelines.normals,
+                        else => self.pipelines.default,
+                    };
+
+                    it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, mat, r) catch {
+                        std.log.err("Failed to create chunk : Out of memory", .{});
+                        @panic("Out Of Memory !");
+                    };
                 
-                // r.submit.start_recording(r);
-                // it.ptr.dispatch(r.submit.cmd);
-                // r.submit.submit(r);
+                    r.submit.start_recording(r);
+                    it.ptr.dispatch(r.submit.cmd, r._queue_indices.graphics, r._queue_indices.graphics);
+                    r.submit.submit(r);
 
-                // it.ptr.ready.store(true, std.builtin.AtomicOrder.seq_cst);
+                    it.ptr.ready.store(true, std.builtin.AtomicOrder.seq_cst);
 
-                // break; // only build one at the time for latency
-
-                const ctx = allocator.create(Ctx) catch {
-                    std.log.warn("Failed to allocate memory for chunk context", .{});
-                    it.update = false;
-                    continue;
-                };
-                ctx.* = .{
-                    .it = it,
-                    .r = r,
-                    .allocator = allocator,
-                    .self = self,
-                    .src_queue = r.compute_queue.submit.queue_index,
-                    .dst_queue = r._queue_indices.graphics
-                };
-                r.compute_queue.enqueue(&build_chunk, &on_build_success, @ptrCast(ctx)) catch {
-                    std.log.warn("Queuing chunk for build failed", .{});
-                    it.update = false;
-                    continue;
-                };
+                    break; // only build one at the time for latency
+                }
             }
         }
 
