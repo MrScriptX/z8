@@ -29,10 +29,10 @@ pub const Shaders = struct {
 };
 
 pub const ComputePass = struct {
-    classification: *compute.Instance,
-    face_culling: *compute.Instance,
-    meshing: *compute.Instance,
-    frustrum_culling: *compute.Instance,
+    classification: *engine.compute.Instance,
+    face_culling: *engine.compute.Instance,
+    meshing: *engine.compute.Instance,
+    frustrum_culling: *engine.compute.Instance,
 };
 
 pub const Materials = struct {
@@ -41,8 +41,8 @@ pub const Materials = struct {
 };
 
 pub const GraphicsPass = struct {
-    block_pass: *materials.MaterialInstance,
-    water_pass: *materials.MaterialInstance
+    block_pass: *engine.materials.MaterialInstance,
+    water_pass: *engine.materials.MaterialInstance
 };
 
 pub const Chunk = struct {
@@ -67,7 +67,7 @@ pub const Chunk = struct {
     ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     frame_in_use: [3]bool = .{ false, false, false },
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, r: *const renderer.Renderer) !Chunk {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, r: *const Renderer) !Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 8 }
@@ -81,14 +81,14 @@ pub const Chunk = struct {
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
             
             .compute_passes = .{
-                .classification = try allocator.create(compute.Instance),
-                .face_culling = try allocator.create(compute.Instance),
-                .meshing = try allocator.create(compute.Instance),
-                .frustrum_culling = try allocator.create(compute.Instance)
+                .classification = try allocator.create(engine.compute.Instance),
+                .face_culling = try allocator.create(engine.compute.Instance),
+                .meshing = try allocator.create(engine.compute.Instance),
+                .frustrum_culling = try allocator.create(engine.compute.Instance)
             },
             .graphics_passes = .{
-                .block_pass = try allocator.create(materials.MaterialInstance),
-                .water_pass = try allocator.create(materials.MaterialInstance),
+                .block_pass = try allocator.create(engine.materials.MaterialInstance),
+                .water_pass = try allocator.create(engine.materials.MaterialInstance),
             },
             
             .descriptor_pool = descriptors.DescriptorAllocator2.init(allocator, r._device, 1, &sizes),
@@ -116,13 +116,13 @@ pub const Chunk = struct {
             .data_buffer = chunk.solid_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
-        chunk.graphics_passes.block_pass.* = mat.block.write_material(allocator, r._device, materials.MaterialPass.MainColor, &block_resources, &chunk.descriptor_pool);
+        chunk.graphics_passes.block_pass.* = mat.block.write_material(allocator, r._device, engine.materials.MaterialPass.MainColor, &block_resources, &chunk.descriptor_pool);
 
         const water_resources = Material.Resources {
             .data_buffer = chunk.water_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
-        chunk.graphics_passes.water_pass.* = mat.water.write_material(allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &chunk.descriptor_pool);
+        chunk.graphics_passes.water_pass.* = mat.water.write_material(allocator, r._device, engine.materials.MaterialPass.Transparent, &water_resources, &chunk.descriptor_pool);
 
         // create compute passes
         const cl_res = shader.ClassificationShader.Resource {
@@ -176,7 +176,7 @@ pub const Chunk = struct {
         return chunk;
     }
 
-    pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const renderer.Renderer) void {
+    pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const Renderer) void {
         self.perm_table_buffer.deinit(vma);
         self.data_buffer.deinit(vma);
         self.solid_mesh.deinit(r);
@@ -202,12 +202,11 @@ pub const Chunk = struct {
 
         self.dispatch_classification(cmd, group_x, group_y, group_z);
         self.dispatch_face_culling(cmd, group_x, group_y, group_z);
-        // self.dispatch_meshing(cmd, group_x, group_y, group_z);
         self.dispatch_meshing(cmd, CHUNK_SIZE, 6, 5, src_queue, dst_queue); // x : chunk slice, y : direction, TODO : z : per voxel type
     }
 
     pub fn update(self: *Chunk, ctx: *scenes.DrawContext, frame: u32) void {
-        const object = materials.RenderObject {
+        const object = engine.materials.RenderObject {
             .index_count = cube_index_count,
             .first_index = 0,
             .index_buffer = self.solid_mesh.indices_buffer.buffer,
@@ -222,7 +221,7 @@ pub const Chunk = struct {
             std.log.warn("Failed to register object for draw", .{});
         };
 
-        const water_object = materials.RenderObject {
+        const water_object = engine.materials.RenderObject {
             .index_count = cube_index_count,
             .first_index = 0,
             .index_buffer = self.water_mesh.indices_buffer.buffer,
@@ -240,7 +239,7 @@ pub const Chunk = struct {
         self.frame_in_use[frame % 2] = true;
     }
 
-    pub fn swap_pipeline(self: *Chunk, mat: *const Materials, r: *const renderer.Renderer) void {
+    pub fn swap_pipeline(self: *Chunk, mat: *const Materials, r: *const Renderer) void {
         // clean old material
         self.allocator.destroy(self.graphics_passes.block_pass);
         self.allocator.destroy(self.graphics_passes.water_pass);
@@ -251,22 +250,22 @@ pub const Chunk = struct {
             .data_buffer_offset = 0,
         };
 
-        self.graphics_passes.block_pass = self.allocator.create(materials.MaterialInstance) catch {
+        self.graphics_passes.block_pass = self.allocator.create(engine.materials.MaterialInstance) catch {
             std.log.err("Failed to allocate material instance !", .{});
             @panic("Out of memory !");
         };
-        self.graphics_passes.block_pass.* = mat.block.write_material(self.allocator, r._device, materials.MaterialPass.MainColor, &block_resources, &self.descriptor_pool);
+        self.graphics_passes.block_pass.* = mat.block.write_material(self.allocator, r._device, engine.materials.MaterialPass.MainColor, &block_resources, &self.descriptor_pool);
 
         const water_resources = Material.Resources {
             .data_buffer = self.water_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
 
-        self.graphics_passes.water_pass = self.allocator.create(materials.MaterialInstance) catch {
+        self.graphics_passes.water_pass = self.allocator.create(engine.materials.MaterialInstance) catch {
             std.log.err("Failed to allocate water material instance !", .{});
             @panic("Out of memory !");
         };
-        self.graphics_passes.water_pass.* = mat.water.write_material(self.allocator, r._device, materials.MaterialPass.Transparent, &water_resources, &self.descriptor_pool);
+        self.graphics_passes.water_pass.* = mat.water.write_material(self.allocator, r._device, engine.materials.MaterialPass.Transparent, &water_resources, &self.descriptor_pool);
     }
 
     fn dispatch_classification(self: *const Chunk, cmd: c.VkCommandBuffer, x: u32, y: u32, z: u32) void {
@@ -425,7 +424,7 @@ pub const Chunk = struct {
 };
 
 pub const Material = struct {
-    pipeline: materials.MaterialPipeline,
+    pipeline: engine.materials.MaterialPipeline,
     layout: c.VkDescriptorSetLayout,
     writer: descriptors.Writer,
 
@@ -446,7 +445,7 @@ pub const Material = struct {
         self.writer.deinit();
     }
 
-    pub fn build(self: *Material, allocator: std.mem.Allocator, vert_path: []const u8, frag_path: []const u8, polygone_mode: c.VkPolygonMode, blend: bool, r: *const renderer.Renderer) !void {        
+    pub fn build(self: *Material, allocator: std.mem.Allocator, vert_path: []const u8, frag_path: []const u8, polygone_mode: c.VkPolygonMode, blend: bool, r: *const Renderer) !void {        
         const frag_shader = try p.load_shader_module(allocator, r._device, frag_path);
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
@@ -514,8 +513,8 @@ pub const Material = struct {
         self.pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
-    pub fn write_material(self: *Material, allocator: std.mem.Allocator, device: c.VkDevice, pass: materials.MaterialPass, res: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2)  materials.MaterialInstance {
-        const data =  materials.MaterialInstance {
+    pub fn write_material(self: *Material, allocator: std.mem.Allocator, device: c.VkDevice, pass: engine.materials.MaterialPass, res: *const Resources, ds_alloc: *descriptors.DescriptorAllocator2)  engine.materials.MaterialInstance {
+        const data = engine.materials.MaterialInstance {
             .pass_type = pass,
             .pipeline = &self.pipeline,
             .material_set = ds_alloc.allocate(allocator, device, self.layout, null),
@@ -545,12 +544,11 @@ const c = @import("../../clibs.zig");
 
 const shader = @import("../../levels/voxel/shaders.zig");
 const voxel = @import("../../levels/voxel/voxel.zig");
+const engine = @import("../../engine/engine.zig");
+const Renderer = engine.renderer.Renderer;
 
-const buffers = @import("../graphics/buffers.zig");
-const materials = @import("../graphics/materials.zig");
-const compute = @import("../graphics/compute.zig");
-const descriptors = @import("../descriptor.zig");
-const p = @import("../pipeline.zig");
-const renderer = @import("../renderer.zig");
-const assets = @import("../graphics/assets.zig");
-const scenes = @import("../scene/scene.zig");
+const buffers = @import("../../engine/graphics/buffers.zig");
+const descriptors = @import("../../engine/descriptor.zig");
+const p = @import("../../engine/pipeline.zig");
+const assets = @import("../../engine/graphics/assets.zig");
+const scenes = @import("../../engine/scene/scene.zig");
