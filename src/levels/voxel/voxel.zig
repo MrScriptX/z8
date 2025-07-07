@@ -8,7 +8,7 @@ pub const Mesh = struct {
     vertices_buffer: buffers.AllocatedBuffer,
     indirect_buffer: buffers.AllocatedBuffer,
 
-    pub fn init(r: *const renderer.renderer_t) Mesh {
+    pub fn init(r: *const renderer.Renderer) Mesh {
         const mesh: Mesh = .{
             .indices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(u32) * index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
             .vertices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(buffers.Vertex) * index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
@@ -18,7 +18,7 @@ pub const Mesh = struct {
         return mesh;
     }
 
-    pub fn deinit(self: *Mesh, r: *const renderer.renderer_t) void {
+    pub fn deinit(self: *Mesh, r: *const renderer.Renderer) void {
         self.indices_buffer.deinit(r._vma);
         self.vertices_buffer.deinit(r._vma);
         self.indirect_buffer.deinit(r._vma);

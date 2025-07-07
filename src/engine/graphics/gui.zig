@@ -120,7 +120,7 @@ pub const GuiContext = struct {
    }
 };
 
-pub fn show_stats_window(r: *renderer.renderer_t) void {
+pub fn show_stats_window(r: *renderer.Renderer) void {
    const win_stats = imgui.Begin("Stats", null, 0);
    if (!win_stats) {
       std.log.warn("Failed to create stats window", .{});

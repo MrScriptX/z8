@@ -67,7 +67,7 @@ pub const Chunk = struct {
     ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     frame_in_use: [3]bool = .{ false, false, false },
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, r: *const renderer.renderer_t) !Chunk {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, r: *const renderer.Renderer) !Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 8 }
@@ -176,7 +176,7 @@ pub const Chunk = struct {
         return chunk;
     }
 
-    pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const renderer.renderer_t) void {
+    pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const renderer.Renderer) void {
         self.perm_table_buffer.deinit(vma);
         self.data_buffer.deinit(vma);
         self.solid_mesh.deinit(r);
@@ -240,7 +240,7 @@ pub const Chunk = struct {
         self.frame_in_use[frame % 2] = true;
     }
 
-    pub fn swap_pipeline(self: *Chunk, mat: *const Materials, r: *const renderer.renderer_t) void {
+    pub fn swap_pipeline(self: *Chunk, mat: *const Materials, r: *const renderer.Renderer) void {
         // clean old material
         self.allocator.destroy(self.graphics_passes.block_pass);
         self.allocator.destroy(self.graphics_passes.water_pass);
@@ -446,7 +446,7 @@ pub const Material = struct {
         self.writer.deinit();
     }
 
-    pub fn build(self: *Material, allocator: std.mem.Allocator, vert_path: []const u8, frag_path: []const u8, polygone_mode: c.VkPolygonMode, blend: bool, r: *const renderer.renderer_t) !void {        
+    pub fn build(self: *Material, allocator: std.mem.Allocator, vert_path: []const u8, frag_path: []const u8, polygone_mode: c.VkPolygonMode, blend: bool, r: *const renderer.Renderer) !void {        
         const frag_shader = try p.load_shader_module(allocator, r._device, frag_path);
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 

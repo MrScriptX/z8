@@ -5,7 +5,7 @@ pub const renderer = @import("renderer.zig");
 pub const gui = @import("graphics/gui.zig");
 
 pub const Engine = struct {
-    r: renderer.renderer_t,
+    r: renderer.Renderer,
 
     pub fn init(allocator: std.mem.Allocator, window: sdl.SDL_Window) Engine {
         var width: i32 = 0;
@@ -24,7 +24,7 @@ pub const Engine = struct {
         };
 
         return .{
-            .r = renderer.renderer_t.init(allocator, window, width, height, &default_cam),
+            .r = renderer.Renderer.init(allocator, window, width, height, &default_cam),
         };
     }
 

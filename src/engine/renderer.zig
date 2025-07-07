@@ -19,7 +19,7 @@ const submit_t = struct {
     cmd: c.VkCommandBuffer = undefined,
     pool: c.VkCommandPool = undefined,
 
-    pub fn start_recording(self: *submit_t, r: *const renderer_t) void {
+    pub fn start_recording(self: *submit_t, r: *const Renderer) void {
         var result = c.vkResetFences(r._device, 1, &self.fence);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetFences failed with error {d}", .{ result });
@@ -42,7 +42,7 @@ const submit_t = struct {
         }
     }
 
-    pub fn submit(self: *submit_t, r: *const renderer_t) void {
+    pub fn submit(self: *submit_t, r: *const Renderer) void {
         var result = c.vkEndCommandBuffer(self.cmd);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
@@ -82,7 +82,7 @@ const submit_t = struct {
     }
 };
 
-pub const renderer_t = struct {
+pub const Renderer = struct {
     var _render_scale: f32 = 1.0;
 
     // pipelines
@@ -133,8 +133,8 @@ pub const renderer_t = struct {
     stats: stats_t,
     bg_shader: ?*effects.ComputeEffect,
 
-    pub fn init(allocator: std.mem.Allocator, window: ?*sdl.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !renderer_t {
-        var renderer = renderer_t{
+    pub fn init(allocator: std.mem.Allocator, window: ?*sdl.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !Renderer {
+        var renderer = Renderer{
             ._arena = std.heap.ArenaAllocator.init(allocator),
 
             .camera = camera,
@@ -188,7 +188,7 @@ pub const renderer_t = struct {
         return renderer;
     }
 
-    pub fn deinit(self: *renderer_t) void {
+    pub fn deinit(self: *Renderer) void {
         defer self._arena.deinit();
 
         const result = c.vkDeviceWaitIdle(self._device);
@@ -231,7 +231,7 @@ pub const renderer_t = struct {
         c.vkDestroyInstance(self._instance, null);
     }
 
-    fn init_vulkan(self: *renderer_t, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) !void {
+    fn init_vulkan(self: *Renderer, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) !void {
         self._instance = try vk.init.init_instance(allocator);
         self._surface = try vk.init.create_surface(window, self._instance);
         self._gpu = try vk.init.select_physical_device(allocator, self._instance, self._surface);
@@ -254,7 +254,7 @@ pub const renderer_t = struct {
         }
     }
 
-    fn init_swapchain(self: *renderer_t, width: u32, height: u32) !void {
+    fn init_swapchain(self: *Renderer, width: u32, height: u32) !void {
         const window_extent = c.VkExtent2D{
             .width = width,
             .height = height,
@@ -304,7 +304,7 @@ pub const renderer_t = struct {
         _ = c.vkCreateImageView(self._device, &depth_view_info, null, &self._depth_image.view);
     }
 
-    fn init_commands(self: *renderer_t, allocator: std.mem.Allocator,) !void {
+    fn init_commands(self: *Renderer, allocator: std.mem.Allocator,) !void {
         self._frames = [_]frames.data_t{
             frames.data_t{},
             frames.data_t{},
@@ -319,7 +319,7 @@ pub const renderer_t = struct {
         self.submit.fence = try vk.commands.create_fence(self._device);
     }
 
-    fn init_descriptors(self: *renderer_t, allocator: std.mem.Allocator) !void {
+    fn init_descriptors(self: *Renderer, allocator: std.mem.Allocator) !void {
         const sizes = [_]descriptor.PoolSizeRatio{
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
@@ -367,7 +367,7 @@ pub const renderer_t = struct {
         }
     }
 
-    fn current_frame(self: *renderer_t) *frames.data_t {
+    fn current_frame(self: *Renderer) *frames.data_t {
         return &self._frames[self._frameNumber % frames.FRAME_OVERLAP];
     }
 
@@ -375,7 +375,7 @@ pub const renderer_t = struct {
         return @max(-n, n);
     }
 
-    fn next_image(self: *renderer_t) Error!u32 {
+    fn next_image(self: *Renderer) Error!u32 {
         var result = c.vkWaitForFences(self._device, 1, &self.current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkWaitForFences failed with error {d}\n", .{ result });
@@ -414,7 +414,7 @@ pub const renderer_t = struct {
         return image_index;
     }
 
-    fn begin_draw(self: *renderer_t) Error!c.VkCommandBuffer {
+    fn begin_draw(self: *Renderer) Error!c.VkCommandBuffer {
         var result = c.vkResetFences(self._device, 1, &self.current_frame()._render_fence);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetFences failed with error {x}\n", .{ result });
@@ -444,7 +444,7 @@ pub const renderer_t = struct {
         return cmd;
     }
 
-    fn submit_cmd(self: *renderer_t, cmd: c.VkCommandBuffer, image_index: u32) void {
+    fn submit_cmd(self: *Renderer, cmd: c.VkCommandBuffer, image_index: u32) void {
         var result = c.vkEndCommandBuffer(cmd);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkEndCommandBuffer failed with error {x}\n", .{ result });
@@ -502,7 +502,7 @@ pub const renderer_t = struct {
         }
     }
 
-    pub fn draw(self: *renderer_t, allocator: std.mem.Allocator) void {
+    pub fn draw(self: *Renderer, allocator: std.mem.Allocator) void {
         // start thread
         const image_index = self.next_image() catch |err| {
             if (err == Error.OutOfDate) {
@@ -556,7 +556,7 @@ pub const renderer_t = struct {
         self._frameNumber += 1;
     }
 
-    pub fn draw_background(self: *renderer_t, cmd: c.VkCommandBuffer) void {
+    pub fn draw_background(self: *Renderer, cmd: c.VkCommandBuffer) void {
         const effect = self.bg_shader.?;
 
         // bind the gradient drawing compute pipeline
@@ -573,7 +573,7 @@ pub const renderer_t = struct {
 	    c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
     }
 
-    fn draw_scene(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.DrawContext, cmd: c.VkCommandBuffer) void {
+    fn draw_scene(self: *Renderer, allocator: std.mem.Allocator, scene: *scenes.DrawContext, cmd: c.VkCommandBuffer) void {
         //begin a render pass  connected to our draw image
 	    const color_attachment = c.VkRenderingAttachmentInfo {
             .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -654,7 +654,7 @@ pub const renderer_t = struct {
 	    c.vkCmdEndRendering(cmd);
     }
 
-    fn init_default_data(self: *renderer_t, _: std.mem.Allocator) !void {
+    fn init_default_data(self: *Renderer, _: std.mem.Allocator) !void {
         // initialize textures
         const grey: u32 align(4) = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
         _grey_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
@@ -675,7 +675,7 @@ pub const renderer_t = struct {
         return &_render_scale;
     }
 
-    pub fn rebuild_swapchain(self: *renderer_t, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) void {
+    pub fn rebuild_swapchain(self: *Renderer, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) void {
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device with error {d}", .{ result });
@@ -710,7 +710,7 @@ pub const renderer_t = struct {
         self.rebuild = false;
     }
 
-    fn destroy_swapchain(self: *renderer_t) void {
+    fn destroy_swapchain(self: *Renderer) void {
         self._sw.deinit(self._device);
 
         // destroy draw images
@@ -732,7 +732,7 @@ pub const renderer_t = struct {
         }
     }
 
-    pub fn update_scene(self: *renderer_t, scene: *scenes.scene_t) void {
+    pub fn update_scene(self: *Renderer, scene: *scenes.scene_t) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
         self.camera.update(self.stats.frame_time);
@@ -764,7 +764,7 @@ pub const RenderQueue = struct {
     submit_thread: ?std.Thread = null,
 
     running: bool = false,
-    renderer: renderer_t = undefined,
+    renderer: Renderer = undefined,
 
     pub fn init(allocator: std.mem.Allocator) RenderQueue {
         return RenderQueue{

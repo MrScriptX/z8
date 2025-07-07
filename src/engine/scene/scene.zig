@@ -25,11 +25,11 @@ pub const Manager = struct {
         };
     }
 
-    pub fn deinit(self: *Manager, r: *renderer.renderer_t) void {
+    pub fn deinit(self: *Manager, r: *renderer.Renderer) void {
         self.clear(r);
     }
 
-    pub fn update(self: *Manager, cam: *camera.camera_t, r: *renderer.renderer_t) void {
+    pub fn update(self: *Manager, cam: *camera.camera_t, r: *renderer.Renderer) void {
         if (self.reactor_scene) |*scene| {
             scene.update(cam, r);
         }
@@ -41,7 +41,7 @@ pub const Manager = struct {
         }
     }
 
-    pub fn update_ui(self: *Manager, r: *renderer.renderer_t) void {
+    pub fn update_ui(self: *Manager, r: *renderer.Renderer) void {
         const result = imgui.Begin("Scenes Manager", null, 0);
         if (result) {
             defer imgui.End();
@@ -59,7 +59,7 @@ pub const Manager = struct {
         }
     }
 
-    pub fn build_scene(self: *Manager, r: *renderer.renderer_t) void {
+    pub fn build_scene(self: *Manager, r: *renderer.Renderer) void {
         if (self.current_scene == 0) {
             self.monkey_scene = levels.MonkeyScene.init(self.alloc, r) catch {
                 std.log.err("Failed to load monkey scene", .{});
@@ -86,7 +86,7 @@ pub const Manager = struct {
         }
     }
 
-    pub fn clear(self: *Manager, r: *renderer.renderer_t) void {
+    pub fn clear(self: *Manager, r: *renderer.Renderer) void {
         if (self.voxels_scene) |*scene| {
             scene.deinit(r);
             self.voxels_scene = null;

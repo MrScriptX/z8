@@ -13,7 +13,7 @@ pub const ComputeEffect = struct {
 
     data: ComputePushConstants = undefined,
 
-    pub fn deinit(self: *ComputeEffect, r: *renderer.renderer_t) void {
+    pub fn deinit(self: *ComputeEffect, r: *renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device idle ! Reason {d}", .{ result });
@@ -23,7 +23,7 @@ pub const ComputeEffect = struct {
         c.vkDestroyPipelineLayout(r._device, self.layout, null);
     }
 
-    pub fn build(self: *ComputeEffect, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.renderer_t) !void {
+    pub fn build(self: *ComputeEffect, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.Renderer) !void {
         const push_constant = c.VkPushConstantRange {
             .offset = 0,
             .size = @sizeOf(ComputePushConstants),

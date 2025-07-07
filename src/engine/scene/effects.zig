@@ -6,7 +6,7 @@ pub const Effect = struct {
 
     data: PushConstants = undefined,
 
-    pub fn deinit(self: *Effect, r: *renderer.renderer_t) void {
+    pub fn deinit(self: *Effect, r: *renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device idle ! Reason {d}", .{ result });
@@ -16,7 +16,7 @@ pub const Effect = struct {
         c.vkDestroyPipelineLayout(r._device, self.layout, null);
     }
 
-    pub fn build(self: *Effect, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.renderer_t) !void {
+    pub fn build(self: *Effect, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.Renderer) !void {
         std.log.info("Building effect {s}", .{ self.name });
         
         const push_constant = c.VkPushConstantRange {

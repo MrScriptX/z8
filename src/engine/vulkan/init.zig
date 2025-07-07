@@ -70,7 +70,7 @@ pub fn create_surface(window: ?*sdl.SDL_Window, instance: c.VkInstance) !c.VkSur
     return surface;
 }
 
-pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, surface: c.VkSurfaceKHR) !vk.PhysicalDevice {
+pub fn select_physical_device(allocator: std.mem.Allocator, instance: c.VkInstance, surface: c.VkSurfaceKHR) !vk.PhysicalDevice {
     var device_count: u32 = 0;
     vk.EnumeratePhysicalDevices(instance, &device_count, null) catch |err| {
         if (err != vk.Error.INCOMPLETE) {
@@ -84,11 +84,9 @@ pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, 
         return Error.NoDevice;
     }
 
-    var arena = std.heap.ArenaAllocator.init(alloc);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
     const devices = try allocator.alloc(vk.PhysicalDevice, device_count);
+    defer allocator.free(devices);
+
     vk.EnumeratePhysicalDevices(instance, &device_count, devices.ptr) catch |err| {
         if (err != vk.Error.INCOMPLETE) {
             std.log.err("Failed to enumerate devices. Reason {any}", .{ err });
@@ -98,7 +96,7 @@ pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, 
 
     var physical_device: ?vk.PhysicalDevice = null;
     for (devices) |device| {
-        if (try check_device(alloc, surface, device)) {
+        if (try check_device(allocator, surface, device)) {
             physical_device = device;
             break;
         }
@@ -191,9 +189,9 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
 pub fn get_device_queue(device: c.VkDevice, indices: queue.indices_t) !queue.queues_t {
     var queues: queue.queues_t = undefined;
 
-    c.vkGetDeviceQueue(device, indices.graphics, 0, &queues.graphics);
-    c.vkGetDeviceQueue(device, indices.present, 0, &queues.present);
-    c.vkGetDeviceQueue(device, indices.compute, 0, &queues.compute);
+    vk.GetDeviceQueue(device, indices.graphics, 0, &queues.graphics);
+    vk.GetDeviceQueue(device, indices.present, 0, &queues.present);
+    vk.GetDeviceQueue(device, indices.compute, 0, &queues.compute);
 
     std.log.debug("graphic queue {d}, present queue {d}, compute queue {d}", .{ indices.graphics, indices.present, indices.compute });
 

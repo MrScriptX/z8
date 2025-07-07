@@ -12,7 +12,7 @@ pub const ClassificationShader = struct {
         };
     }
 
-    pub fn deinit(self: *ClassificationShader, r: *const renderer.renderer_t) void {
+    pub fn deinit(self: *ClassificationShader, r: *const renderer.Renderer) void {
         c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
         c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
 
@@ -21,7 +21,7 @@ pub const ClassificationShader = struct {
         self.writer.deinit();
     }
 
-    pub fn build(self: *ClassificationShader, allocator: std.mem.Allocator, shader: []const u8, r: *const renderer.renderer_t) !void {
+    pub fn build(self: *ClassificationShader, allocator: std.mem.Allocator, shader: []const u8, r: *const renderer.Renderer) !void {
         std.log.info("Building voxel classification shader", .{});
 
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
@@ -71,7 +71,7 @@ pub const ClassificationShader = struct {
         self.pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
-    pub fn write(self: *ClassificationShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
+    pub fn write(self: *ClassificationShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.Renderer) compute.Instance {
         const data =  compute.Instance {
             .pipeline = &self.pipeline,
             .descriptor = pool.allocate(allocator, r._device, self.layout, null),
@@ -116,7 +116,7 @@ pub const MeshComputeShader = struct {
         };
     }
 
-    pub fn deinit(self: *MeshComputeShader, r: *renderer.renderer_t) void {
+    pub fn deinit(self: *MeshComputeShader, r: *renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device idle ! Reason {d}", .{ result });
@@ -130,7 +130,7 @@ pub const MeshComputeShader = struct {
         self.writer.deinit();
     }
 
-    pub fn build(self: *MeshComputeShader, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.renderer_t) !void { 
+    pub fn build(self: *MeshComputeShader, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.Renderer) !void { 
         std.log.info("Building compute shader {s}", .{ self.name });
 
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
@@ -176,7 +176,7 @@ pub const MeshComputeShader = struct {
         self.pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
-    pub fn write(self: *MeshComputeShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
+    pub fn write(self: *MeshComputeShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.Renderer) compute.Instance {
         const data =  compute.Instance {
             .pipeline = &self.pipeline,
             .descriptor = pool.allocate(allocator, r._device, self.layout, null),
@@ -221,7 +221,7 @@ pub const FaceCullingShader = struct {
         };
     }
 
-    pub fn deinit(self: *FaceCullingShader, r: *const renderer.renderer_t) void {
+    pub fn deinit(self: *FaceCullingShader, r: *const renderer.Renderer) void {
         c.vkDestroyPipeline(r._device, self.pipeline.pipeline, null);
         c.vkDestroyPipelineLayout(r._device, self.pipeline.layout, null);
 
@@ -230,7 +230,7 @@ pub const FaceCullingShader = struct {
         self.writer.deinit();
     }
 
-    pub fn build(self: *FaceCullingShader, allocator: std.mem.Allocator, shader: []const u8, r: *const renderer.renderer_t) !void {
+    pub fn build(self: *FaceCullingShader, allocator: std.mem.Allocator, shader: []const u8, r: *const renderer.Renderer) !void {
         std.log.info("Building voxel face culling shader", .{});
 
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
@@ -270,7 +270,7 @@ pub const FaceCullingShader = struct {
         self.pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
-    pub fn write(self: *FaceCullingShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
+    pub fn write(self: *FaceCullingShader, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.Renderer) compute.Instance {
         const data =  compute.Instance {
             .pipeline = &self.pipeline,
             .descriptor = pool.allocate(allocator, r._device, self.layout, null),
@@ -304,7 +304,7 @@ pub const FrustrumCulling = struct {
         };
     }
 
-    pub fn deinit(self: *FrustrumCulling, r: *const renderer.renderer_t) void {
+    pub fn deinit(self: *FrustrumCulling, r: *const renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device idle ! Reason {d}", .{ result });
@@ -318,7 +318,7 @@ pub const FrustrumCulling = struct {
         self.writer.deinit();
     }
 
-    pub fn build(self: *FrustrumCulling, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.renderer_t) !void { 
+    pub fn build(self: *FrustrumCulling, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.Renderer) !void { 
         std.log.info("Building frustrum culling shader", .{ });
 
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
@@ -364,7 +364,7 @@ pub const FrustrumCulling = struct {
         self.pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
-    pub fn write(self: *FrustrumCulling, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.renderer_t) compute.Instance {
+    pub fn write(self: *FrustrumCulling, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const renderer.Renderer) compute.Instance {
         const data =  compute.Instance {
             .pipeline = &self.pipeline,
             .descriptor = pool.allocate(allocator, r._device, self.layout, null),

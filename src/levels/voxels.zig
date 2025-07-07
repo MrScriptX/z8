@@ -39,7 +39,7 @@ const MaterialPipelines = struct {
         self.allocator.destroy(self.polygone.water);
     }
 
-    pub fn build(self: *MaterialPipelines, dir: []const u8, r: *const renderer.renderer_t) !void {
+    pub fn build(self: *MaterialPipelines, dir: []const u8, r: *const renderer.Renderer) !void {
         const default_vert = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/block.vert.spv" });
         defer self.allocator.free(default_vert);
 
@@ -127,7 +127,7 @@ pub const VoxelScene = struct {
         pos: @Vector(3, i32)
     };
 
-    pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !VoxelScene {
+    pub fn init(allocator: std.mem.Allocator, r: *renderer.Renderer) !VoxelScene {
         var prng = std.Random.DefaultPrng.init(blk: {
             var seed: u64 = undefined;
             try std.posix.getrandom(std.mem.asBytes(&seed));
@@ -208,7 +208,7 @@ pub const VoxelScene = struct {
         return scene;
     }
 
-    pub fn deinit(self: *VoxelScene, r: *renderer.renderer_t) void {
+    pub fn deinit(self: *VoxelScene, r: *renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
@@ -272,7 +272,7 @@ pub const VoxelScene = struct {
         }
     }
 
-    pub fn clear(self: *VoxelScene, r: *const renderer.renderer_t) void {
+    pub fn clear(self: *VoxelScene, r: *const renderer.Renderer) void {
         std.log.info("Clearing world", .{});
 
         const result = c.vkDeviceWaitIdle(r._device);
@@ -286,7 +286,7 @@ pub const VoxelScene = struct {
         self.world.clearRetainingCapacity();
     }
 
-    pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.renderer_t) void {
+    pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.Renderer) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
         // process wait queue
@@ -358,7 +358,7 @@ pub const VoxelScene = struct {
 
     const Ctx = struct {
         it: *Chunk,
-        r: *renderer.renderer_t,
+        r: *renderer.Renderer,
         allocator: std.mem.Allocator,
         self: *VoxelScene,
         src_queue: u32,
@@ -397,7 +397,7 @@ pub const VoxelScene = struct {
         allocator.destroy(unwrap);
     }
 
-    pub fn update_ui(self: *VoxelScene, r: *const renderer.renderer_t) void {
+    pub fn update_ui(self: *VoxelScene, r: *const renderer.Renderer) void {
         const result = imgui.Begin("Scene", null, 0);
         if (result) {
             defer imgui.End();
@@ -480,7 +480,7 @@ pub const VoxelScene = struct {
         }
     }
 
-    pub fn set_pipelines(self: *VoxelScene, r: *const renderer.renderer_t, pipelines: *const chunk.Materials) void {
+    pub fn set_pipelines(self: *VoxelScene, r: *const renderer.Renderer, pipelines: *const chunk.Materials) void {
         for (self.world.items) |it| {
             it.ptr.swap_pipeline(pipelines, r);
         }

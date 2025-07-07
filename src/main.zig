@@ -27,7 +27,7 @@ pub fn main() !u8 {
         .sensitivity = 0.02,
     };
 
-    var renderer = engine.renderer.renderer_t.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
+    var renderer = engine.renderer.Renderer.init(gpa.allocator(), window, width, heigh, &main_camera) catch {
         sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize Vulkan engine");   
         return 1;
     };
@@ -150,7 +150,7 @@ pub fn main() !u8 {
             if (result) {
                 defer imgui.End();
 
-                _ = imgui.SliderFloat("Render Scale", engine.renderer.renderer_t.render_scale(), 0.3, 1.0);
+                _ = imgui.SliderFloat("Render Scale", engine.renderer.Renderer.render_scale(), 0.3, 1.0);
 
 			    const shader = background_effects.items[current_shader];
 		

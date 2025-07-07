@@ -43,7 +43,7 @@ pub const GPUMeshBuffers = struct {
     vertex_buffer: AllocatedBuffer,
     vertex_buffer_address: c.VkDeviceAddress,
 
-    pub fn init(vma: c.VmaAllocator, indices: []u32, vertices: []Vertex, r: *const renderer.renderer_t) GPUMeshBuffers {
+    pub fn init(vma: c.VmaAllocator, indices: []u32, vertices: []Vertex, r: *const renderer.Renderer) GPUMeshBuffers {
         const vertex_buffer_size = vertices.len * @sizeOf(Vertex);
         
         var new_surface = GPUMeshBuffers{
@@ -89,7 +89,7 @@ pub const GPUMeshBuffers = struct {
         self.vertex_buffer.deinit(vma);
     }
 
-    fn submit(self: *GPUMeshBuffers, vertex_buffer_size: usize, index_buffer_size: usize, buffer: *AllocatedBuffer, r: *const renderer.renderer_t) void {
+    fn submit(self: *GPUMeshBuffers, vertex_buffer_size: usize, index_buffer_size: usize, buffer: *AllocatedBuffer, r: *const renderer.Renderer) void {
         var result = c.vkResetFences(r._device, 1, &r.submit.fence);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetFences failed with error {d}", .{ result });
