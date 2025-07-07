@@ -300,28 +300,24 @@ fn query_swapchain_support(allocator: std.mem.Allocator, device: c.VkPhysicalDev
 
 
     var format_count: u32 = 0;
-    // _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
     vk.GetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null) catch |err| {
         std.log.warn("Failed to retrieve format count. Reason {any}", .{ err });
     };
 
     if (format_count != 0) {
         sw_details.resize_formats(@intCast(format_count));
-        // _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr);
         vk.GetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr) catch |err| {
             std.log.warn("Failed to retrieve surface format. Reason {any}", .{ err });
         };
     }
 
     var present_mode_count: u32 = 0;
-    // _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null);
     vk.GetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
         std.log.warn("Failed to retrieve surface present modes count. Reason {any}", .{ err });
     };
 
     if (present_mode_count != 0) {
         sw_details.resize_present_modes(@intCast(present_mode_count));
-        // _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, sw_details.present_modes.ptr);
         vk.GetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
             std.log.warn("Failed to retrieve surface present modes. Reason {any}", .{ err });
         };
@@ -387,10 +383,6 @@ pub fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, phys
 
     return family_indices;
 }
-
-// pub fn find_queues(allocator: std.mem.Allocator) void {
-
-// }
 
 const std = @import("std");
 const vk = @import("vk_wrapper.zig");
