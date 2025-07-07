@@ -44,8 +44,6 @@ pub const TaskManager = struct {
         self.submit_queue.deinit();
 
         self.submit.deinit(self.submit.device);
-
-        self.allocator.destroy(self); // TODO : handle memory outside ?
     }
 
     pub fn enqueue(self: *TaskManager, func: TaskFn, on_finish: ?OnFinishTaskFn, ctx: *anyopaque) !void {

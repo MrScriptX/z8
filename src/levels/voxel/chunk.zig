@@ -149,7 +149,7 @@ pub const Chunk = struct {
 
     perm_table_buffer: buffers.AllocatedBuffer,
     data_buffer: buffers.AllocatedBuffer,
-    shadow_map: ShadowMap,
+    // shadow_map: ShadowMap,
     // chunk_map: buffers.AllocatedBuffer,
 
     constants: shader.ClassificationShader.PushConstant,
@@ -179,7 +179,7 @@ pub const Chunk = struct {
             
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
-            .shadow_map = try ShadowMap.init(allocator, r),
+            // .shadow_map = try ShadowMap.init(allocator, r),
             // .chunk_map = buffers.AllocatedBuffer.init(r._vma, @sizeOf(MapData), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
 
             .compute_passes = .{
@@ -286,7 +286,7 @@ pub const Chunk = struct {
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
 
-        self.shadow_map.deinit(r);
+        // self.shadow_map.deinit(r);
 
         self.allocator.destroy(self.compute_passes.classification);
         self.allocator.destroy(self.compute_passes.face_culling);

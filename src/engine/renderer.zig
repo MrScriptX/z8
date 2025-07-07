@@ -156,7 +156,6 @@ pub const Renderer = struct {
         try renderer.init_descriptors(allocator);
 
         if (renderer._queue_indices.compute != renderer._queue_indices.graphics) {
-            renderer.compute_queue = try allocator.create(tasks.TaskManager);
             renderer.compute_queue = tasks.TaskManager.init(allocator, renderer._device, renderer._queues.compute, renderer._queue_indices.compute);
             renderer.compute_queue.?.start() catch {
                 std.log.err("Failed to start compute tasks manager", .{});
