@@ -27,8 +27,8 @@ pub const ShadowMap = struct {
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER | c.VK_SHADER_STAGE_VERTEX_BIT);
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT, null, 0);
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER | c.VK_SHADER_STAGE_VERTEX_BIT, c.VK_SHADER_STAGE_VERTEX_BIT);
+        self.layout = layout_builder.build(r._device, null, 0);
 
         const layouts = [_]vk.DescriptorSetLayout {
             // r.scene_descriptor,

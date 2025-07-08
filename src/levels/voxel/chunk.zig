@@ -394,6 +394,12 @@ pub const Chunk = struct {
         vk.CmdPipelineBarrier2(cmd, &dependency_info);
     }
 
+    pub fn draw_shadow(self: *const Chunk, cmd: c.VkCommandBuffer) void {
+        vk.CmdBindVertexBuffers(cmd, 0, 1, &self.solid_mesh.vertices_buffer.buffer, 0);
+        vk.CmdBindIndexBuffer(cmd, self.solid_mesh.indices_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
+        vk.CmdDrawIndexedIndirect(cmd, self.solid_mesh.indirect_buffer.buffer, 0, 1, @sizeOf(c.VkDrawIndexedIndirectCommand));
+    }
+
     pub const Data = struct { // will be fill by GPU
         active: u32 align(4) = 0,
         position: @Vector(3, i32) = @splat(0),
@@ -452,9 +458,9 @@ pub const Material = struct {
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER | c.VK_SHADER_STAGE_VERTEX_BIT);
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER | c.VK_SHADER_STAGE_VERTEX_BIT, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT);
 
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
+        self.layout = layout_builder.build(r._device, null, 0);
 
         const layouts = [_]c.VkDescriptorSetLayout {
             r.scene_descriptor,

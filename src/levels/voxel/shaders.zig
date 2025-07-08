@@ -27,10 +27,10 @@ pub const ClassificationShader = struct {
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
 
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+        self.layout = layout_builder.build(r._device, null, 0);
 
         const layouts = [_]c.VkDescriptorSetLayout {
             self.layout
@@ -136,15 +136,15 @@ pub const MeshComputeShader = struct {
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(5, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(6, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(5, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(6, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
 
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+        self.layout = layout_builder.build(r._device, null, 0);
 
         const layouts = [_]c.VkDescriptorSetLayout {
             self.layout
@@ -236,9 +236,9 @@ pub const FaceCullingShader = struct {
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
 
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+        self.layout = layout_builder.build(r._device, null, 0);
 
         const layouts = [_]c.VkDescriptorSetLayout {
             self.layout
@@ -324,15 +324,15 @@ pub const FrustrumCulling = struct {
         var layout_builder = descriptors.DescriptorLayout.init(allocator);
         defer layout_builder.deinit();
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(5, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(6, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(5, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
+        try layout_builder.add_binding(6, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, c.VK_SHADER_STAGE_COMPUTE_BIT);
 
-        self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+        self.layout = layout_builder.build(r._device, null, 0);
 
         const layouts = [_]c.VkDescriptorSetLayout {
             self.layout

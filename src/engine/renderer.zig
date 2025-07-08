@@ -329,8 +329,8 @@ pub const Renderer = struct {
 		    var builder = descriptor.DescriptorLayout.init(allocator);
             defer builder.deinit();
 
-		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-		    self._draw_image_descriptor = builder.build(self._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
+		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, c.VK_SHADER_STAGE_COMPUTE_BIT);
+		    self._draw_image_descriptor = builder.build(self._device, null, 0);
 	    }
 
         self._draw_image_descriptor_set = self._descriptor_pool.allocate(self._device, self._draw_image_descriptor);
@@ -357,8 +357,9 @@ pub const Renderer = struct {
             var builder = descriptor.DescriptorLayout.init(allocator);
             defer builder.deinit();
 
-		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		    self.scene_descriptor = builder.build(self._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
+		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT);
+            try builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, c.VK_SHADER_STAGE_FRAGMENT_BIT);
+		    self.scene_descriptor = builder.build(self._device, null, 0);
         }
     }
 
@@ -641,6 +642,7 @@ pub const Renderer = struct {
             defer writer.deinit();
 
             writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            writer.write_image(1, scene.shadow_map.cascade[0].view, scene.shadow_map.sampler, c.VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL_KHR, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
             writer.update_set(self._device, global_descriptor);
         }
         

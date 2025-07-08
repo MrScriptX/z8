@@ -135,6 +135,14 @@ pub const ShadowMap = struct {
             errdefer vk.DestroyImageView(r._device, map.view, null);
         }
 
+        const dir = try std.fs.selfExeDirPathAlloc(allocator);
+        defer allocator.free(dir);
+
+        const shadowmap_shader = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/shadowmap.vert.spv" });
+        defer allocator.free(shadowmap_shader);
+
+        try shadow_map.material.build(allocator, shadowmap_shader, r);
+
         return shadow_map;
     }
 

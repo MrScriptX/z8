@@ -302,6 +302,12 @@ pub const VoxelScene = struct {
         self.world.clearRetainingCapacity();
     }
 
+    pub fn set_pipelines(self: *VoxelScene, r: *const renderer.Renderer, pipelines: *const chunk.Materials) void {
+        for (self.world.items) |it| {
+            it.ptr.swap_pipeline(pipelines, r);
+        }
+    }
+
     pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.Renderer) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
@@ -501,6 +507,8 @@ pub const VoxelScene = struct {
 
         self.draw_ctx.global_data = &self.global_data;
 
+        self.draw_ctx.shadow_map = &self.shadow_map;
+
         // fill draw ctx
         for (self.world.items) |*it| {
             if (it.ptr.ready.load(std.builtin.AtomicOrder.seq_cst)) {
@@ -508,63 +516,63 @@ pub const VoxelScene = struct {
             }
         }
     }
-
-    pub fn set_pipelines(self: *VoxelScene, r: *const renderer.Renderer, pipelines: *const chunk.Materials) void {
-        for (self.world.items) |it| {
-            it.ptr.swap_pipeline(pipelines, r);
-        }
-    }
 };
 
-// fn record_shadow_pass(cmd: vk.CommandBuffer, shadow_map: *const voxel.ShadowMap) void {
-//         for (0..4) |i| {
-//             const rendering_info = vk.RenderingInfo {
-//                 .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
-//                 .renderArea = .{
-//                     .offset = .{ .x = 0, .y = 0 },
-//                     .extent = .{ .width = voxel.ShadowMap.DIM, .height = voxel.ShadowMap.DIM },
-//                 },
-//                 .layerCount = 1,
-//                 .viewMask = 0,
-//                 .colorAttachmentCount = 0,
-//                 .pColorAttachments = null,
-//                 .pDepthAttachment = &.{
-//                     .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-//                     .imageView = shadow_map.cascade[i].view,
-//                     .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-//                     .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
-//                     .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-//                     .clearValue = .{ 
-//                         .depthStencil = .{ .depth = 1.0, .stencil = 0 }
-//                     },
-//                 }
-//             };
+fn render_shadow_pass(cmd: vk.CommandBuffer, scene: *VoxelScene, shadow_map: *const voxel.ShadowMap) void {
+    for (0..4) |i| {
+        const rendering_info = vk.RenderingInfo {
+            .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .renderArea = .{
+                .offset = .{ .x = 0, .y = 0 },
+                .extent = .{ .width = voxel.ShadowMap.DIM, .height = voxel.ShadowMap.DIM },
+            },
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = 0,
+            .pColorAttachments = null,
+            .pDepthAttachment = &.{
+                .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = shadow_map.cascade[i].view,
+                .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue = .{ 
+                    .depthStencil = .{ .depth = 1.0, .stencil = 0 }
+                },
+            }
+        };
 
-//             vk.CmdBeginRendering(cmd, &rendering_info);
+        vk.CmdBeginRendering(cmd, &rendering_info);
 
-//             // bind pipeline
-//             vk.CmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_map.material.pipeline.pipeline);
-//             vk.CmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_map.material.pipeline.layout, 0, 1, &shadow_map.material.layout, 0, null);
-//             vk.CmdPushConstants(cmd, shadow_map.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(u32), @intCast(i));
+        // bind pipeline
+        vk.CmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_map.material.pipeline.pipeline);
+        vk.CmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_map.material.pipeline.layout, 0, 1, &shadow_map.material.layout, 0, null);
+        vk.CmdPushConstants(cmd, shadow_map.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(u32), @intCast(i));
 
-//             vk.CmdEndRendering(cmd);
-//         }
-// }
+        for (scene.world.items) |*it| {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.seq_cst)) {
+                it.ptr.draw_shadow(cmd);
+            }
+        }
+
+        vk.CmdEndRendering(cmd);
+    }
+}
 
 const std = @import("std");
 const za = @import("zalgebra");
 const imgui = @import("imgui");
-const vk = @import("../engine/vulkan/vk_wrapper.zig");
-const c = @import("../clibs.zig");
+const vk = @import("../../engine/vulkan/vk_wrapper.zig");
+const c = @import("../../clibs.zig");
 
-const chunk = @import("voxel/chunk.zig");
-const voxel = @import("voxel/voxel.zig");
-const shader = @import("voxel/shaders.zig");
+const chunk = @import("chunk.zig");
+const voxel = @import("voxel.zig");
+const shader = @import("shaders.zig");
 
-const renderer = @import("../engine/renderer.zig");
-const scenes = @import("../engine/scene/scene.zig");
-const cameras = @import("../engine/scene/camera.zig");
-const material = @import("../engine/graphics/materials.zig");
-const maths = @import("../utils/maths.zig");
-const compute = @import("../engine/graphics/compute.zig");
-const tasks = @import("../tasks.zig");
+const renderer = @import("../../engine/renderer.zig");
+const scenes = @import("../../engine/scene/scene.zig");
+const cameras = @import("../../engine/scene/camera.zig");
+const material = @import("../../engine/graphics/materials.zig");
+const maths = @import("../../utils/maths.zig");
+const compute = @import("../../engine/graphics/compute.zig");
+const tasks = @import("../../tasks.zig");

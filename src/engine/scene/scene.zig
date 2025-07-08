@@ -2,6 +2,7 @@ pub const ShaderData = struct {
     view: [4][4]f32 align(16) = za.Mat4.identity().data,
     proj: [4][4]f32 align(16) = za.Mat4.identity().data,
     viewproj: [4][4]f32 align(16) = za.Mat4.identity().data,
+    shadow_viewproj: [4][4][4]f32 align(64) = @splat(za.Mat4.identity().data),
     ambient_color: [4]f32 align(4) = .{ 0.1, 0.1, 0.1, 0.1 },
     sunlight_dir: [4]f32 align(4) = .{ 1, 1, 1, 1 },
     sunlight_color: [4]f32 align(4) = .{ 0, 1, 0.5, 1 },
@@ -110,6 +111,7 @@ pub const BackgroundContext = struct {
 
 pub const DrawContext = struct {
     global_data: *ShaderData,
+    shadow_map: *voxel.ShadowMap, // TODO : remove
     opaque_surfaces: std.ArrayList(materials.RenderObject),
     transparent_surfaces: std.ArrayList(materials.RenderObject),
 
@@ -254,3 +256,4 @@ const buffers = @import("../graphics/buffers.zig");
 const descriptors = @import("../descriptor.zig");
 const compute = @import("../compute_effect.zig");
 const levels = @import("../../levels/levels.zig");
+const voxel = @import("../../levels/voxel/voxel.zig");

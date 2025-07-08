@@ -194,6 +194,7 @@ const shaders = [_]Shader {
     .{ .stage = Shader.Stage.FRAGMENT, .file = "aurora/block.frag.glsl" },
     .{ .stage = Shader.Stage.VERTEX, .file = "aurora/water.vert.glsl" },
     .{ .stage = Shader.Stage.FRAGMENT, .file = "aurora/water.frag.glsl" },
+    .{ .stage = Shader.Stage.VERTEX, .file = "aurora/shadowmap.vert.glsl" },
     .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/meshing.comp.glsl" },
     .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/meshing2.comp.glsl" },
     .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/world.comp.glsl" },

@@ -20,11 +20,12 @@ pub const DescriptorLayout = struct {
         self._bindings.deinit();
     }
 
-    pub fn add_binding(self: *DescriptorLayout, binding: u32, _type: c.VkDescriptorType) !void {
+    pub fn add_binding(self: *DescriptorLayout, binding: u32, _type: c.VkDescriptorType, stage: c.VkShaderStageFlags) !void {
         const newbind = c.VkDescriptorSetLayoutBinding {
             .binding = binding,
             .descriptorCount = 1,
             .descriptorType = _type,
+            .stageFlags = stage
         };
 
         try self._bindings.append(newbind);
@@ -34,10 +35,10 @@ pub const DescriptorLayout = struct {
         self._bindings.clearAndFree();
     }
 
-    pub fn build(self: *DescriptorLayout, device: c.VkDevice, shader_stages: c.VkShaderStageFlags, pNext: ?*const anyopaque, flags: c.VkDescriptorSetLayoutCreateFlags) c.VkDescriptorSetLayout {
-        for (self._bindings.items) |*binding| {
-            binding.stageFlags |= shader_stages;
-        }
+    pub fn build(self: *DescriptorLayout, device: c.VkDevice, pNext: ?*const anyopaque, flags: c.VkDescriptorSetLayoutCreateFlags) c.VkDescriptorSetLayout {
+        // for (self._bindings.items) |*binding| {
+        //     binding.stageFlags |= shader_stages;
+        // }
 
         const info = c.VkDescriptorSetLayoutCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
