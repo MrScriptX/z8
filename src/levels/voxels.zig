@@ -414,6 +414,7 @@ pub const VoxelScene = struct {
             @panic("Out Of Memory !");
         };
         it.ptr.dispatch(cmd, unwrap.src_queue, unwrap.dst_queue);
+        // record_shadow_pass(cmd, self.shadow_map);
     }
 
     pub fn on_build_success(ctx: *anyopaque) void {
@@ -515,17 +516,55 @@ pub const VoxelScene = struct {
     }
 };
 
+// fn record_shadow_pass(cmd: vk.CommandBuffer, shadow_map: *const voxel.ShadowMap) void {
+//         for (0..4) |i| {
+//             const rendering_info = vk.RenderingInfo {
+//                 .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
+//                 .renderArea = .{
+//                     .offset = .{ .x = 0, .y = 0 },
+//                     .extent = .{ .width = voxel.ShadowMap.DIM, .height = voxel.ShadowMap.DIM },
+//                 },
+//                 .layerCount = 1,
+//                 .viewMask = 0,
+//                 .colorAttachmentCount = 0,
+//                 .pColorAttachments = null,
+//                 .pDepthAttachment = &.{
+//                     .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+//                     .imageView = shadow_map.cascade[i].view,
+//                     .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+//                     .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
+//                     .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+//                     .clearValue = .{ 
+//                         .depthStencil = .{ .depth = 1.0, .stencil = 0 }
+//                     },
+//                 }
+//             };
+
+//             vk.CmdBeginRendering(cmd, &rendering_info);
+
+//             // bind pipeline
+//             vk.CmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_map.material.pipeline.pipeline);
+//             vk.CmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_map.material.pipeline.layout, 0, 1, &shadow_map.material.layout, 0, null);
+//             vk.CmdPushConstants(cmd, shadow_map.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(u32), @intCast(i));
+
+//             vk.CmdEndRendering(cmd);
+//         }
+// }
+
 const std = @import("std");
 const za = @import("zalgebra");
 const imgui = @import("imgui");
+const vk = @import("../engine/vulkan/vk_wrapper.zig");
 const c = @import("../clibs.zig");
+
+const chunk = @import("voxel/chunk.zig");
+const voxel = @import("voxel/voxel.zig");
+const shader = @import("voxel/shaders.zig");
+
 const renderer = @import("../engine/renderer.zig");
 const scenes = @import("../engine/scene/scene.zig");
 const cameras = @import("../engine/scene/camera.zig");
 const material = @import("../engine/graphics/materials.zig");
 const maths = @import("../utils/maths.zig");
-const voxel = @import("../levels/voxel/voxel.zig");
-const chunk = @import("voxel/chunk.zig");
-const shader = @import("../levels/voxel/shaders.zig");
 const compute = @import("../engine/graphics/compute.zig");
 const tasks = @import("../tasks.zig");

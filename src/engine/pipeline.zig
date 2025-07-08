@@ -143,6 +143,11 @@ pub const builder_t = struct {
         try self._shader_stages.append(create_shader_stage_info(fragment_shader, c.VK_SHADER_STAGE_FRAGMENT_BIT));
     }
 
+    pub fn set_vertex_shader(self: *builder_t, vertex_shader: c.VkShaderModule) !void {
+        const shader_stage_info = create_shader_stage_info(vertex_shader, c.VK_SHADER_STAGE_VERTEX_BIT);
+        try self._shader_stages.append(shader_stage_info);
+    }
+
     pub fn set_input_topology(self: *builder_t, topology: c.VkPrimitiveTopology) void {
         self._input_assembly.topology = topology;
         self._input_assembly.primitiveRestartEnable = c.VK_FALSE;

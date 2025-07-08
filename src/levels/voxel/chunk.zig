@@ -80,8 +80,6 @@ pub const Chunk = struct {
             
             .data_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(Data), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             .perm_table_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([256]u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU),
-            // .shadow_map = try ShadowMap.init(allocator, r),
-            // .chunk_map = buffers.AllocatedBuffer.init(r._vma, @sizeOf(MapData), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
 
             .compute_passes = .{
                 .classification = try allocator.create(engine.compute.Instance),
@@ -538,6 +536,7 @@ const c = @import("../../clibs.zig");
 
 const shader = @import("shaders.zig");
 const voxel = @import("voxel.zig");
+const m = @import("materials.zig");
 const engine = @import("../../engine/engine.zig");
 const Renderer = engine.renderer.Renderer;
 

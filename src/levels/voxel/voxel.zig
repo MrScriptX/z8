@@ -42,13 +42,14 @@ pub const ShadowMap = struct {
         view: vk.ImageView = undefined,
     };
 
-    const DIM = 2048; // can be 4096 ? Make it dynamic maybe ?
+    pub const DIM = 2048; // can be 4096 ? Make it dynamic maybe ?
 
     allocator: std.mem.Allocator,
     image: vk.Image,
     allocation: c.VmaAllocation,
     sampler: vk.Sampler,
     cascade: [4]Map,
+    material: mats.ShadowMap,
 
     pub fn init(allocator: std.mem.Allocator, r: *const Renderer) !ShadowMap {
         var shadow_image: vk.Image = undefined;
@@ -84,6 +85,17 @@ pub const ShadowMap = struct {
 
         const sampler_create_info = vk.SamplerCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = c.VK_FILTER_LINEAR,
+            .minFilter = c.VK_FILTER_LINEAR,
+            .mipmapMode = c.VK_SAMPLER_MIPMAP_MODE_LINEAR,
+            .addressModeU = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            .addressModeV = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            .addressModeW = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            .mipLodBias = 0,
+            .maxAnisotropy = 1,
+            .minLod = 0,
+            .maxLod = 1,
+            .borderColor = c.VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
         };
 
         var sampler: vk.Sampler = undefined;
@@ -98,7 +110,8 @@ pub const ShadowMap = struct {
             .image = shadow_image,
             .allocation = shadow_image_alloc,
             .sampler = sampler,
-            .cascade = undefined
+            .cascade = undefined,
+            .material = mats.ShadowMap.init(allocator)
         };
 
         for (&shadow_map.cascade, 0..) |*map, i| {
@@ -126,6 +139,8 @@ pub const ShadowMap = struct {
     }
 
     pub fn deinit(self: *ShadowMap, r: *const Renderer) void {
+        self.material.deinit(r._device);
+
         for (self.cascade) |map| {
             vk.DestroyImageView(r._device, map.view, null);
         }
@@ -137,6 +152,7 @@ pub const ShadowMap = struct {
 
 const std = @import("std");
 const c = @import("../../clibs.zig");
+const mats = @import("materials.zig");
 const vk = @import("../../engine/vulkan/vk_wrapper.zig");
 const buffers = @import("../../engine/graphics/buffers.zig");
 const Renderer = @import("../../engine/renderer.zig").Renderer;
