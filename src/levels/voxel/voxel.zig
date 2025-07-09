@@ -40,6 +40,8 @@ pub const Mesh = struct {
 pub const ShadowMap = struct {
     pub const Map = struct {
         view: vk.ImageView = undefined,
+        split: f16,
+        buffer: buffers.AllocatedBuffer,
     };
 
     pub const DIM = 2048; // can be 4096 ? Make it dynamic maybe ?
@@ -57,6 +59,7 @@ pub const ShadowMap = struct {
             .sType = c.VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             .pNext = null,
 
+            .imageType = c.VK_IMAGE_TYPE_2D,
             .extent = .{
                 .width = DIM,
                 .height = DIM,
@@ -110,7 +113,12 @@ pub const ShadowMap = struct {
             .image = shadow_image,
             .allocation = shadow_image_alloc,
             .sampler = sampler,
-            .cascade = undefined,
+            .cascade = .{
+                .{ .split = 0.02, .buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([4][4]f32), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) },
+                .{ .split = 0.1, .buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([4][4]f32), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) },
+                .{ .split = 0.3, .buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([4][4]f32), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) },
+                .{ .split = 1.0, .buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf([4][4]f32), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) }
+            },
             .material = mats.ShadowMap.init(allocator)
         };
 

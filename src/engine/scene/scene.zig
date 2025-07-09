@@ -119,7 +119,7 @@ pub const DrawContext = struct {
         const ctx = DrawContext {
             .global_data = undefined, // TODO : should not even be a pointer
             .opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
-            .transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
+            .transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator)
         };
 
         return ctx;
@@ -240,6 +240,69 @@ pub const DrawContext = struct {
             stats.triangle_count += obj.index_count / 3;
         }
     }
+
+    pub fn render_shadow_map(self: *DrawContext, allocator: std.mem.Allocator, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, device: c.VkDevice, descriptor_pool: *descriptors.DescriptorAllocator2) void {
+        for (0..4) |i| {
+            var data_ptr: []f32 = undefined;
+
+            const result = c.vmaMapMemory(vma, self.shadow_map.cascade[i].buffer.allocation, @ptrCast(&data_ptr));
+            if (result != c.VK_SUCCESS) {
+                std.log.err("Failed to map permutation table", .{});
+                @panic("Failed to map perm_table_buffer");
+            }
+            std.mem.copyForwards(f32, data_ptr, &self.global_data.shadow_viewproj[i]);
+            c.vmaUnmapMemory(vma, self.shadow_map.cascade[i].buffer.allocation);
+
+            const res: mats.ShadowMap.Resources = .{
+                .viewproj = self.shadow_map.cascade[i].buffer.buffer,
+                .offset = 0
+            };
+            var instance = self.shadow_map.material.write_material(allocator, device, &res, descriptor_pool);
+
+            const rendering_info = c.VkRenderingInfo {
+                .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
+                .renderArea = .{
+                    .offset = .{ .x = 0, .y = 0 },
+                    .extent = .{ .width = voxel.ShadowMap.DIM, .height = voxel.ShadowMap.DIM },
+                },
+                .layerCount = 1,
+                .viewMask = 0,
+                .colorAttachmentCount = 0,
+                .pColorAttachments = null,
+                .pDepthAttachment = &.{
+                    .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                    .imageView = self.shadow_map.cascade[i].view,
+                    .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                    .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
+                    .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+                    .clearValue = .{ 
+                        .depthStencil = .{ .depth = 1.0, .stencil = 0 }
+                    },
+                }
+            };
+
+            c.vkCmdBeginRendering(cmd, &rendering_info);
+
+            // bind pipeline
+            c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.shadow_map.material.pipeline.pipeline);
+            c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.shadow_map.material.pipeline.layout, 0, 1, &instance.material_set, 0, null);
+            c.vkCmdPushConstants(cmd, self.shadow_map.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(u32), @ptrCast(&i));
+
+            // for (scene.world.items) |*it| {
+            //     if (it.ptr.ready.load(std.builtin.AtomicOrder.seq_cst)) {
+            //         it.ptr.draw_shadow(cmd);
+            //     }
+            // }
+
+            for (self.opaque_surfaces.items) |*it| {
+                c.vkCmdBindVertexBuffers(cmd, 0, 1, &it.vertex_buffer, 0);
+                c.vkCmdBindIndexBuffer(cmd, it.index_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+                c.vkCmdDrawIndexedIndirect(cmd, it.indirect_buffer, 0, 1, @sizeOf(c.VkDrawIndexedIndirectCommand));
+            }
+
+            c.vkCmdEndRendering(cmd);
+        }
+    }
 };
 
 const std = @import("std");
@@ -257,3 +320,4 @@ const descriptors = @import("../descriptor.zig");
 const compute = @import("../compute_effect.zig");
 const levels = @import("../../levels/levels.zig");
 const voxel = @import("../../levels/voxel/voxel.zig");
+const mats = @import("../../levels/voxel/materials.zig");

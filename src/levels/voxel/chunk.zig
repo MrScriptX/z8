@@ -394,12 +394,6 @@ pub const Chunk = struct {
         vk.CmdPipelineBarrier2(cmd, &dependency_info);
     }
 
-    pub fn draw_shadow(self: *const Chunk, cmd: c.VkCommandBuffer) void {
-        vk.CmdBindVertexBuffers(cmd, 0, 1, &self.solid_mesh.vertices_buffer.buffer, 0);
-        vk.CmdBindIndexBuffer(cmd, self.solid_mesh.indices_buffer.buffer, 0, c.VK_INDEX_TYPE_UINT32);
-        vk.CmdDrawIndexedIndirect(cmd, self.solid_mesh.indirect_buffer.buffer, 0, 1, @sizeOf(c.VkDrawIndexedIndirectCommand));
-    }
-
     pub const Data = struct { // will be fill by GPU
         active: u32 align(4) = 0,
         position: @Vector(3, i32) = @splat(0),

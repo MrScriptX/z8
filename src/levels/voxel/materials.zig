@@ -83,7 +83,7 @@ pub const ShadowMap = struct {
         };
 
         self.writer.clear();
-        self.writer.write_buffer(0, res.viewproj, @sizeOf(Resources), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        self.writer.write_buffer(0, res.viewproj, @sizeOf([4][4]f32), res.offset, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
         self.writer.update_set(device, data.material_set);
 
@@ -95,7 +95,9 @@ pub const ShadowMap = struct {
     };
 
     pub const Resources = struct {
-        viewproj: [4][4]f32 align(16), // light view proj
+        // viewproj: [4][4]f32 align(16), // light view proj
+        viewproj: vk.Buffer,
+        offset: usize
     };
 };
 

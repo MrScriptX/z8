@@ -570,6 +570,9 @@ pub const Renderer = struct {
     }
 
     fn draw_scene(self: *Renderer, allocator: std.mem.Allocator, scene: *scenes.DrawContext, cmd: c.VkCommandBuffer) void {
+        // Shadow map rendering first
+        scene.render_shadow_map(allocator, cmd, self._vma, self._device, &self.current_frame()._frame_descriptors);
+
         //begin a render pass  connected to our draw image
 	    const color_attachment = c.VkRenderingAttachmentInfo {
             .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -635,7 +638,7 @@ pub const Renderer = struct {
 
         const scene_uniform_data: *scenes.ShaderData = @alignCast(@ptrCast(gpu_scene_data_buffer.info.pMappedData));
         scene_uniform_data.* = scene.global_data.*;
-    
+
         const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self.scene_descriptor, null);
         {
             var writer = descriptor.Writer.init(allocator);

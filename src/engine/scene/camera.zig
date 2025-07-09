@@ -8,6 +8,9 @@ pub const camera_t = struct {
     speed: f32 = 0,
     sensitivity: f32 = 0,
 
+    far: f32 = 200,
+    near: f32 = 0.1,
+
     active: bool = true,
 
     pub fn view_matrix(self: *const camera_t) za.Mat4 {

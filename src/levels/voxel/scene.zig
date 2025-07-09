@@ -122,6 +122,7 @@ pub const VoxelScene = struct {
 
     background_ctx: scenes.BackgroundContext,
     draw_ctx: scenes.DrawContext,
+    descriptor_pool: descriptor.DescriptorAllocator2,
 
     const Chunk = struct {
         ptr: *chunk.Chunk,
@@ -505,6 +506,79 @@ pub const VoxelScene = struct {
         self.global_data.time += delta_time;
         self.global_data.time = @mod(self.global_data.time, 120);
 
+        // const split_lambda = 0.95;
+        // const clip_range = cam.far - cam.near;
+        // const range = cam.near + clip_range - cam.near;
+        // const ratio = (cam.near + clip_range) / cam.near;
+
+        // compute cascade split (use fix split ?) https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
+        // for (0..self.shadow_map.cascade.len) |i| {
+        //     const p: f32 = @floatFromInt((i + 1) / self.shadow_map.cascade.len);
+        //     const log = cam.near * std.math.pow(f32, ratio, p);
+        //     const uniform = cam.near + range * p;
+        //     const d = split_lambda * (log - uniform) + uniform;
+        //     self.shadow_map.cascade[i].split = (d - cam.near) / clip_range;
+        // }
+
+        // compute projection
+        var last_split_dist: f32 = 0;
+        for (0..self.shadow_map.cascade.len) |i| {
+            const split_dist = self.shadow_map.cascade[i].split;
+
+            var frustrum_corners: [8]@Vector(3, f32) = .{
+                .{ -1, 1, 0 },
+                .{ 1, 1, 0 },
+                .{ 1, -1, 0 },
+                .{ -1, -1, 0 },
+                .{ -1, 1, 1 },
+                .{ 1, 1, 1 },
+                .{ 1, -1, 1 },
+                .{ -1, -1, 1 },
+            };
+
+            const inv_cam = za.Mat4.mul(proj, view).inv();
+            for (0..frustrum_corners.len) |j| {
+                const corner = za.Vec3.fromSlice(&[_]f32{ frustrum_corners[j][0], frustrum_corners[j][1], frustrum_corners[j][2] });
+                const inv_corner = inv_cam.mulByVec4(za.Vec4.fromVec3(corner, 1));
+                frustrum_corners[j] = @Vector(3, f32){ inv_corner.x() / inv_corner.w(), inv_corner.y() / inv_corner.w(), inv_corner.z() / inv_corner.w() };
+            }
+
+            for (0..frustrum_corners.len / 2) |j| {
+                const dist = frustrum_corners[j + 4] - frustrum_corners[j];
+                frustrum_corners[j + 4] = frustrum_corners[j] + (dist * @as(@Vector(3, f32), @splat(split_dist)));
+                frustrum_corners[j] = frustrum_corners[j] + (dist * @as(@Vector(3, f32), @splat(last_split_dist)));
+            }
+
+            var frusutrum_center = @Vector(3, f32){0, 0, 0};
+            for (0..frustrum_corners.len) |j| {
+                frusutrum_center += frustrum_corners[j];
+            }
+            frusutrum_center /= @as(@Vector(3, f32), @splat(8.0));
+
+            var radius: f32 = 0;
+            for (0..frustrum_corners.len) |j| {
+                const tmp = (frustrum_corners[j] - frusutrum_center) * (frustrum_corners[j] - frusutrum_center);
+                const sqr_dst = tmp[0] + tmp[1] + tmp[2];
+                const distance = std.math.sqrt(sqr_dst);
+                radius = if (radius > distance) radius else distance;
+            }
+            radius = std.math.ceil(radius * 16) / 16;
+
+            const max_extents: @Vector(3, f32) = @splat(radius);
+            const min_extents: @Vector(3, f32) = -max_extents;
+
+            const light_dir = self.global_data.sunlight_dir * @as(@Vector(4, f32), @splat(-min_extents[2]));
+            const eye = frusutrum_center - @Vector(3, f32){ light_dir[0], light_dir[1], light_dir[2] };
+
+            const light_view = za.lookAt(za.Vec3.new(eye[0], eye[1], eye[2]), za.Vec3.new(frusutrum_center[0], frusutrum_center[1], frusutrum_center[2]), za.Vec3.new( 0, 1, 0));
+            const light_ortho = za.orthographic(min_extents[0], max_extents[0], min_extents[1], max_extents[1], min_extents[2], max_extents[2]);
+
+            // self.shadow_map.cascade[i].split = (cam.near + split_dist * clip_range) * -1;
+            self.global_data.shadow_viewproj[i] = light_ortho.mul(light_view).data;
+
+            last_split_dist = self.shadow_map.cascade[i].split;
+        }
+
         self.draw_ctx.global_data = &self.global_data;
 
         self.draw_ctx.shadow_map = &self.shadow_map;
@@ -517,47 +591,6 @@ pub const VoxelScene = struct {
         }
     }
 };
-
-fn render_shadow_pass(cmd: vk.CommandBuffer, scene: *VoxelScene, shadow_map: *const voxel.ShadowMap) void {
-    for (0..4) |i| {
-        const rendering_info = vk.RenderingInfo {
-            .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea = .{
-                .offset = .{ .x = 0, .y = 0 },
-                .extent = .{ .width = voxel.ShadowMap.DIM, .height = voxel.ShadowMap.DIM },
-            },
-            .layerCount = 1,
-            .viewMask = 0,
-            .colorAttachmentCount = 0,
-            .pColorAttachments = null,
-            .pDepthAttachment = &.{
-                .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = shadow_map.cascade[i].view,
-                .imageLayout = c.VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-                .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-                .clearValue = .{ 
-                    .depthStencil = .{ .depth = 1.0, .stencil = 0 }
-                },
-            }
-        };
-
-        vk.CmdBeginRendering(cmd, &rendering_info);
-
-        // bind pipeline
-        vk.CmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_map.material.pipeline.pipeline);
-        vk.CmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_map.material.pipeline.layout, 0, 1, &shadow_map.material.layout, 0, null);
-        vk.CmdPushConstants(cmd, shadow_map.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(u32), @intCast(i));
-
-        for (scene.world.items) |*it| {
-            if (it.ptr.ready.load(std.builtin.AtomicOrder.seq_cst)) {
-                it.ptr.draw_shadow(cmd);
-            }
-        }
-
-        vk.CmdEndRendering(cmd);
-    }
-}
 
 const std = @import("std");
 const za = @import("zalgebra");
@@ -576,3 +609,4 @@ const material = @import("../../engine/graphics/materials.zig");
 const maths = @import("../../utils/maths.zig");
 const compute = @import("../../engine/graphics/compute.zig");
 const tasks = @import("../../tasks.zig");
+const descriptor = @import("../../engine/descriptor.zig");
