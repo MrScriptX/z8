@@ -243,14 +243,14 @@ pub const DrawContext = struct {
 
     pub fn render_shadow_map(self: *DrawContext, allocator: std.mem.Allocator, cmd: c.VkCommandBuffer, vma: c.VmaAllocator, device: c.VkDevice, descriptor_pool: *descriptors.DescriptorAllocator2) void {
         for (0..4) |i| {
-            var data_ptr: []f32 = undefined;
+            var data_ptr: [][4]f32 = undefined;
 
             const result = c.vmaMapMemory(vma, self.shadow_map.cascade[i].buffer.allocation, @ptrCast(&data_ptr));
             if (result != c.VK_SUCCESS) {
                 std.log.err("Failed to map permutation table", .{});
                 @panic("Failed to map perm_table_buffer");
             }
-            std.mem.copyForwards(f32, data_ptr, &self.global_data.shadow_viewproj[i]);
+            std.mem.copyForwards([4]f32, data_ptr, &self.global_data.shadow_viewproj[i]);
             c.vmaUnmapMemory(vma, self.shadow_map.cascade[i].buffer.allocation);
 
             const res: mats.ShadowMap.Resources = .{
