@@ -6,6 +6,14 @@
 #include "simplex_noise.glsl"
 #include "types.glsl"
 
+struct DrawCommand {
+    uint index_count;
+    uint instance_count;
+    uint first_index;
+    int  vertex_offset;
+    uint first_instance;
+};
+
 layout(std430, binding = 0) buffer VertexBuffer {
     vertex_t vertices[];
 };
@@ -43,6 +51,10 @@ layout(std430, binding = 6) buffer ChunkData {
     ivec3 position;
     voxel_t voxels[];
 };
+
+// layout(std430, binding = 7) buffer IndirectDrawCommands {
+//     DrawCommand cmds[];
+// } indirect_cmds;
 
 void greedy_meshing(uint dir, uint slice, uint type);
 void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint type);

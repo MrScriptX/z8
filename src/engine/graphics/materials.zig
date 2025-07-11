@@ -16,8 +16,12 @@ pub const RenderObject = struct {
 };
 
 pub const IndirectDrawObject = struct {
-    draw_commands: buffers.AllocatedBuffer,
+    max_draw: u32,
+    draw_commands: buffers.AllocatedBuffer, // make it an array for different type of meshes (e.g. solid, water)
     draw_count: buffers.AllocatedBuffer,
+
+    indices_buffer: buffers.AllocatedBuffer, // SSBO, make it an array for different type of meshes (e.g. solid, water)
+    vertices_buffer: buffers.AllocatedBuffer, // SSBO
 };
 
 pub const MaterialPipeline = struct {

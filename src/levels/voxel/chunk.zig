@@ -144,14 +144,14 @@ pub const Chunk = struct {
 
          const compute_resources: shader.MeshComputeShader.Resource = .{
             .solid_mesh = .{
-                .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer,
-                .index_buffer = chunk.solid_mesh.indices_buffer.buffer,
-                .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer,
+                .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer, // use DrawContext SSBO
+                .index_buffer = chunk.solid_mesh.indices_buffer.buffer, // use DrawContext SSBO
+                .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer, // use DrawContext SSBO
             },
             .water_mesh = .{
-                .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer,
-                .index_buffer = chunk.water_mesh.indices_buffer.buffer,
-                .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer,
+                .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer, // use DrawContext SSBO
+                .index_buffer = chunk.water_mesh.indices_buffer.buffer, // use DrawContext SSBO
+                .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer, // use DrawContext SSBO
             },
             .chunk_buffer = chunk.data_buffer.buffer,
             .chunk_buffer_offset = 0
@@ -160,14 +160,14 @@ pub const Chunk = struct {
 
         const frustrum_resources: shader.FrustrumCulling.Resource = .{
             .solid_mesh = .{
-                .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer,
-                .index_buffer = chunk.solid_mesh.indices_buffer.buffer,
-                .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer,
+                .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer, // use DrawContext SSBO
+                .index_buffer = chunk.solid_mesh.indices_buffer.buffer, // use DrawContext SSBO
+                .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer, // use DrawContext SSBO
             },
             .water_mesh = .{
-                .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer,
-                .index_buffer = chunk.water_mesh.indices_buffer.buffer,
-                .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer,
+                .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer, // use DrawContext SSBO
+                .index_buffer = chunk.water_mesh.indices_buffer.buffer, // use DrawContext SSBO
+                .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer, // use DrawContext SSBO
             },
 
             .chunk_buffer = chunk.data_buffer.buffer,

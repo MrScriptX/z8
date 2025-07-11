@@ -151,7 +151,7 @@ pub const VoxelScene = struct {
                 .sunlight_color = .{ 1.0, 1.0, 1.0, 1.0 },
                 .ambient_color = .{ 0.35, 0.35, 0.5, 1.0 },
             },
-            .draw_ctx = undefined,
+            .draw_ctx = scenes.DrawContext.init(allocator, 25, r), // radius ^ 2 maximum of draw calls for one frame
             .background_ctx = undefined,
             .state = .{
                 .seed = rand.int(u32),
@@ -210,8 +210,8 @@ pub const VoxelScene = struct {
         // TODO : sky box should be handled from the scene
 
         scene.draw_ctx.global_data = &scene.global_data;
-        scene.draw_ctx.opaque_surfaces = try std.ArrayList(material.RenderObject).initCapacity(allocator, nb_chunks);
-        scene.draw_ctx.transparent_surfaces = try std.ArrayList(material.RenderObject).initCapacity(allocator, nb_chunks);
+        // scene.draw_ctx.opaque_surfaces = try std.ArrayList(material.RenderObject).initCapacity(allocator, nb_chunks);
+        // scene.draw_ctx.transparent_surfaces = try std.ArrayList(material.RenderObject).initCapacity(allocator, nb_chunks);
 
         scene.build_world();
 

@@ -114,12 +114,15 @@ pub const DrawContext = struct {
     opaque_surfaces: std.ArrayList(materials.RenderObject),
     transparent_surfaces: std.ArrayList(materials.RenderObject),
 
-    pub fn init(allocator: std.mem.Allocator, max_indirect_cmd: usize) DrawContext {
+    pub fn init(allocator: std.mem.Allocator, max_indirect_cmd: usize, r: *const renderer.Renderer) DrawContext {
         const ctx = DrawContext {
             .global_data = undefined, // TODO : should not even be a pointer
             .indirect_draw = materials.IndirectDrawObject {
-                .draw_commands = buffers.AllocatedBuffer.init(allocator, @sizeOf(c.VkDrawIndexedIndirectCommand) * max_indirect_cmd, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
-                .draw_count = buffers.AllocatedBuffer.init(allocator, @sizeOf(u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+                .max_draw = @intCast(max_indirect_cmd),
+                .draw_commands = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand) * max_indirect_cmd, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+                .draw_count = buffers.AllocatedBuffer.init(r._vma, @sizeOf(u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+                .indices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(u32) * max_indirect_cmd, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+                .vertices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(buffers.Vertex) * max_indirect_cmd, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
             },
             .opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
             .transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
@@ -129,6 +132,8 @@ pub const DrawContext = struct {
     }
 
     pub fn deinit(self: *DrawContext, r: * const renderer.Renderer) void {
+        self.indirect_draw.indices_buffer.deinit(r._vma);
+        self.indirect_draw.vertices_buffer.deinit(r._vma);
         self.indirect_draw.draw_commands.deinit(r._vma);
         self.indirect_draw.draw_count.deinit(r._vma);
 
@@ -245,6 +250,18 @@ pub const DrawContext = struct {
             stats.drawcall_count += 1;
             stats.triangle_count += obj.index_count / 3;
         }
+    }
+
+    fn draw_indirect_cmds(self: *DrawContext, cmd: c.VkCommandBuffer) void {
+        const indices_buffer = self.indirect_draw.indices_buffer.buffer;
+        vk.CmdBindIndexBuffer(cmd, self.indirect_draw, indices_buffer, 0, c.VK_INDEX_TYPE_UINT32);
+
+        const vertices_buffer = self.indirect_draw.vertices_buffer.buffer;
+        vk.CmdBindVertexBuffers(cmd, 0, 1, &vertices_buffer, null);
+
+        const draw_cmd_buffer = self.indirect_draw.draw_commands.buffer;
+        const draw_count_buffer = self.indirect_draw.draw_count.buffer;
+        vk.CmdDrawIndexedIndirectCount(cmd, draw_cmd_buffer, 0, draw_count_buffer, 0, self.indirect_draw.max_draw, @sizeOf(c.VkDrawIndexedIndirectCommand));
     }
 };
 

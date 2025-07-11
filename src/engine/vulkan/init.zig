@@ -8,6 +8,10 @@ const Error = error{
     DeviceExtension,
 };
 
+pub const Config = struct {
+    support_mci: bool = false // support multi draw indirect
+};
+
 pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     const app_info = vk.ApplicationInfo {
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -151,6 +155,7 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
     const device_features = c.VkPhysicalDeviceFeatures{
         .samplerAnisotropy = c.VK_TRUE,
         .fillModeNonSolid = c.VK_TRUE,
+        // .multiDrawIndirect = config.support_mci ? c.VK_TRUE : c.VK_FALSE,
     };
 
     const features_vulkan12 = c.VkPhysicalDeviceVulkan12Features {
