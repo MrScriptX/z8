@@ -1,5 +1,7 @@
 # Z8
 
+![Z8](docs/voxel_scene.png)
+
 Z8 is a personal 3D rendering engine project built with [Zig](https://ziglang.org/), [Vulkan](https://vulkan.lunarg.com/), and [SDL3](https://wiki.libsdl.org/SDL3/FrontPage). It's a rewrite in Zig of my original [R3DEngine](https://github.com/MrScriptX/R3D_Engine), and serves as a playground for trying out new ideas, learning graphics programming, and exploring the Zig language.
 
 
