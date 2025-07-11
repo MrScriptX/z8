@@ -54,6 +54,8 @@ pub fn main() !u8 {
     };
 
     const gradiant_file = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/vkguide/gradiant.spv" });
+    defer allocator.free(gradiant_file);
+
     gradient_effect.build(allocator, gradiant_file, &renderer) catch {
         std.log.err("Failed to create gradiant shader", .{});
         return 2;
@@ -73,6 +75,8 @@ pub fn main() !u8 {
         },
     };
     const sky_shader_file = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/vkguide/sky.spv" });
+    defer allocator.free(sky_shader_file);
+
     sky_shader.build(allocator, sky_shader_file, &renderer) catch {
         std.log.err("Failed to create sky shader", .{});
         return 2;
@@ -84,7 +88,7 @@ pub fn main() !u8 {
     var current_shader: u32 = 0;
     renderer.bg_shader = background_effects.items[current_shader];
 
-    var scene_manager = engine.scene.Manager.init(gpa.allocator(), 2);
+    var scene_manager = engine.scene.Manager.init(allocator, 2);
     defer scene_manager.deinit(&renderer);
 
     scene_manager.build_scene(&renderer);

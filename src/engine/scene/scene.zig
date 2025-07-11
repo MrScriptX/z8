@@ -109,33 +109,44 @@ pub const BackgroundContext = struct {
 };
 
 pub const DrawContext = struct {
+    allocator: std.mem.Allocator,
+
     global_data: *ShaderData,
-    indirect_draw: materials.IndirectDrawObject,
+    indirect_draw: []materials.IndirectDrawObject,
     opaque_surfaces: std.ArrayList(materials.RenderObject),
     transparent_surfaces: std.ArrayList(materials.RenderObject),
 
-    pub fn init(allocator: std.mem.Allocator, max_indirect_cmd: usize, r: *const renderer.Renderer) DrawContext {
+    /// Initializes the draw context with the given allocator, indirect draw object count, maximum indirect command count, and renderer.
+    /// 
+    /// @param allocator The memory allocator to use for allocations.
+    /// @param ido_count The number of indirect draw objects to allocate.
+    /// @param r The renderer to use for initializing the indirect draw objects.
+    /// 
+    /// @return A new instance of `DrawContext` initialized with the specified parameters.
+    pub fn init(allocator: std.mem.Allocator, ido_count: usize, r: *const renderer.Renderer) DrawContext {
         const ctx = DrawContext {
+            .allocator = allocator,
             .global_data = undefined, // TODO : should not even be a pointer
-            .indirect_draw = materials.IndirectDrawObject {
-                .max_draw = @intCast(max_indirect_cmd),
-                .draw_commands = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand) * max_indirect_cmd, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
-                .draw_count = buffers.AllocatedBuffer.init(r._vma, @sizeOf(u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
-                .indices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(u32) * max_indirect_cmd, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
-                .vertices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(buffers.Vertex) * max_indirect_cmd, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            .indirect_draw = allocator.alloc(materials.IndirectDrawObject, ido_count) catch |err| {
+                std.log.err("Failed to allocate indirect draw objects. Reason {any}", .{err});
+                @panic("Fatal error");
             },
             .opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
             .transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
         };
 
+        for (ctx.indirect_draw) |*obj| {
+            obj.* = materials.IndirectDrawObject.init(r, @intCast(ido_count));
+        }
+
         return ctx;
     }
 
     pub fn deinit(self: *DrawContext, r: * const renderer.Renderer) void {
-        self.indirect_draw.indices_buffer.deinit(r._vma);
-        self.indirect_draw.vertices_buffer.deinit(r._vma);
-        self.indirect_draw.draw_commands.deinit(r._vma);
-        self.indirect_draw.draw_count.deinit(r._vma);
+        for (self.indirect_draw) |*obj| {
+            obj.deinit(r._vma);
+        }
+        self.allocator.free(self.indirect_draw);
 
         self.opaque_surfaces.deinit();
         self.transparent_surfaces.deinit();

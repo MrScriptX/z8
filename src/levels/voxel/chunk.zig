@@ -68,7 +68,7 @@ pub const Chunk = struct {
     ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     frame_in_use: [3]bool = .{ false, false, false },
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, r: *const Renderer) !Chunk {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, _: *const scenes.DrawContext, r: *const Renderer) !Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 8 }
