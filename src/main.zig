@@ -2,6 +2,8 @@ pub fn main() !u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
     defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
+    const allocator = gpa.allocator();
+
     const init = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
     if (!init) {
         sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s", sdl.SDL_GetError());
@@ -37,6 +39,9 @@ pub fn main() !u8 {
     var background_effects = std.ArrayList(*compute.ComputeEffect).init(gpa.allocator());
     defer background_effects.deinit();
 
+    const dir = try std.fs.selfExeDirPathAlloc(allocator);
+    defer allocator.free(dir);
+
     // gradient shader
     var gradient_effect = compute.ComputeEffect {
         .name = "gradient",
@@ -47,7 +52,9 @@ pub fn main() !u8 {
             .data4 = c.glms_vec4_zero().raw 
         },
     };
-    gradient_effect.build(gpa.allocator(), "./zig-out/bin/shaders/vkguide/gradiant.spv", &renderer) catch {
+
+    const gradiant_file = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/vkguide/gradiant.spv" });
+    gradient_effect.build(allocator, gradiant_file, &renderer) catch {
         std.log.err("Failed to create gradiant shader", .{});
         return 2;
     };
@@ -65,7 +72,8 @@ pub fn main() !u8 {
             .data4 = c.glms_vec4_zero().raw 
         },
     };
-    sky_shader.build(gpa.allocator(), "./zig-out/bin/shaders/vkguide/sky.spv", &renderer) catch {
+    const sky_shader_file = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/vkguide/sky.spv" });
+    sky_shader.build(allocator, sky_shader_file, &renderer) catch {
         std.log.err("Failed to create sky shader", .{});
         return 2;
     };
