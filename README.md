@@ -64,7 +64,9 @@ If you run into issues, double-check your Vulkan SDK installation and Zig versio
 
 ## Progress & Roadmap
 
-See the TODO list below for planned features and improvements. Completed items are checked off.
+- [] Scene shadow mapping
+- [] Ambiant occlusion
+- [] Group indirect draw calls
 
 
 ### Included Libraries
@@ -76,12 +78,6 @@ The following libraries are included in the project (no need to install separate
 - [cgltf](https://github.com/jkuhlmann/cgltf)
 - [ImGui](https://github.com/dearimgui/dear_bindings) (C bindings)
 - [zalgebra](https://github.com/kooparse/zalgebra)
-
-## TODO List
-
-- [] Scene shadow mapping
-- [] Ambiant occlusion
-- [] Group indirect draw calls
 
 ---
 
