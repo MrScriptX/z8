@@ -21,20 +21,14 @@ pub const TaskManager = struct {
     running: bool = false,
     submit: queues.SubmitQueue,
 
-    pub fn init(allocator: std.mem.Allocator, device: c.VkDevice, queue: c.VkQueue, queue_index: u32) *TaskManager {
-        const tm: *TaskManager = allocator.create(TaskManager) catch {
-            std.log.err("Failed to create TaskManager !", .{});
-            @panic("Out of memory !");
-        };
-
-        tm.* = .{
+    pub fn init(allocator: std.mem.Allocator, device: c.VkDevice, queue: c.VkQueue, queue_index: u32) TaskManager {
+        return .{
             .allocator = allocator,
             .record_queue = TaskQueue.init(allocator),
             .submit_queue = TaskQueue.init(allocator),
             .running = false,
             .submit = queues.SubmitQueue.init(allocator, device, queue, queue_index)
         };
-        return tm;
     }
 
     pub fn deinit(self: *TaskManager) void {
@@ -44,8 +38,6 @@ pub const TaskManager = struct {
         self.submit_queue.deinit();
 
         self.submit.deinit(self.submit.device);
-
-        self.allocator.destroy(self); // TODO : handle memory outside ?
     }
 
     pub fn enqueue(self: *TaskManager, func: TaskFn, on_finish: ?OnFinishTaskFn, ctx: *anyopaque) !void {
