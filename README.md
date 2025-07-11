@@ -67,6 +67,7 @@ If you run into issues, double-check your Vulkan SDK installation and Zig versio
 - [] Scene shadow mapping
 - [] Ambiant occlusion
 - [] Group indirect draw calls
+- [] Config file for engine settings
 
 
 ### Included Libraries
