@@ -8,7 +8,7 @@ pub const ReactorScene = struct {
 
     metallic_roughness: gltf.GLTFMetallic_Roughness,
 
-    pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !ReactorScene {
+    pub fn init(allocator: std.mem.Allocator, r: *renderer.Renderer) !ReactorScene {
         var scene = ReactorScene {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .model = undefined,
@@ -29,7 +29,7 @@ pub const ReactorScene = struct {
         return scene;
     }
 
-    pub fn deinit(self: *ReactorScene, r: *renderer.renderer_t) void {
+    pub fn deinit(self: *ReactorScene, r: *renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
@@ -43,7 +43,7 @@ pub const ReactorScene = struct {
         self.arena.deinit();
     }
 
-    pub fn update(self: *ReactorScene, cam: *cameras.camera_t, r: *renderer.renderer_t) void {
+    pub fn update(self: *ReactorScene, cam: *cameras.camera_t, r: *renderer.Renderer) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
         cam.update(r.stats.frame_time);

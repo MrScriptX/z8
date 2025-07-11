@@ -8,9 +8,9 @@ layout(set = 0, binding = 0) uniform  SceneData {
 	mat4 view;
 	mat4 proj;
 	mat4 viewproj;
-	vec4 ambientColor;
-	vec4 sunlightDirection; //w for sun power
-	vec4 sunlightColor;
+	vec4 ambient_color;
+	vec4 sunlight_direction; //w for sun power
+	vec4 sunlight_color;
     float time;
 } scene_data;
 
@@ -18,8 +18,9 @@ layout(set = 1, binding = 0) readonly buffer VertexBuffer2 {
     vertex_t vertices[];
 } vertex_buffer;
 
-layout(location = 0) out vec3 fragNormal;
-layout(location = 1) out vec2 fragUV;
+layout(location = 0) out vec3 frag_normal;
+layout(location = 1) out vec2 frag_uv;
+layout(location = 2) out vec4 out_color;
 
 layout(buffer_reference, std430) readonly buffer VertexBuffer { 
 	vertex_t vertices[];
@@ -36,7 +37,8 @@ void main() {
     vec4 position = vec4(v.position, 1.0f);
     gl_Position = scene_data.viewproj * pc.render_matrix * position;
 
-    fragNormal = v.normal;
-    fragUV.x = v.uv_x;
-    fragUV.y = v.uv_y;
+    frag_normal = v.normal;
+    frag_uv.x = v.uv_x;
+    frag_uv.y = v.uv_y;
+    out_color = v.color;
 }

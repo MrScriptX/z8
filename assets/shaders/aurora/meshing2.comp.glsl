@@ -22,14 +22,30 @@ layout(std430, binding = 2) buffer IndirectCommand {
     uint firstInstance;
 };
 
-layout(std430, binding = 3) buffer ChunkData {
+layout(std430, binding = 3) buffer WaterVertices {
+    vertex_t water_vertices[];
+};
+
+layout(std430, binding = 4) buffer WaterIndices {
+    uint water_indices[];
+};
+
+layout(std430, binding = 5) buffer WaterDraw {
+    uint index_count;
+    uint instance_count;
+    uint first_index;
+    int  vertex_offset;
+    uint first_instance;
+} water_cmd;
+
+layout(std430, binding = 6) buffer ChunkData {
     uint active_count;
     ivec3 position;
     voxel_t voxels[];
 };
 
-void greedy_meshing(uint dir, uint slice);
-void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal);
+void greedy_meshing(uint dir, uint slice, uint type);
+void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint type);
 
 const uint DIR_Z_NEG = 0;
 const uint DIR_Z_POS = 1;
@@ -48,13 +64,26 @@ void main()
         firstIndex = 0;
         vertexOffset = 0;
         firstInstance = 0;
+
+        water_cmd.index_count = 0;
+        water_cmd.instance_count = 1;
+        water_cmd.first_index = 0;
+        water_cmd.vertex_offset = 0;
+        water_cmd.first_instance = 0;
     }
 
     barrier();
 
     const uint dir = gl_GlobalInvocationID.y; // 0: -Z, 1: +Z, 2: -X, 3: +X, 4: +Y, 5: -Y
     const uint slice = gl_GlobalInvocationID.x; // slice in the direction of the mesh
-    greedy_meshing(dir, slice);
+    const uint type = gl_GlobalInvocationID.z; // type of mesh (grass, sand, sandstone, etc.)
+
+    
+    if (type == AIR) { // skip, we don't process air
+        return;
+    }
+
+    greedy_meshing(dir, slice, type);
 }
 
 bool is_hidden(uint index, uint dir) {
@@ -63,7 +92,7 @@ bool is_hidden(uint index, uint dir) {
     return hidden;
 }
 
-void greedy_meshing(uint dir, uint slice)
+void greedy_meshing(uint dir, uint slice, uint type)
 {
     bool processed[CHUNK_SIZE][CHUNK_SIZE];
     // Initialize processed array
@@ -91,8 +120,40 @@ void greedy_meshing(uint dir, uint slice)
             }
 
             const uint index = pos.x + (pos.y * CHUNK_SIZE) + (pos.z * CHUNK_SIZE_SQR);
-            if (voxels[index].data.x == 0) { // AIR
+            if (voxels[index].data.x == AIR || voxels[index].data.x != type) { // AIR or not the correct type
                 processed[i][j] = true;
+                continue;
+            }
+
+            const bool is_water = voxels[index].data.x == WATER;
+            if (is_water) {
+                if (dir != DIR_Y_POS) {
+                    continue;
+                }
+
+                ivec3 neighbor_pos = ivec3(pos) + ivec3(0, 1, 0);
+
+                bool draw = true;
+                if (all(greaterThanEqual(neighbor_pos, ivec3(0))) &&
+                    all(lessThan(neighbor_pos, ivec3(CHUNK_SIZE)))) {
+                    uint neighbor_index = uint(neighbor_pos.x) + uint(neighbor_pos.y) * CHUNK_SIZE + uint(neighbor_pos.z) * CHUNK_SIZE * CHUNK_SIZE;
+
+                    if (voxels[neighbor_index].data.x == 2) {
+                        draw = false;
+                    }
+                }
+
+                if (draw)
+                {
+                    vec3 normal = normals[dir];
+                    vec3 world_pos = vec3(pos) + vec3(position) * float(CHUNK_SIZE) + vec3(0.5);
+                    create_quad(world_pos, dir, uvec2(1, 1), normal, true, voxels[index].data.x);
+
+                    // processed[i][j] = true;
+                }
+
+                processed[i][j] = true;
+
                 continue;
             }
 
@@ -116,7 +177,7 @@ void greedy_meshing(uint dir, uint slice)
                 }
 
                 const uint next_index = next_pos.x + (next_pos.y * CHUNK_SIZE) + (next_pos.z * CHUNK_SIZE_SQR);
-                if (voxels[next_index].data.x == 0) {
+                if (voxels[next_index].data.x != type) {
                     break; // stop if we hit air or a hidden face
                 }
 
@@ -145,12 +206,15 @@ void greedy_meshing(uint dir, uint slice)
                     }
 
                     const uint next_index = next_pos.x + (next_pos.y * CHUNK_SIZE) + (next_pos.z * CHUNK_SIZE_SQR);
-                    if (voxels[next_index].data.x == 0) {
+                    if (voxels[next_index].data.x != type) {
                         valid = false;
                         break; // stop if we hit air or a hidden face
                     }
 
-                    if (is_hidden(next_index, dir)) break;
+                    if (is_hidden(next_index, dir)) {
+                        valid = false;
+                        break;
+                    }
                 }
 
                 if (!valid) {
@@ -166,33 +230,14 @@ void greedy_meshing(uint dir, uint slice)
             }
 
             // create the mesh
-            vec3 normal;
-            if (dir == DIR_X_POS) { // X
-                normal = normals[0];
-            }
-            else if (dir == DIR_X_NEG) { // -X
-                normal = normals[1];
-            }
-            else if (dir == DIR_Y_POS) { // Y
-                normal = normals[2];
-            }
-            else if (dir == DIR_Y_NEG) { // -Y
-                normal = normals[3];
-            }
-            else if (dir == DIR_Z_POS) { // Z
-                normal = normals[4];
-            }
-            else { // -Z
-                normal = normals[5];
-            }
-
+            vec3 normal = normals[dir];
             vec3 world_pos = vec3(pos) + vec3(position) * float(CHUNK_SIZE) + vec3(0.5);
-            create_quad(world_pos, dir, uvec2(width, height), normal);
+            create_quad(world_pos, dir, uvec2(width, height), normal, false, voxels[index].data.x);
         }
     }
 }
 
-void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal)
+void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal, bool water, uint type)
 {
     vertex_t v[4];
 
@@ -242,18 +287,57 @@ void create_quad(vec3 pos, uint dir, uvec2 size, vec3 normal)
     v[2].uv_x = 1.0; v[2].uv_y = 1.0;
     v[3].uv_x = 0.0; v[3].uv_y = 1.0;
 
+    if (type == GRASS) {
+        v[0].color = vec4(0.09, 0.59, 0.21, 1);
+        v[1].color = vec4(0.09, 0.59, 0.21, 1);
+        v[2].color = vec4(0.09, 0.59, 0.21, 1);
+        v[3].color = vec4(0.09, 0.59, 0.21, 1);
+    }
+    else if (type == SAND) {
+        v[0].color = vec4(0.85, 0.82, 0.44, 1);
+        v[1].color = vec4(0.85, 0.82, 0.44, 1);
+        v[2].color = vec4(0.85, 0.82, 0.44, 1);
+        v[3].color = vec4(0.85, 0.82, 0.44, 1);
+    }
+    else if (type == SANDSTONE) {
+        v[0].color = vec4(0.99, 0.83, 0.61, 1);
+        v[1].color = vec4(0.99, 0.83, 0.61, 1);
+        v[2].color = vec4(0.99, 0.83, 0.61, 1);
+        v[3].color = vec4(0.99, 0.83, 0.61, 1);
+    }
+
     const uint vertex_base = atomicAdd(active_count, 4);
-    const uint index_base = atomicAdd(indexCount, 6);
 
-    vertices[vertex_base + 0] = v[0];
-    vertices[vertex_base + 1] = v[1];
-    vertices[vertex_base + 2] = v[2];
-    vertices[vertex_base + 3] = v[3];
+    if (water)
+    {
+        uint index_base = atomicAdd(water_cmd.index_count, 6);
 
-    indices[index_base + 0] = vertex_base + 0;
-    indices[index_base + 1] = vertex_base + 1;
-    indices[index_base + 2] = vertex_base + 2;
-    indices[index_base + 3] = vertex_base + 0;
-    indices[index_base + 4] = vertex_base + 2;
-    indices[index_base + 5] = vertex_base + 3;
+        water_vertices[vertex_base + 0] = v[0];
+        water_vertices[vertex_base + 1] = v[1];
+        water_vertices[vertex_base + 2] = v[2];
+        water_vertices[vertex_base + 3] = v[3];
+
+        water_indices[index_base + 0] = vertex_base + 0;
+        water_indices[index_base + 1] = vertex_base + 1;
+        water_indices[index_base + 2] = vertex_base + 2;
+        water_indices[index_base + 3] = vertex_base + 0;
+        water_indices[index_base + 4] = vertex_base + 2;
+        water_indices[index_base + 5] = vertex_base + 3;
+    }
+    else
+    {
+        uint index_base = atomicAdd(indexCount, 6);
+
+        vertices[vertex_base + 0] = v[0];
+        vertices[vertex_base + 1] = v[1];
+        vertices[vertex_base + 2] = v[2];
+        vertices[vertex_base + 3] = v[3];
+
+        indices[index_base + 0] = vertex_base + 0;
+        indices[index_base + 1] = vertex_base + 1;
+        indices[index_base + 2] = vertex_base + 2;
+        indices[index_base + 3] = vertex_base + 0;
+        indices[index_base + 4] = vertex_base + 2;
+        indices[index_base + 5] = vertex_base + 3;
+    }
 }

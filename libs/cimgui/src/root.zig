@@ -74,12 +74,8 @@ pub fn InputInt(label: []const u8, v: *i32) bool {
     return c.ImGui_InputInt(@ptrCast(label), @ptrCast(v));
 }
 
-pub fn InputUint(label: []const u8, v: *u32) bool {
-    if (v.* > std.math.maxInt(i32)) { // overflow
-        return false;
-    }
-
-    return c.ImGui_InputInt(@ptrCast(label), @ptrCast(v));
+pub fn InputU32(label: []const u8, v: *u32) bool {
+    return c.ImGui_InputScalar(@ptrCast(label), c.ImGuiDataType_U32, @ptrCast(v));
 }
 
 pub fn InputFloat(label: []const u8, v: *f32) bool {

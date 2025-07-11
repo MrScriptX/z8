@@ -1,10 +1,3 @@
-const std = @import("std");
-const c = @import("../../clibs.zig");
-const queue = @import("queue_family.zig");
-const sw = @import("swapchain.zig");
-const opt = @import("../../options.zig");
-const sdl = @import("sdl3");
-
 const Error = error{
     Failed,
     VkInstance,
@@ -16,7 +9,7 @@ const Error = error{
 };
 
 pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
-    const app_info = c.VkApplicationInfo{
+    const app_info = vk.ApplicationInfo {
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = null,
         .pApplicationName = "vzig",
@@ -46,7 +39,7 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     try layers.append("VK_LAYER_KHRONOS_validation");
     try layers.append("VK_LAYER_KHRONOS_synchronization2");
 
-    const instance_info = c.VkInstanceCreateInfo {
+    const instance_info = vk.InstanceCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = null,
         .flags = 0,
@@ -58,18 +51,17 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     };
 
     var instance: c.VkInstance = undefined;
-    const result = c.vkCreateInstance(&instance_info, null, &instance);
-    if (result != c.VK_SUCCESS) {
-        std.log.err("Unable to create Vulkan instance ! Reason {d}", .{ result });
+    vk.CreateInstance(&instance_info, null, &instance) catch |err| {
+        std.log.err("Unable to create Vulkan instance ! Reason {any}", .{ err });
         return Error.VkInstance;
-    }
+    };
 
     return instance;
 }
 
 pub fn create_surface(window: ?*sdl.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
     var surface: c.VkSurfaceKHR = undefined;
-    const result = sdl.SDL_Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
+    const result = sdl.Vulkan_CreateSurface(window, @ptrCast(instance), null, &surface);
     if (result == false) {
         std.log.err("Unable to create Vulkan surface: {s}", .{ sdl.SDL_GetError() });
         return Error.VkSurface;
@@ -78,33 +70,33 @@ pub fn create_surface(window: ?*sdl.SDL_Window, instance: c.VkInstance) !c.VkSur
     return surface;
 }
 
-pub fn select_physical_device(alloc: std.mem.Allocator, instance: c.VkInstance, surface: c.VkSurfaceKHR) !c.VkPhysicalDevice {
+pub fn select_physical_device(allocator: std.mem.Allocator, instance: c.VkInstance, surface: c.VkSurfaceKHR) !vk.PhysicalDevice {
     var device_count: u32 = 0;
-    const enum_device = c.vkEnumeratePhysicalDevices(instance, &device_count, null);
-    if (enum_device != c.VK_SUCCESS) {
-        std.log.err("Failed to enumerate devices. Reason {d}", .{ enum_device });
-        return Error.EnumDevice;
-    }
+    vk.EnumeratePhysicalDevices(instance, &device_count, null) catch |err| {
+        if (err != vk.Error.INCOMPLETE) {
+            std.log.err("Failed to enumerate devices. Reason {any}", .{ err });
+            return Error.EnumDevice;
+        }
+    };
 
     if (device_count == 0) {
         std.log.err("No Vulkan devices found", .{});
         return Error.NoDevice;
     }
 
-    var arena = std.heap.ArenaAllocator.init(alloc);
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    const devices = try allocator.alloc(vk.PhysicalDevice, device_count);
+    defer allocator.free(devices);
 
-    const devices = try allocator.alloc(c.VkPhysicalDevice, device_count);
-    const result = c.vkEnumeratePhysicalDevices(instance, &device_count, devices.ptr);
-    if (result != c.VK_SUCCESS) {
-        std.log.err("Unable to enumerate Vulkan devices: {d}", .{ result });
-        return Error.EnumDevice;
-    }
+    vk.EnumeratePhysicalDevices(instance, &device_count, devices.ptr) catch |err| {
+        if (err != vk.Error.INCOMPLETE) {
+            std.log.err("Failed to enumerate devices. Reason {any}", .{ err });
+            return Error.EnumDevice;
+        }
+    };
 
-    var physical_device: ?c.VkPhysicalDevice = null;
+    var physical_device: ?vk.PhysicalDevice = null;
     for (devices) |device| {
-        if (try check_device(alloc, surface, device)) {
+        if (try check_device(allocator, surface, device)) {
             physical_device = device;
             break;
         }
@@ -134,14 +126,25 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
     try queue_create_infos.append(graphic_queue_create_info);
 
     if (indices.graphics != indices.present) {
-        const present_qeueu_create_info = c.VkDeviceQueueCreateInfo{
+        const present_queue_create_info = c.VkDeviceQueueCreateInfo{
             .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .queueFamilyIndex = indices.present,
             .queueCount = 1,
             .pQueuePriorities = &queue_priority,
         };
 
-        try queue_create_infos.append(present_qeueu_create_info);
+        try queue_create_infos.append(present_queue_create_info);
+    }
+
+    if (indices.graphics != indices.compute and indices.present != indices.compute) {
+        const compute_queue_create_info = c.VkDeviceQueueCreateInfo {
+            .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = indices.compute,
+            .queueCount = 1,
+            .pQueuePriorities = &queue_priority,
+        };
+
+        try queue_create_infos.append(compute_queue_create_info);
     }
 
     // create device info
@@ -175,11 +178,10 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
     };
 
     var device: c.VkDevice = undefined;
-    const result = c.vkCreateDevice(physical_device, &device_create_info, null, &device);
-    if (result != c.VK_SUCCESS) {
-        std.log.err("Unable to create Vulkan device ! Reason {d}", .{ result });
+    vk.CreateDevice(physical_device, &device_create_info, null, &device) catch |err| {
+        std.log.err("Unable to create Vulkan device ! Reason {any}", .{ err });
         return Error.DeviceCreation;
-    }
+    };
 
     return device;
 }
@@ -187,8 +189,11 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
 pub fn get_device_queue(device: c.VkDevice, indices: queue.indices_t) !queue.queues_t {
     var queues: queue.queues_t = undefined;
 
-    c.vkGetDeviceQueue(device, indices.graphics, 0, &queues.graphics);
-    c.vkGetDeviceQueue(device, indices.present, 0, &queues.present);
+    vk.GetDeviceQueue(device, indices.graphics, 0, &queues.graphics);
+    vk.GetDeviceQueue(device, indices.present, 0, &queues.present);
+    vk.GetDeviceQueue(device, indices.compute, 0, &queues.compute);
+
+    std.log.debug("graphic queue {d}, present queue {d}, compute queue {d}", .{ indices.graphics, indices.present, indices.compute });
 
     return queues;
 }
@@ -224,7 +229,7 @@ fn check_device(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, device: c.VkP
 
     var swapchain_supported: bool = false;
     if (extensions_supported) {
-        const swapchain_details = try query_swapchain_support(alloc, device, surface);
+        const swapchain_details = query_swapchain_support(alloc, device, surface);
         defer swapchain_details.deinit();
 
         swapchain_supported = swapchain_details.formats.len != 0 and swapchain_details.present_modes.len != 0;
@@ -247,22 +252,20 @@ fn check_device(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, device: c.VkP
 
 fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysicalDevice) !bool {
     var extension_count: u32 = 0;
-    const count = c.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, null);
-    if (count != c.VK_SUCCESS) {
-        std.log.err("Failed to enumerate device extensions. Reason {d}", .{ count });
+    vk.EnumerateDeviceExtensionProperties(device, null, &extension_count, null) catch |err| {
+        std.log.err("Failed to enumerate device extensions. Reason {any}", .{ err });
         return Error.DeviceExtension;
-    }
+    };
 
     var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
     const allocator = arena.allocator();
 
     const available_extensions = try allocator.alloc(c.VkExtensionProperties, extension_count);
-    const result = c.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr);
-    if (result != c.VK_SUCCESS) {
-        std.log.err("Failed to get device extensions. Reason {d}", .{ result });
+    vk.EnumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr) catch |err| {
+        std.log.err("Failed to get device extensions. Reason {any}", .{ err });
         return Error.DeviceExtension;
-    }
+    };
 
     const required_extensions = [_][]const u8{
         "VK_KHR_swapchain",
@@ -286,62 +289,82 @@ fn check_device_extensions_support(alloc: std.mem.Allocator, device: c.VkPhysica
     return match_extensions == required_extensions.len;
 }
 
-fn query_swapchain_support(alloc: std.mem.Allocator, device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !sw.details_t {
-    var sw_details = sw.details_t.init(alloc);
+fn query_swapchain_support(allocator: std.mem.Allocator, device: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) sw.details_t {
+    var sw_details = sw.details_t.init(allocator);
 
-    const capabilities = c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities);
-    if (capabilities != c.VK_SUCCESS) {
-        std.log.err("Failed to get surface capabilities. Reason {d}", .{ capabilities });
-    }
+    vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &sw_details.capabilities) catch |err| {
+        std.log.warn("Failed to get surface capabilities. Reason {any}", .{ err });
+    };
+
 
     var format_count: u32 = 0;
-    _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null);
+    vk.GetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, null) catch |err| {
+        std.log.warn("Failed to retrieve format count. Reason {any}", .{ err });
+    };
 
     if (format_count != 0) {
         sw_details.resize_formats(@intCast(format_count));
-        _ = c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr);
+        vk.GetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, sw_details.formats.ptr) catch |err| {
+            std.log.warn("Failed to retrieve surface format. Reason {any}", .{ err });
+        };
     }
 
     var present_mode_count: u32 = 0;
-    _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null);
+    vk.GetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
+        std.log.warn("Failed to retrieve surface present modes count. Reason {any}", .{ err });
+    };
 
     if (present_mode_count != 0) {
         sw_details.resize_present_modes(@intCast(present_mode_count));
-        _ = c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, sw_details.present_modes.ptr);
+        vk.GetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, null) catch |err| {
+            std.log.warn("Failed to retrieve surface present modes. Reason {any}", .{ err });
+        };
     }
 
     return sw_details;
 }
 
-fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, physical_device: c.VkPhysicalDevice) !queue.indices_t {
+pub fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, physical_device: c.VkPhysicalDevice) !queue.indices_t {
     var queue_family_count: u32 = 0;
-    c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
+    vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, null);
+    
+    std.log.debug("Queue family count: {d}", .{ queue_family_count });
 
     var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
     const allocator = arena.allocator();
 
     const queue_families = try allocator.alloc(c.VkQueueFamilyProperties, queue_family_count);
-    c.vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.ptr);
+    vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.ptr);
 
+    var compute_family: ?usize = null;
     var graphics_family: ?usize = null;
     var present_family: ?usize = null;
     for (queue_families, 0..) |family, index| {
-        if (family.queueCount > 0 and family.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
-            graphics_family = index;
+        // find one graphic queue
+        if (graphics_family == null) {
+            if (family.queueCount > 0 and family.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
+                graphics_family = index;
+            }
+
+            var present_support: c.VkBool32 = c.VK_FALSE;
+            const result = c.vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, @intCast(index), surface, &present_support);
+            if (result != c.VK_SUCCESS) {
+                std.log.warn("No present support found ! Reason {d}", .{ result });
+            }
+
+            if (family.queueCount > 0 and present_support == c.VK_TRUE) {
+                present_family = index;
+            }
         }
 
-        var present_support: c.VkBool32 = c.VK_FALSE;
-        const result = c.vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, @intCast(index), surface, &present_support);
-        if (result != c.VK_SUCCESS) {
-            std.log.warn("No present support found ! Reason {d}", .{ result });
+        // find present family
+        if (family.queueCount > 0 and family.queueFlags & c.VK_QUEUE_COMPUTE_BIT != 0) {
+            compute_family = index;
         }
 
-        if (family.queueCount > 0 and present_support == c.VK_TRUE) {
-            present_family = index;
-        }
-
-        if (graphics_family != null and present_family != null) {
+        // check if we have found 
+        if (graphics_family != compute_family and graphics_family != null and present_family != null) {
             break;
         }
     }
@@ -349,7 +372,20 @@ fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, physical
     const family_indices = queue.indices_t {
         .graphics = @intCast(graphics_family.?),
         .present = @intCast(present_family.?),
+        .compute = @intCast(compute_family.?)
     };
+
+    std.log.debug("graphics family index {d}", .{ family_indices.graphics });
+    std.log.debug("present family index {d}", .{ family_indices.present });
+    std.log.debug("compute family index {d}", .{ family_indices.compute });
 
     return family_indices;
 }
+
+const std = @import("std");
+const vk = @import("vk_wrapper.zig");
+const c = @import("../../clibs.zig");
+const queue = @import("queue_family.zig");
+const sw = @import("swapchain.zig");
+const opt = @import("../../options.zig");
+const sdl = @import("sdl3");

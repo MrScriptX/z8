@@ -1,29 +1,121 @@
 const MaterialPipelines = struct {
-    default: *chunk.Material,
-    polygone: *chunk.Material,
+    allocator: std.mem.Allocator,
+
+    default: chunk.Materials,
+    normals: chunk.Materials,
+    polygone: chunk.Materials,
+
+    pub fn init(allocator: std.mem.Allocator) !MaterialPipelines {
+        return MaterialPipelines{
+            .allocator = allocator,
+            .default = .{
+                .block = try allocator.create(chunk.Material),
+                .water = try allocator.create(chunk.Material),
+            },
+            .normals = .{
+                .block = try allocator.create(chunk.Material),
+                .water = try allocator.create(chunk.Material),
+            },
+            .polygone = .{
+                .block = try allocator.create(chunk.Material),
+                .water = try allocator.create(chunk.Material),
+            },
+        };
+    }
+
+    pub fn deinit(self: *MaterialPipelines, device: c.VkDevice) void {
+        self.default.block.deinit(device);
+        self.default.water.deinit(device);
+        self.normals.block.deinit(device);
+        self.normals.water.deinit(device);
+        self.polygone.block.deinit(device);
+        self.polygone.water.deinit(device);
+
+        self.allocator.destroy(self.default.block);
+        self.allocator.destroy(self.default.water);
+        self.allocator.destroy(self.normals.block);
+        self.allocator.destroy(self.normals.water);
+        self.allocator.destroy(self.polygone.block);
+        self.allocator.destroy(self.polygone.water);
+    }
+
+    pub fn build(self: *MaterialPipelines, dir: []const u8, r: *const renderer.Renderer) !void {
+        const default_vert = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/block.vert.spv" });
+        defer self.allocator.free(default_vert);
+
+        const default_frag = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/block.frag.spv" });
+        defer self.allocator.free(default_frag);
+
+        const normals_vert = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/cube.vert.spv" });
+        defer self.allocator.free(normals_vert);
+
+        const normals_frag = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/cube.frag.spv" });
+        defer self.allocator.free(normals_frag);
+        
+        const water_vert = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.vert.spv" });
+        defer self.allocator.free(water_vert);
+
+        const water_frag = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.frag.spv" });
+        defer self.allocator.free(water_frag);
+
+        self.default.block.* = chunk.Material.init(self.allocator);
+        self.default.block.build(self.allocator, default_vert, default_frag, c.VK_POLYGON_MODE_FILL, false, r) catch |err| {
+            std.log.err("Failed to build default block pipeline", .{});
+            return err;
+        };
+
+        self.default.water.* = chunk.Material.init(self.allocator);
+        self.default.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch |err| {
+            std.log.err("Failed to build default water pipeline", .{});
+            return err;
+        };
+
+        self.normals.block.* = chunk.Material.init(self.allocator);
+        self.normals.block.build(self.allocator, normals_vert, normals_frag, c.VK_POLYGON_MODE_FILL, false, r) catch |err| {
+            std.log.err("Failed to build normals block pipeline", .{});
+            return err;
+        };
+
+        self.normals.water.* = chunk.Material.init(self.allocator);
+        self.normals.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch |err| {
+            std.log.err("Failed to build normals water pipeline", .{});
+            return err;
+        };
+
+        self.polygone.block.* = chunk.Material.init(self.allocator);
+        self.polygone.block.build(self.allocator, default_vert, default_frag, c.VK_POLYGON_MODE_LINE, false, r) catch |err| {
+            std.log.err("Failed to build polygone block pipeline", .{});
+            return err;
+        };
+
+        self.polygone.water.* = chunk.Material.init(self.allocator);
+        self.polygone.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_LINE, true, r) catch |err| {
+            std.log.err("Failed to build polygone water pipeline", .{});
+            return err;
+        };
+    }
 };
 
 const State = struct {
     pipeline: i32 = 0,
 
     seed: u32 = 0, // world seed
-    radius: u8 = 10,
+    radius: u8 = 5,
+    position: @Vector(3, i32)
 };
 
 // TODO : implement UI to chose which node to display
 pub const VoxelScene = struct {
+    allocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
 
     state: State,
 
+    shaders: chunk.Shaders,
     pipelines: MaterialPipelines,
 
-    // compute shaders
-    cl_shader: *chunk.ClassificationShader,
-    culling_shader: *chunk.FaceCullingShader,
-    shader: *chunk.MeshComputeShader,
-
     world: std.ArrayList(Chunk),
+    wait_queue: std.ArrayList(Chunk),
     deletion_queue: std.ArrayList(Chunk), // use as a garbage collector
     global_data: scenes.ShaderData,
 
@@ -32,10 +124,11 @@ pub const VoxelScene = struct {
 
     const Chunk = struct {
         ptr: *chunk.Chunk,
+        update: bool = false,
         pos: @Vector(3, i32)
     };
 
-    pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) !VoxelScene {
+    pub fn init(allocator: std.mem.Allocator, r: *renderer.Renderer) !VoxelScene {
         var prng = std.Random.DefaultPrng.init(blk: {
             var seed: u64 = undefined;
             try std.posix.getrandom(std.mem.asBytes(&seed));
@@ -44,59 +137,87 @@ pub const VoxelScene = struct {
         const rand = prng.random();
         
         var scene = VoxelScene {
+            .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
-            .pipelines = undefined,
-            .cl_shader = undefined,
-            .culling_shader = undefined,
-            .shader = undefined,
-            .global_data = .{},
+            .pipelines = try MaterialPipelines.init(allocator),
+            .shaders = .{
+                .classification = try allocator.create(shader.ClassificationShader),
+                .face_culling = try allocator.create(shader.FaceCullingShader),
+                .meshing = try allocator.create(shader.MeshComputeShader),
+                .frustrum_culling = try allocator.create(shader.FrustrumCulling)
+            },
+            .global_data = .{
+                .sunlight_color = .{ 1.0, 1.0, 1.0, 1.0 },
+                .ambient_color = .{ 0.35, 0.35, 0.5, 1.0 },
+            },
             .draw_ctx = undefined,
             .background_ctx = undefined,
             .state = .{
-                .seed = rand.int(u32)
+                .seed = rand.int(u32),
+                .position = .{ 0, 0, 0 }
             },
-            .world = std.ArrayList(Chunk).init(allocator),
-            .deletion_queue = std.ArrayList(Chunk).init(allocator)
+            .world = undefined,
+            .wait_queue = std.ArrayList(Chunk).init(allocator),
+            .deletion_queue = std.ArrayList(Chunk).init(allocator),
         };
 
-        scene.cl_shader = try scene.arena.allocator().create(chunk.ClassificationShader);
-        scene.cl_shader.* = chunk.ClassificationShader.init(allocator);
-        try scene.cl_shader.build(allocator, "./zig-out/bin/shaders/aurora/cl.comp.spv", r);
-
-        scene.culling_shader = try scene.arena.allocator().create(chunk.FaceCullingShader);
-        scene.culling_shader.* = chunk.FaceCullingShader.init(allocator);
-        try scene.culling_shader.build(allocator, "./zig-out/bin/shaders/aurora/face_culling.comp.spv", r);
-
-        scene.shader = try scene.arena.allocator().create(chunk.MeshComputeShader);
-        scene.shader.* = chunk.MeshComputeShader.init(allocator, "voxel");
-        try scene.shader.build(allocator, "./zig-out/bin/shaders/aurora/meshing2.comp.spv", r);
-
-        std.log.info("Build voxel default pipeline", .{});
-
-        scene.pipelines.default = try scene.arena.allocator().create(chunk.Material);
-        scene.pipelines.default.* = chunk.Material.init(allocator);        
-        scene.pipelines.default.build(allocator, c.VK_POLYGON_MODE_FILL, r) catch {
-            std.log.err("Failed to build pipeline", .{});
+        // allocate chunk map memory
+        const nb_chunks = std.math.pow(u32, scene.state.radius * 2, 2);
+        scene.world = std.ArrayList(Chunk).initCapacity(allocator, nb_chunks) catch |err| {
+            std.log.warn("Failed to allocate memory for chunks", .{});
+            return err;
         };
 
-        std.log.info("Build voxel debug pipeline", .{});
+        // get local directory (exe)
+        const dir = try std.fs.selfExeDirPathAlloc(allocator);
+        defer allocator.free(dir);
 
-        scene.pipelines.polygone = try scene.arena.allocator().create(chunk.Material);
-        scene.pipelines.polygone.* = chunk.Material.init(allocator);
-        scene.pipelines.polygone.build(allocator, c.VK_POLYGON_MODE_LINE, r) catch {
-            std.log.err("Failed to build pipeline", .{});
+        // build classification shader
+        const world_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/world.comp.spv" });
+        defer allocator.free(world_comp);
+
+        scene.shaders.classification.* = shader.ClassificationShader.init(allocator);
+        try scene.shaders.classification.build(allocator, world_comp, r);
+
+        // build face culling shader 
+        const face_culling_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/face_culling.comp.spv" });
+        defer allocator.free(face_culling_comp);
+
+        scene.shaders.face_culling.* = shader.FaceCullingShader.init(allocator);
+        try scene.shaders.face_culling.build(allocator, face_culling_comp, r);
+
+        // meshing shader
+        const meshing_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/meshing2.comp.spv" });
+        defer allocator.free(meshing_comp);
+
+        scene.shaders.meshing.* = shader.MeshComputeShader.init(allocator, "voxel");
+        try scene.shaders.meshing.build(allocator, meshing_comp, r);
+
+        // frustrum shader
+        const frustrum_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/frustrum_culling.comp.spv" });
+        defer allocator.free(frustrum_comp);
+
+        scene.shaders.frustrum_culling.* = shader.FrustrumCulling.init(allocator);
+        try scene.shaders.frustrum_culling.build(allocator, frustrum_comp, r);
+
+        // build material pipelines
+        scene.pipelines.build(dir, r) catch |err| {
+            std.log.err("Failed to build material pipelines: {any}", .{err});
+            return err;
         };
+
+        // TODO : sky box should be handled from the scene
 
         scene.draw_ctx.global_data = &scene.global_data;
-        scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
-        scene.draw_ctx.transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
+        scene.draw_ctx.opaque_surfaces = try std.ArrayList(material.RenderObject).initCapacity(allocator, nb_chunks);
+        scene.draw_ctx.transparent_surfaces = try std.ArrayList(material.RenderObject).initCapacity(allocator, nb_chunks);
 
         scene.build_world();
 
         return scene;
     }
 
-    pub fn deinit(self: *VoxelScene, r: *renderer.renderer_t) void {
+    pub fn deinit(self: *VoxelScene, r: *renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
@@ -104,26 +225,38 @@ pub const VoxelScene = struct {
 
         self.draw_ctx.deinit();
         
+        for (self.wait_queue.items) |*it| {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
+                it.ptr.deinit(r._vma, r);
+            }
+        }
+        self.wait_queue.deinit();
+
         for (self.deletion_queue.items) |*it| {
-            if (it.ptr.updated) {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
             }
         }
         self.deletion_queue.deinit();
 
         for (self.world.items) |*it| {
-            if (it.ptr.updated) {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
             }
         }
         self.world.deinit();
 
-        self.pipelines.default.deinit(r._device);
-        self.pipelines.polygone.deinit(r._device);
+        self.pipelines.deinit(r._device);
 
-        self.cl_shader.deinit(r);
-        self.culling_shader.deinit(r);
-        self.shader.deinit(r);
+        self.shaders.classification.deinit(r);
+        self.shaders.face_culling.deinit(r);
+        self.shaders.meshing.deinit(r);
+        self.shaders.frustrum_culling.deinit(r);
+
+        self.allocator.destroy(self.shaders.classification);
+        self.allocator.destroy(self.shaders.face_culling);
+        self.allocator.destroy(self.shaders.meshing);
+        self.allocator.destroy(self.shaders.frustrum_culling);
 
         self.arena.deinit();
     }
@@ -131,16 +264,19 @@ pub const VoxelScene = struct {
     pub fn build_world(self: *VoxelScene) void {
         std.log.info("Intializing world. seed {d}, radius {d}", .{ self.state.seed, self.state.radius });
 
-        for (0..self.state.radius) |x| {
-            for (0..self.state.radius) |z| {
+        const start = self.state.position - @Vector(3, i32){ self.state.radius, 0, self.state.radius };
+
+        for (0..self.state.radius * 2) |x| {
+            for (0..self.state.radius * 2) |z| {
                 const ptr = self.arena.allocator().create(chunk.Chunk) catch {
                     std.log.err("Failed to allocate memory for chunk", .{});
                     @panic("Out of memory !");
                 };
 
+                const offset = @Vector(3, i32){ @intCast(x), 0, @intCast(z) };
                 const it = Chunk {
                     .ptr = ptr,
-                    .pos = .{ @intCast(x), 0, @intCast(z) }
+                    .pos = start + offset
                 };
 
                 self.world.append(it) catch @panic("Out of memory !");
@@ -148,7 +284,7 @@ pub const VoxelScene = struct {
         }
     }
 
-    pub fn clear(self: *VoxelScene, r: *const renderer.renderer_t) void {
+    pub fn clear(self: *VoxelScene, r: *const renderer.Renderer) void {
         std.log.info("Clearing world", .{});
 
         const result = c.vkDeviceWaitIdle(r._device);
@@ -162,45 +298,136 @@ pub const VoxelScene = struct {
         self.world.clearRetainingCapacity();
     }
 
-    pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.renderer_t) void {
+    pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.Renderer) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
-        const to_delete = self.deletion_queue.pop();
+        // process wait queue
+        // const frame = r._frameNumber % 2;
+        // for (self.wait_queue.items, 0..) |*it, i| {
+        //     it.in_use[frame] = false;
+        //     if (!it.in_use[0] and !it.in_use[1] and !it.in_use[2]) {
+        //         self.deletion_queue.append(it.*) catch {
+        //             std.log.warn("Memory leak ! Cannot set chunk for deletion.", .{});
+        //         };
+        //         _ = self.wait_queue.swapRemove(i);
+        //     }
+        // }
+
+        // process delete queue
+        var to_delete = self.deletion_queue.pop();
         if (to_delete) |*it| {
-            if (it.ptr.updated) {
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
             }
         }
 
+        // process world queue
         for (self.world.items) |*it| {
-            if (!it.ptr.updated) {
-                std.log.info("Creating chunk {any}", .{ it.pos });
+            // check if chunk is in radius
 
-                it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.culling_shader, self.cl_shader, self.shader, self.pipelines.default, r);
+            // check if chunk needs to be built
+            if (!it.update) {
+                it.update = true; // mark as queued for update (for later use)
+
+                if (r.compute_queue) |task_queue| {
+                    const ctx = allocator.create(Ctx) catch {
+                        std.log.warn("Failed to allocate memory for chunk context", .{});
+                        it.update = false;
+                        continue;
+                    };
+                    ctx.* = .{
+                        .it = it,
+                        .r = r,
+                        .allocator = allocator,
+                        .self = self,
+                        .src_queue = task_queue.submit.queue_index,
+                        .dst_queue = r._queue_indices.graphics
+                    };
+                    task_queue.enqueue(&build_chunk, &on_build_success, @ptrCast(ctx)) catch {
+                        std.log.warn("Queuing chunk for build failed", .{});
+                        it.update = false;
+                        continue;
+                    };
+                }
+                else {
+                    const mat: chunk.Materials = switch(self.state.pipeline) {
+                        0 => self.pipelines.default,
+                        1 => self.pipelines.polygone,
+                        2 => self.pipelines.normals,
+                        else => self.pipelines.default,
+                    };
+
+                    it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, mat, r) catch {
+                        std.log.err("Failed to create chunk : Out of memory", .{});
+                        @panic("Out Of Memory !");
+                    };
                 
-                r.submit.start_recording(r);
-                it.ptr.dispatch(r.submit.cmd);
-                r.submit.submit(r);
+                    r.submit.start_recording(r);
+                    it.ptr.dispatch(r.submit.cmd, r._queue_indices.graphics, r._queue_indices.graphics);
+                    r.submit.submit(r);
 
-                it.ptr.updated = true;
+                    it.ptr.ready.store(true, std.builtin.AtomicOrder.seq_cst);
 
-                break; // only build one at the time for latency
+                    break; // only build one at the time for latency
+                }
             }
         }
 
         cam.update(r.stats.frame_time);
-        self.draw(cam, r._draw_extent);
+        self.draw(cam, r._draw_extent, r.stats.frame_time / 1_000_000_000.0, r._frameNumber);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
     }
 
-    pub fn update_ui(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+    const Ctx = struct {
+        it: *Chunk,
+        r: *renderer.Renderer,
+        allocator: std.mem.Allocator,
+        self: *VoxelScene,
+        src_queue: u32,
+        dst_queue: u32
+    };
+
+    pub fn build_chunk(ctx: *anyopaque, cmd: c.VkCommandBuffer) void {
+        const unwrap: *Ctx = @alignCast(@ptrCast(ctx));
+        var it = unwrap.it;
+        const r = unwrap.r;
+        const allocator = unwrap.allocator;
+        const self = unwrap.self;
+
+        std.log.info("Creating chunk {any}", .{ it.pos });
+
+        const mat: chunk.Materials = switch(self.state.pipeline) {
+            0 => self.pipelines.default,
+            1 => self.pipelines.polygone,
+            2 => self.pipelines.normals,
+            else => self.pipelines.default,
+        };
+
+        it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, mat, r) catch {
+            std.log.err("Failed to create chunk : Out of memory", .{});
+            @panic("Out Of Memory !");
+        };
+        it.ptr.dispatch(cmd, unwrap.src_queue, unwrap.dst_queue);
+    }
+
+    pub fn on_build_success(ctx: *anyopaque) void {
+        const unwrap: *Ctx = @alignCast(@ptrCast(ctx));
+        var it = unwrap.it;
+        const allocator = unwrap.allocator;
+
+        it.ptr.ready.store(true, std.builtin.AtomicOrder.seq_cst);
+        allocator.destroy(unwrap);
+    }
+
+    pub fn update_ui(self: *VoxelScene, r: *const renderer.Renderer) void {
         const result = imgui.Begin("Scene", null, 0);
         if (result) {
             defer imgui.End();
 
-            if (imgui.InputUint("seed", &self.state.seed)) {
+            
+            if (imgui.InputU32("seed", &self.state.seed)) {
                 self.clear(r);
                 self.build_world();
             }
@@ -223,27 +450,31 @@ pub const VoxelScene = struct {
                 self.build_world();
             }
 
-            const pipeline_list = [_][*:0]const u8{ "default", "debug" };
+            const pipeline_list = [_][*:0]const u8{ "default", "debug", "normals" };
             if (imgui.ImGui_ComboChar("pipeline", &self.state.pipeline, @ptrCast(&pipeline_list), pipeline_list.len)) {
                 switch (self.state.pipeline) {
-                    0 => self.set_default_pipeline(allocator, r),
-                    1 => self.set_debug_pipeline(allocator, r),
+                    0 => self.set_pipelines(r, &self.pipelines.default),
+                    1 => self.set_pipelines(r, &self.pipelines.polygone),
+                    2 => self.set_pipelines(r, &self.pipelines.normals),
                     else => std.log.warn("Invalid pipeline value", .{})
                 }
             }
             
-            // TODO : global lighting
-            // imgui.ImGui_Text("sun direction");
-            // _ = imgui.SliderFloat("x", &data.sunlight_dir[0], -1, 1);
-            // _ = imgui.SliderFloat("y", &data.sunlight_dir[1], -1, 1);
-            // _ = imgui.SliderFloat("z", &data.sunlight_dir[2], -1, 1);
+            if (imgui.ImGui_ColorEdit4("sun color", &self.global_data.sunlight_color, 0)) {
+                // std.log.debug("update sun color {any}", self.global_data.sunlight_color);
+            }
 
-            // _ = imgui.ImGui_ColorEdit4("sun color", &data.sunlight_color, 0);
-            // _ = imgui.ImGui_ColorEdit4("ambient color", &data.ambient_color, 0);
+            if (imgui.ImGui_ColorEdit4("ambient color", &self.global_data.ambient_color, 0)) {
+                // std.log.debug("update ambient color {any}", self.global_data.ambient_color);
+            }
+
+            if (imgui.ImGui_SliderFloat3("sun dir", &self.global_data.sunlight_dir, -1, 1)) {
+                // std.log.debug("update sun direction {any}", self.global_data.sunlight_dir);
+            }
         }
     }
 
-    pub fn draw(self: *VoxelScene, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D) void {
+    pub fn draw(self: *VoxelScene, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D, delta_time: f32, frame: u32) void {
         // reset draw ctx
         // TODO : this should be done by the renderer
         self.draw_ctx.opaque_surfaces.clearRetainingCapacity();
@@ -260,26 +491,22 @@ pub const VoxelScene = struct {
         self.global_data.view = view.data;
         self.global_data.proj = proj.data;
         self.global_data.viewproj = za.Mat4.mul(proj, view).data;
+        self.global_data.time += delta_time;
+        self.global_data.time = @mod(self.global_data.time, 120);
 
         self.draw_ctx.global_data = &self.global_data;
 
         // fill draw ctx
         for (self.world.items) |*it| {
-            if (it.ptr.updated) {
-                it.ptr.update(&self.draw_ctx);
+            if (it.ptr.ready.load(std.builtin.AtomicOrder.seq_cst)) {
+                it.ptr.update(&self.draw_ctx, frame);
             }
         }
     }
 
-    pub fn set_debug_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
+    pub fn set_pipelines(self: *VoxelScene, r: *const renderer.Renderer, pipelines: *const chunk.Materials) void {
         for (self.world.items) |it| {
-            it.ptr.swap_pipeline(allocator, self.pipelines.polygone, r);
-        }
-    }
-
-    pub fn set_default_pipeline(self: *VoxelScene, allocator: std.mem.Allocator, r: *const renderer.renderer_t) void {
-        for (self.world.items) |it| {
-            it.ptr.swap_pipeline(allocator, self.pipelines.default, r);
+            it.ptr.swap_pipeline(pipelines, r);
         }
     }
 };
@@ -291,7 +518,9 @@ const c = @import("../clibs.zig");
 const renderer = @import("../engine/renderer.zig");
 const scenes = @import("../engine/scene/scene.zig");
 const cameras = @import("../engine/scene/camera.zig");
-const materials = @import("../engine/graphics/materials.zig");
+const material = @import("../engine/graphics/materials.zig");
 const maths = @import("../utils/maths.zig");
-const chunk = @import("../engine/scene/chunk.zig");
+const chunk = @import("voxel/chunk.zig");
+const shader = @import("../levels/voxel/shaders.zig");
 const compute = @import("../engine/graphics/compute.zig");
+const tasks = @import("../tasks.zig");

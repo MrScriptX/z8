@@ -19,7 +19,7 @@ const submit_t = struct {
     cmd: c.VkCommandBuffer = undefined,
     pool: c.VkCommandPool = undefined,
 
-    pub fn start_recording(self: *submit_t, r: *const renderer_t) void {
+    pub fn start_recording(self: *submit_t, r: *const Renderer) void {
         var result = c.vkResetFences(r._device, 1, &self.fence);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetFences failed with error {d}", .{ result });
@@ -42,7 +42,7 @@ const submit_t = struct {
         }
     }
 
-    pub fn submit(self: *submit_t, r: *const renderer_t) void {
+    pub fn submit(self: *submit_t, r: *const Renderer) void {
         var result = c.vkEndCommandBuffer(self.cmd);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkEndCommandBuffer failed with error {d}", .{ result });
@@ -82,7 +82,7 @@ const submit_t = struct {
     }
 };
 
-pub const renderer_t = struct {
+pub const Renderer = struct {
     var _render_scale: f32 = 1.0;
 
     // pipelines
@@ -92,6 +92,7 @@ pub const renderer_t = struct {
     pub var _grey_image: vk.image.image_t = undefined;
 
     // memory allocators
+    allocator: std.mem.Allocator,
     _arena: std.heap.ArenaAllocator = undefined,
     _vma: c.VmaAllocator = undefined,
 
@@ -122,6 +123,7 @@ pub const renderer_t = struct {
 
     // immediate submit structures
     submit: submit_t,
+    compute_queue: ?*tasks.TaskManager,
 
     // scene
     scene_descriptor: c.VkDescriptorSetLayout = undefined,
@@ -131,9 +133,12 @@ pub const renderer_t = struct {
     stats: stats_t,
     bg_shader: ?*effects.ComputeEffect,
 
-    pub fn init(allocator: std.mem.Allocator, window: ?*sdl.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !renderer_t {
-        var renderer = renderer_t{
+    pub fn init(allocator: std.mem.Allocator, window: ?*sdl.SDL_Window, width: u32, height: u32, camera: *cam.camera_t) !Renderer {
+        var renderer = Renderer{
+            .allocator = allocator,
             ._arena = std.heap.ArenaAllocator.init(allocator),
+
+            .compute_queue = null,
 
             .camera = camera,
             .stats = stats_t{},
@@ -149,6 +154,15 @@ pub const renderer_t = struct {
 
         try renderer.init_commands(allocator);
         try renderer.init_descriptors(allocator);
+
+        if (renderer._queue_indices.compute != renderer._queue_indices.graphics) {
+            renderer.compute_queue = try allocator.create(tasks.TaskManager);
+            renderer.compute_queue = tasks.TaskManager.init(allocator, renderer._device, renderer._queues.compute, renderer._queue_indices.compute);
+            renderer.compute_queue.?.start() catch {
+                std.log.err("Failed to start compute tasks manager", .{});
+                @panic("Unrecoverable error");
+            };
+        }
 
         std.log.info("Initiliazing GUI...", .{});
         _gui_context = gui.GuiContext.init(window, renderer._device, renderer._instance, renderer._gpu, renderer._queues.graphics, &renderer._sw._image_format.format) catch |e| {
@@ -172,7 +186,7 @@ pub const renderer_t = struct {
         return renderer;
     }
 
-    pub fn deinit(self: *renderer_t) void {
+    pub fn deinit(self: *Renderer) void {
         defer self._arena.deinit();
 
         const result = c.vkDeviceWaitIdle(self._device);
@@ -182,6 +196,12 @@ pub const renderer_t = struct {
 
         vk.image.destroy_image(self._device, self._vma, &_grey_image);
         vk.image.destroy_image(self._device, self._vma, &_black_image);
+
+        if (self.compute_queue) |queue| {
+            queue.stop();
+            queue.deinit();
+            self.allocator.destroy(queue);
+        }
 
         for (&self._frames) |*frame| {
             frame.deinit(self._device, self._vma);
@@ -207,10 +227,11 @@ pub const renderer_t = struct {
         c.vkDestroyInstance(self._instance, null);
     }
 
-    fn init_vulkan(self: *renderer_t, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) !void {
+    fn init_vulkan(self: *Renderer, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) !void {
         self._instance = try vk.init.init_instance(allocator);
         self._surface = try vk.init.create_surface(window, self._instance);
         self._gpu = try vk.init.select_physical_device(allocator, self._instance, self._surface);
+        self._queue_indices = try vk.init.find_queue_family(allocator, self._surface, self._gpu);
         self._device = try vk.init.create_device_interface(allocator, self._gpu, self._queue_indices);
         self._queues = try vk.init.get_device_queue(self._device, self._queue_indices);
 
@@ -229,7 +250,7 @@ pub const renderer_t = struct {
         }
     }
 
-    fn init_swapchain(self: *renderer_t, width: u32, height: u32) !void {
+    fn init_swapchain(self: *Renderer, width: u32, height: u32) !void {
         const window_extent = c.VkExtent2D{
             .width = width,
             .height = height,
@@ -279,7 +300,7 @@ pub const renderer_t = struct {
         _ = c.vkCreateImageView(self._device, &depth_view_info, null, &self._depth_image.view);
     }
 
-    fn init_commands(self: *renderer_t, allocator: std.mem.Allocator,) !void {
+    fn init_commands(self: *Renderer, allocator: std.mem.Allocator,) !void {
         self._frames = [_]frames.data_t{
             frames.data_t{},
             frames.data_t{},
@@ -289,12 +310,12 @@ pub const renderer_t = struct {
             try frame.init(allocator, self._device, self._queue_indices.graphics);
         }
 
-        self.submit.pool = try frames.create_command_pool(self._device, self._queue_indices.graphics);
-        self.submit.cmd = try frames.create_command_buffer(1, self._device, self.submit.pool);
-        self.submit.fence = try frames.create_fence(self._device);
+        self.submit.pool = try vk.commands.create_command_pool(self._device, self._queue_indices.graphics);
+        self.submit.cmd = try vk.commands.create_command_buffer(1, self._device, self.submit.pool);
+        self.submit.fence = try vk.commands.create_fence(self._device);
     }
 
-    fn init_descriptors(self: *renderer_t, allocator: std.mem.Allocator) !void {
+    fn init_descriptors(self: *Renderer, allocator: std.mem.Allocator) !void {
         const sizes = [_]descriptor.PoolSizeRatio{
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
@@ -342,7 +363,7 @@ pub const renderer_t = struct {
         }
     }
 
-    fn current_frame(self: *renderer_t) *frames.data_t {
+    fn current_frame(self: *Renderer) *frames.data_t {
         return &self._frames[self._frameNumber % frames.FRAME_OVERLAP];
     }
 
@@ -350,7 +371,7 @@ pub const renderer_t = struct {
         return @max(-n, n);
     }
 
-    fn next_image(self: *renderer_t) Error!u32 {
+    fn next_image(self: *Renderer) Error!u32 {
         var result = c.vkWaitForFences(self._device, 1, &self.current_frame()._render_fence, c.VK_TRUE, 1000000000);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkWaitForFences failed with error {d}\n", .{ result });
@@ -389,7 +410,7 @@ pub const renderer_t = struct {
         return image_index;
     }
 
-    fn begin_draw(self: *renderer_t) Error!c.VkCommandBuffer {
+    fn begin_draw_command(self: *Renderer) Error!c.VkCommandBuffer {
         var result = c.vkResetFences(self._device, 1, &self.current_frame()._render_fence);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkResetFences failed with error {x}\n", .{ result });
@@ -419,7 +440,7 @@ pub const renderer_t = struct {
         return cmd;
     }
 
-    fn submit_cmd(self: *renderer_t, cmd: c.VkCommandBuffer, image_index: u32) void {
+    fn submit_cmd(self: *Renderer, cmd: c.VkCommandBuffer, image_index: u32) void {
         var result = c.vkEndCommandBuffer(cmd);
         if (result != c.VK_SUCCESS) {
             std.log.warn("vkEndCommandBuffer failed with error {x}\n", .{ result });
@@ -477,7 +498,8 @@ pub const renderer_t = struct {
         }
     }
 
-    pub fn draw(self: *renderer_t, allocator: std.mem.Allocator) void {
+    pub fn draw(self: *Renderer, allocator: std.mem.Allocator) void {
+        // start thread
         const image_index = self.next_image() catch |err| {
             if (err == Error.OutOfDate) {
                 self.rebuild = true;
@@ -489,11 +511,13 @@ pub const renderer_t = struct {
         self.stats.drawcall_count = 0;
         self.stats.triangle_count = 0;
 
-        const cmd = self.begin_draw() catch {
+        const cmd = self.begin_draw_command() catch {
             return; // we skip for now
         };
 
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
+
+        // call tasks
 
         utils.transition_image(cmd, self._draw_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_GENERAL);
 
@@ -517,6 +541,9 @@ pub const renderer_t = struct {
 
         utils.transition_image(cmd, self._sw._images[image_index], c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
+        // end recording
+
+        // submit the command buffer
         self.submit_cmd(cmd, image_index);
 
         const end_time: u128 = @intCast(std.time.nanoTimestamp());
@@ -525,7 +552,7 @@ pub const renderer_t = struct {
         self._frameNumber += 1;
     }
 
-    pub fn draw_background(self: *renderer_t, cmd: c.VkCommandBuffer) void {
+    pub fn draw_background(self: *Renderer, cmd: c.VkCommandBuffer) void {
         const effect = self.bg_shader.?;
 
         // bind the gradient drawing compute pipeline
@@ -542,7 +569,7 @@ pub const renderer_t = struct {
 	    c.vkCmdDispatch(cmd, group_count_x, group_count_y, 1);
     }
 
-    fn draw_scene(self: *renderer_t, allocator: std.mem.Allocator, scene: *scenes.DrawContext, cmd: c.VkCommandBuffer) void {
+    fn draw_scene(self: *Renderer, allocator: std.mem.Allocator, scene: *scenes.DrawContext, cmd: c.VkCommandBuffer) void {
         //begin a render pass  connected to our draw image
 	    const color_attachment = c.VkRenderingAttachmentInfo {
             .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -623,7 +650,7 @@ pub const renderer_t = struct {
 	    c.vkCmdEndRendering(cmd);
     }
 
-    fn init_default_data(self: *renderer_t, _: std.mem.Allocator) !void {
+    fn init_default_data(self: *Renderer, _: std.mem.Allocator) !void {
         // initialize textures
         const grey: u32 align(4) = maths.pack_unorm4x8(.{ 0.66, 0.66, 0, 0.66 });
         _grey_image = vk.image.create_image_data(self._vma, self._device, @ptrCast(&grey), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &self.submit.fence, self.submit.cmd, self._queues.graphics);
@@ -644,7 +671,7 @@ pub const renderer_t = struct {
         return &_render_scale;
     }
 
-    pub fn rebuild_swapchain(self: *renderer_t, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) void {
+    pub fn rebuild_swapchain(self: *Renderer, allocator: std.mem.Allocator, window: ?*sdl.SDL_Window) void {
         const result = c.vkDeviceWaitIdle(self._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Failed to wait for device with error {d}", .{ result });
@@ -672,14 +699,14 @@ pub const renderer_t = struct {
         };
 
         for (&self._frames) |*frame| {
-            frame._sw_semaphore = try frames.create_semaphore(self._device);
+            frame._sw_semaphore = try vk.commands.create_semaphore(self._device);
         }
 
         std.log.info("swapchain rebuilt", .{});
         self.rebuild = false;
     }
 
-    fn destroy_swapchain(self: *renderer_t) void {
+    fn destroy_swapchain(self: *Renderer) void {
         self._sw.deinit(self._device);
 
         // destroy draw images
@@ -701,7 +728,7 @@ pub const renderer_t = struct {
         }
     }
 
-    pub fn update_scene(self: *renderer_t, scene: *scenes.scene_t) void {
+    pub fn update_scene(self: *Renderer, scene: *scenes.scene_t) void {
         const start_time: u128 = @intCast(std.time.nanoTimestamp());
 
         self.camera.update(self.stats.frame_time);
@@ -713,13 +740,121 @@ pub const renderer_t = struct {
     }
 };
 
+pub const RenderQueue = struct {
+    pub const TaskFn = *const fn(ctx: *anyopaque, cmd: c.VkCommandBuffer) void;
+    pub const Task = struct {
+        record: TaskFn,
+        ctx: *anyopaque,
+        cmd: c.VkCommandBuffer = undefined,
+        image_index: u32 = 0,
+    };
+
+    pub const TaskQueue = std.fifo.LinearFifo(Task, .Dynamic);
+
+    allocator: std.mem.Allocator,
+
+    record_queue: TaskQueue,
+    submit_queue: TaskQueue,
+
+    record_thread: ?std.Thread = null,
+    submit_thread: ?std.Thread = null,
+
+    running: bool = false,
+    renderer: Renderer = undefined,
+
+    pub fn init(allocator: std.mem.Allocator) RenderQueue {
+        return RenderQueue{
+            .allocator = allocator,
+            .record_queue = TaskQueue.init(allocator),
+            .submit_queue = TaskQueue.init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *RenderQueue) void {
+        self.stop();
+
+        self.record_queue.deinit();
+        self.submit_queue.deinit();
+    }
+
+    pub fn enqueue(self: *RenderQueue, record: TaskFn, ctx: *anyopaque) !void {
+        const task = Task{
+            .record = record,
+            .ctx = ctx,
+        };
+        try self.record_queue.writeItem(task);
+    }
+
+    pub fn record_worker(self: *RenderQueue) void {
+        while (self.running) {
+            if(self.record_queue.readItem()) |*task| {
+                task.image_index = self.renderer.next_image() catch |err| {
+                    if (err == Error.OutOfDate) {
+                        self.renderer.rebuild = true;
+                    }
+                    return;
+                };
+
+                // reset stats
+                self.stats.drawcall_count = 0;
+                self.stats.triangle_count = 0;
+
+                const cmd = self.renderer.begin_draw() catch {
+                    return; // we skip for now
+                };
+
+                task.record(task.ctx, cmd);
+
+                const result = c.vkEndCommandBuffer(cmd);
+                if (result != c.VK_SUCCESS) {
+                    std.log.warn("vkEndCommandBuffer failed with error {x}\n", .{ result });
+                }
+
+                task.cmd = cmd;
+                self.submit_queue.writeItem(task);
+            }
+            else {
+                std.time.sleep(1_000_000);
+            }
+        }
+    }
+
+    pub fn submit_worker(self: *RenderQueue) void {
+        while (self.running) {
+            if (self.submit_queue.readItem()) |task| {
+                const start_time: u128 = @intCast(std.time.nanoTimestamp());
+                
+                self.renderer.submit_cmd(task.cmd, task.cmd.image_index);
+                
+                const end_time: u128 = @intCast(std.time.nanoTimestamp());
+                self.renderer.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
+
+                self.renderer._frameNumber += 1;
+            }
+            else {
+                std.time.sleep(1_000_000);
+            }
+        }
+    }
+
+    pub fn stop(self: *RenderQueue) void {
+        self.running = false;
+
+        if (self.record_thread) |thread| thread.join();
+        self.record_thread = null;
+
+        if (self.submit_thread) |thread| thread.join();
+        self.submit_thread = null;
+    }
+};
+
 const std = @import("std");
 const c = @import("../clibs.zig");
 const sdl = @import("sdl3");
 const gui = @import("graphics/gui.zig");
 const z = @import("zalgebra");
 const vk = @import("vulkan/vulkan.zig");
-const frames = @import("frame.zig");
+const frames = @import("frames.zig");
 const utils = @import("utils.zig");
 const descriptor = @import("descriptor.zig");
 const effects = @import("compute_effect.zig");
@@ -730,3 +865,4 @@ const maths = @import("../utils/maths.zig");
 const material = @import("graphics/materials.zig");
 const cam = @import("scene/camera.zig");
 const assets = @import("graphics/assets.zig");
+const tasks = @import("../tasks.zig");

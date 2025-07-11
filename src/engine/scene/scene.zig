@@ -4,7 +4,8 @@ pub const ShaderData = struct {
     viewproj: [4][4]f32 align(16) = za.Mat4.identity().data,
     ambient_color: [4]f32 align(4) = .{ 0.1, 0.1, 0.1, 0.1 },
     sunlight_dir: [4]f32 align(4) = .{ 1, 1, 1, 1 },
-    sunlight_color: [4]f32 align(4) = .{ 0, 1, 0.5, 1 }
+    sunlight_color: [4]f32 align(4) = .{ 0, 1, 0.5, 1 },
+    time: f32 align(4) = 0
 };
 
 pub const Manager = struct {
@@ -24,11 +25,11 @@ pub const Manager = struct {
         };
     }
 
-    pub fn deinit(self: *Manager, r: *renderer.renderer_t) void {
+    pub fn deinit(self: *Manager, r: *renderer.Renderer) void {
         self.clear(r);
     }
 
-    pub fn update(self: *Manager, cam: *camera.camera_t, r: *renderer.renderer_t) void {
+    pub fn update(self: *Manager, cam: *camera.camera_t, r: *renderer.Renderer) void {
         if (self.reactor_scene) |*scene| {
             scene.update(cam, r);
         }
@@ -40,7 +41,7 @@ pub const Manager = struct {
         }
     }
 
-    pub fn update_ui(self: *Manager, r: *renderer.renderer_t) void {
+    pub fn update_ui(self: *Manager, r: *renderer.Renderer) void {
         const result = imgui.Begin("Scenes Manager", null, 0);
         if (result) {
             defer imgui.End();
@@ -54,11 +55,11 @@ pub const Manager = struct {
 		}
 
         if (self.voxels_scene) |*scene| {
-            scene.update_ui(self.alloc, r);
+            scene.update_ui(r);
         }
     }
 
-    pub fn build_scene(self: *Manager, r: *renderer.renderer_t) void {
+    pub fn build_scene(self: *Manager, r: *renderer.Renderer) void {
         if (self.current_scene == 0) {
             self.monkey_scene = levels.MonkeyScene.init(self.alloc, r) catch {
                 std.log.err("Failed to load monkey scene", .{});
@@ -85,7 +86,7 @@ pub const Manager = struct {
         }
     }
 
-    pub fn clear(self: *Manager, r: *renderer.renderer_t) void {
+    pub fn clear(self: *Manager, r: *renderer.Renderer) void {
         if (self.voxels_scene) |*scene| {
             scene.deinit(r);
             self.voxels_scene = null;
@@ -222,7 +223,16 @@ pub const DrawContext = struct {
 
             c.vkCmdPushConstants(cmd, obj.material.pipeline.layout, c.VK_SHADER_STAGE_VERTEX_BIT, 0, @sizeOf(buffers.GPUDrawPushConstants), &push_constants_mesh);
 
-            c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+            if (obj.vertex_buffer) |buffer| {
+                c.vkCmdBindVertexBuffers(cmd, 0, 1, &buffer, &obj.vertex_buffer_offset);
+            }
+
+            if (obj.indirect_buffer) |buffer| {
+                c.vkCmdDrawIndexedIndirect(cmd, buffer, 0, 1,  @sizeOf(c.VkDrawIndexedIndirectCommand));
+            }
+            else {
+                c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
+            }
 
             stats.drawcall_count += 1;
             stats.triangle_count += obj.index_count / 3;

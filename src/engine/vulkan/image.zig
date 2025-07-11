@@ -1,8 +1,3 @@
-const std = @import("std");
-const c = @import("../../clibs.zig");
-const buffers = @import("../graphics/buffers.zig");
-const utils = @import("../utils.zig");
-
 pub const image_t = struct {
     image: c.VkImage = undefined,
     view: c.VkImageView = undefined,
@@ -166,15 +161,20 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
     const new_image = create_image(vma, device, size, format, usage | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT | c.VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mimapped);
 
     // submit
-    var result = c.vkResetFences(device, 1, fence);
-    if (result != c.VK_SUCCESS) {
-        std.log.warn("vkResetFences failed with error {x}\n", .{ result });
-    }
+    // var result = c.vkResetFences(device, 1, fence);
+    // if (result != c.VK_SUCCESS) {
+    //     std.log.warn("vkResetFences failed with error {x}\n", .{ result });
+    // }
+    const fences = [_]vk.Fence{
+        fence.*
+    };
+    vk.resetFences(device, 1, &fences) catch |err| {
+        std.log.warn("vkResetFences failed with error {any}", .{ err });
+    };
 
-    result = c.vkResetCommandBuffer(cmd, 0);
-    if (result != c.VK_SUCCESS) {
-        std.log.warn("vkResetCommandBuffer failed with error {x}\n", .{ result });
-    }
+    vk.resetCommandBuffer(cmd, 0) catch |err| {
+        std.log.warn("vkResetCommandBuffer failed with error {any}\n", .{ err });
+    };
 
     const begin_info = c.VkCommandBufferBeginInfo {
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -182,10 +182,9 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
         .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
 
-    result = c.vkBeginCommandBuffer(cmd, &begin_info);
-    if (result != c.VK_SUCCESS) {
-        std.log.warn("vkBeginCommandBuffer failed with error {x}\n", .{ result });
-    }
+    vk.beginCommandBuffer(cmd, &begin_info) catch |err| {
+        std.log.warn("vkBeginCommandBuffer failed with error {any}\n", .{ err });
+    };
 
     utils.transition_image(cmd, new_image.image, c.VK_IMAGE_LAYOUT_UNDEFINED, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -209,10 +208,9 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
     utils.transition_image(cmd, new_image.image, c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // end command buffer and submit
-    result = c.vkEndCommandBuffer(cmd);
-    if (result != c.VK_SUCCESS) {
-        std.log.warn("vkEndCommandBuffer failed with error {x}\n", .{ result });
-    }
+    vk.endCommandBuffer(cmd) catch |err| {
+        std.log.warn("vkEndCommandBuffer failed with error {any}\n", .{ err });
+    };
 
     const cmd_submit_info = c.VkCommandBufferSubmitInfo {
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -236,7 +234,7 @@ pub fn create_image_data(vma: c.VmaAllocator, device: c.VkDevice, data: *const a
         .waitSemaphoreInfoCount = 0,
     };
 
-    result = c.vkQueueSubmit2(queue, 1, &submit_info, fence.*); // TODO : run it on other queue
+    var result = c.vkQueueSubmit2(queue, 1, &submit_info, fence.*); // TODO : run it on other queue
     if (result != c.VK_SUCCESS) {
         std.log.warn("vkQueueSubmit2 failed with error {x}\n", .{ result });
     }
@@ -253,3 +251,9 @@ pub fn destroy_image(device: c.VkDevice, vma: c.VmaAllocator, image: *const imag
     c.vkDestroyImageView(device, image.view, null);
     c.vmaDestroyImage(vma, image.image, image.allocation);
 }
+
+const std = @import("std");
+const vk = @import("wrapper.zig");
+const c = @import("../../clibs.zig");
+const buffers = @import("../graphics/buffers.zig");
+const utils = @import("../utils.zig");

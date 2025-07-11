@@ -64,7 +64,10 @@ If you run into issues, double-check your Vulkan SDK installation and Zig versio
 
 ## Progress & Roadmap
 
-See the TODO list below for planned features and improvements. Completed items are checked off.
+- [] Scene shadow mapping
+- [] Ambiant occlusion
+- [] Group indirect draw calls
+- [] Config file for engine settings
 
 
 ### Included Libraries
@@ -76,22 +79,6 @@ The following libraries are included in the project (no need to install separate
 - [cgltf](https://github.com/jkuhlmann/cgltf)
 - [ImGui](https://github.com/dearimgui/dear_bindings) (C bindings)
 - [zalgebra](https://github.com/kooparse/zalgebra)
-
-## TODO List
-
-- [ ] Add a configuration file to load and save settings
-- [ ] Split ImGui into a separate module to build more complex UI
-- [x] Reorganize files and folders
-- [x] Destroy and create swapchain semaphores and fences when resizing the window
-
-### Scenes
-- [ ] Add a scene graph to manage objects in the scene
-- [ ] Make a more generic scene graph
-- [ ] Make a scene manager to load and unload scenes
-
-### Materials
-- [x] Make a better material system
-- [ ] Create a material manager to load and unload materials
 
 ---
 

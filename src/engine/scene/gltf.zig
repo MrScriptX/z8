@@ -54,7 +54,7 @@ pub const GLTFMetallic_Roughness = struct {
         self.writer.deinit();
     }
 
-    pub fn build_pipeline(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, r: *renderer.renderer_t) !void {
+    pub fn build_pipeline(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, r: *renderer.Renderer) !void {
         const frag_shader = try pipeline.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/vkguide/mesh.frag.spv");
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
@@ -185,9 +185,9 @@ pub const LoadedGLTF = struct {
 
     material_data_buffer: buffers.AllocatedBuffer,
 
-    renderer: *renderer.renderer_t,
+    renderer: *renderer.Renderer,
 
-    pub fn init(allocator: std.mem.Allocator, r: *renderer.renderer_t) LoadedGLTF {
+    pub fn init(allocator: std.mem.Allocator, r: *renderer.Renderer) LoadedGLTF {
         var gltf = LoadedGLTF {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .meshes = undefined,
@@ -315,7 +315,7 @@ pub const LoadedGLTF = struct {
     }
 };
 
-pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughness: *GLTFMetallic_Roughness, r: *renderer.renderer_t) !LoadedGLTF {
+pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughness: *GLTFMetallic_Roughness, r: *renderer.Renderer) !LoadedGLTF {
     var scene = LoadedGLTF.init(allocator, r);
 
     var options: cgltf.options = .{};
@@ -674,7 +674,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
     return scene;
 }
 
-pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, r: *renderer.renderer_t) ?*vk_images.image_t {
+pub fn load_image(allocator: std.mem.Allocator, image: *cgltf.image, r: *renderer.Renderer) ?*vk_images.image_t {
     var new_image: ?*vk_images.image_t = null;
 
     var width: i32 = 0;

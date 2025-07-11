@@ -1,0 +1,77 @@
+#version 450
+
+#include "constants.glsl"
+#include "simplex_noise.glsl"
+#include "types.glsl"
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout(std430, binding = 0) buffer ChunkData {
+    uint active_count;
+    ivec3 position;
+    voxel_t voxels[];
+} Chunk;
+
+layout(std430, binding = 1) buffer PermTable {
+    uint perm[256];
+} Perm;
+
+layout( push_constant ) uniform constants {
+    ivec3 position;
+} PushConstant;
+
+const float WATER_LEVEL = CHUNK_SIZE - 22;
+const float BEACH_LEVEL_MIN = WATER_LEVEL - 5.0; // Slightly below water level
+const float BEACH_LEVEL_MAX = WATER_LEVEL + 2.0; // Slightly above water level
+
+void main() {
+    if (gl_GlobalInvocationID == uvec3(0)) {
+        Chunk.active_count = 0;
+    }
+
+    Chunk.position = PushConstant.position;
+
+    const uint x = gl_GlobalInvocationID.x;
+    const uint y = gl_GlobalInvocationID.y;
+    const uint z = gl_GlobalInvocationID.z;
+
+    const uint index = x + (y * CHUNK_SIZE) + (z * CHUNK_SIZE_SQR);
+    Chunk.voxels[index].data.y = 0u;
+
+    const vec3 chunk_world_pos = vec3(Chunk.position) * float(CHUNK_SIZE);
+    const vec3 cube_pos = vec3(gl_GlobalInvocationID) - vec3(CHUNK_SIZE) * 0.5 + vec3(0.5) + chunk_world_pos;
+
+    // Instead of absolute position, normalize relative to chunk size
+    const float noise_scale = 0.09;
+    const vec2 noise_pos = (vec2(abs(cube_pos.x), abs(cube_pos.z)) + vec2(0.5 * CHUNK_SIZE)) / CHUNK_SIZE * noise_scale;
+
+    float n = 0.0;
+    float freq = 1.0;
+    float amp = 1.0;
+    for (int i = 0; i < 4; i++) {
+        n += noise2D(Perm.perm, noise_pos.x * freq, noise_pos.y * freq) * amp;
+        freq *= 2.0;
+        amp *= 0.5;
+    }
+    n = clamp(n, -1.0, 1.0); // optional
+    const float height = (n + 1.0) * 0.5 * CHUNK_SIZE;
+    if (cube_pos.y > height) {
+        // no need to store local position, we don't draw it
+        Chunk.voxels[index].data.x = AIR; // AIR
+    }
+    else if (cube_pos.y >= BEACH_LEVEL_MIN && cube_pos.y <= BEACH_LEVEL_MAX) {
+        Chunk.voxels[index].data.x = SAND; // BEACH
+    }
+    else if (cube_pos.y < BEACH_LEVEL_MIN && cube_pos.y < height) { // below beach level and surface block
+        Chunk.voxels[index].data.x = SANDSTONE; // SANDSTONE
+    }
+    else {
+        Chunk.voxels[index].data.x = GRASS; // GRASS        
+    }
+
+    // Add water below the water level
+    if (cube_pos.y < WATER_LEVEL && Chunk.voxels[index].data.x == AIR)
+    {
+        Chunk.voxels[index].data.x = WATER; // WATER
+    }
+}
