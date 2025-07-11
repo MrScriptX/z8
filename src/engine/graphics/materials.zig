@@ -15,6 +15,11 @@ pub const RenderObject = struct {
     vertex_buffer_address: c.VkDeviceAddress,
 };
 
+pub const IndirectDrawObject = struct {
+    draw_commands: buffers.AllocatedBuffer,
+    draw_count: buffers.AllocatedBuffer,
+};
+
 pub const MaterialPipeline = struct {
     pipeline: c.VkPipeline = null,
     layout: c.VkPipelineLayout = null,
@@ -35,3 +40,4 @@ pub const MaterialPass = enum(u8) {
 const c = @import("../../clibs.zig");
 const maths = @import("../../utils/maths.zig");
 const images = @import("../vulkan/image.zig");
+const buffers = @import("../graphics/buffers.zig");

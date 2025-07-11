@@ -110,12 +110,17 @@ pub const BackgroundContext = struct {
 
 pub const DrawContext = struct {
     global_data: *ShaderData,
+    indirect_draw: materials.IndirectDrawObject,
     opaque_surfaces: std.ArrayList(materials.RenderObject),
     transparent_surfaces: std.ArrayList(materials.RenderObject),
 
-    pub fn init(allocator: std.mem.Allocator) DrawContext {
+    pub fn init(allocator: std.mem.Allocator, max_indirect_cmd: usize) DrawContext {
         const ctx = DrawContext {
             .global_data = undefined, // TODO : should not even be a pointer
+            .indirect_draw = materials.IndirectDrawObject {
+                .draw_commands = buffers.AllocatedBuffer.init(allocator, @sizeOf(c.VkDrawIndexedIndirectCommand) * max_indirect_cmd, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+                .draw_count = buffers.AllocatedBuffer.init(allocator, @sizeOf(u32), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            },
             .opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
             .transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
         };
@@ -123,7 +128,10 @@ pub const DrawContext = struct {
         return ctx;
     }
 
-    pub fn deinit(self: *DrawContext) void {
+    pub fn deinit(self: *DrawContext, r: * const renderer.Renderer) void {
+        self.indirect_draw.draw_commands.deinit(r._vma);
+        self.indirect_draw.draw_count.deinit(r._vma);
+
         self.opaque_surfaces.deinit();
         self.transparent_surfaces.deinit();
     }
@@ -244,6 +252,7 @@ const std = @import("std");
 const za = @import("zalgebra");
 const imgui = @import("imgui");
 const camera = @import("camera.zig");
+const vk = @import("../vulkan/vk_wrapper.zig");
 const c = @import("../../clibs.zig");
 const mesh = @import("../graphics/assets.zig");
 const gltf = @import("gltf.zig");

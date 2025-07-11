@@ -40,7 +40,7 @@ pub const MonkeyScene = struct {
 
         self.metallic_roughness.deinit(r._device);
 
-        self.draw_ctx.deinit();
+        self.draw_ctx.deinit(r);
         
         self.model.deinit(r._device, r._vma);
         self.arena.deinit();

@@ -117,6 +117,7 @@ pub const VoxelScene = struct {
     world: std.ArrayList(Chunk),
     wait_queue: std.ArrayList(Chunk),
     deletion_queue: std.ArrayList(Chunk), // use as a garbage collector
+    
     global_data: scenes.ShaderData,
 
     background_ctx: scenes.BackgroundContext,
@@ -223,7 +224,7 @@ pub const VoxelScene = struct {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
 
-        self.draw_ctx.deinit();
+        self.draw_ctx.deinit(r);
         
         for (self.wait_queue.items) |*it| {
             if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
