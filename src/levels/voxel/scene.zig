@@ -358,7 +358,9 @@ pub const VoxelScene = struct {
                         else => self.pipelines.default,
                     };
 
-                    it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, mat, &self.draw_ctx, r) catch {
+                    // const offset: usize = it.pos[0] + (it.pos[2] * self.state.radius);
+
+                    it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, mat, &self.draw_ctx, 0, r) catch {
                         std.log.err("Failed to create chunk : Out of memory", .{});
                         @panic("Out Of Memory !");
                     };
@@ -406,7 +408,9 @@ pub const VoxelScene = struct {
             else => self.pipelines.default,
         };
 
-        it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, mat, &self.draw_ctx, r) catch {
+        // const offset: usize = it.pos[0] + (it.pos[2] * self.state.radius);
+
+        it.ptr.* = chunk.Chunk.init(allocator, it.pos, self.state.seed, self.shaders, mat, &self.draw_ctx, 0, r) catch {
             std.log.err("Failed to create chunk : Out of memory", .{});
             @panic("Out Of Memory !");
         };

@@ -15,7 +15,7 @@ struct DrawCommand {
 };
 
 layout(std430, binding = 0) buffer VertexBuffer {
-    vertex_t vertices[];
+    vertex_t vertices[]; // mesh vkbuffer
 };
 
 layout(std430, binding = 1) buffer IndexBuffer {
@@ -31,7 +31,7 @@ layout(std430, binding = 2) buffer IndirectCommand {
 };
 
 layout(std430, binding = 3) buffer WaterVertices {
-    vertex_t water_vertices[];
+    vertex_t water_vertices[]; // mesh vkbuffer + offset(solid_voxel_count * sizeof(vertex_t))
 };
 
 layout(std430, binding = 4) buffer WaterIndices {
@@ -48,9 +48,13 @@ layout(std430, binding = 5) buffer WaterDraw {
 
 layout(std430, binding = 6) buffer ChunkData {
     uint active_count;
+    uint solid_voxel_count;
+    uint water_voxel_count;
     ivec3 position;
     voxel_t voxels[];
 };
+
+
 
 // layout(std430, binding = 7) buffer IndirectDrawCommands {
 //     DrawCommand cmds[];

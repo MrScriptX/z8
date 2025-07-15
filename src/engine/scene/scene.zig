@@ -136,7 +136,7 @@ pub const DrawContext = struct {
         };
 
         for (ctx.indirect_draw) |*obj| {
-            obj.* = materials.IndirectDrawObject.init(r, @intCast(ido_count));
+            obj.* = materials.IndirectDrawObject.init(r, ido_count);
         }
 
         return ctx;

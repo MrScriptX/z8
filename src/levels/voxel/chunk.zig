@@ -68,7 +68,7 @@ pub const Chunk = struct {
     ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     frame_in_use: [3]bool = .{ false, false, false },
 
-    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, _: *const scenes.DrawContext, r: *const Renderer) !Chunk {
+    pub fn init(allocator: std.mem.Allocator, pos: @Vector(3, i32), seed: u32, shaders: Shaders, mat: Materials, _: *const scenes.DrawContext, _: usize, r: *const Renderer) !Chunk {
         const sizes = [_]descriptors.PoolSizeRatio {
             .{ ._type = c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 2 },
             .{ ._type = c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 8 }
@@ -103,6 +103,7 @@ pub const Chunk = struct {
             .water_mesh = voxel.Mesh.init(r),
         };
 
+        // allocate seed permutation table and copy it to the GPU
         seed_perm_table(seed, &chunk.perm_table);
 
         var data_ptr: []u32 = undefined;
@@ -117,12 +118,16 @@ pub const Chunk = struct {
         const block_resources = Material.Resources {
             .data_buffer = chunk.solid_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
+            // .data_buffer = ctx.indirect_draw[0].vertices_buffer.buffer,
+            // .data_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
         };
         chunk.graphics_passes.block_pass.* = mat.block.write_material(allocator, r._device, engine.materials.MaterialPass.MainColor, &block_resources, &chunk.descriptor_pool);
 
         const water_resources = Material.Resources {
             .data_buffer = chunk.water_mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
+            // .data_buffer = ctx.indirect_draw[1].vertices_buffer.buffer,
+            // .data_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
         };
         chunk.graphics_passes.water_pass.* = mat.water.write_material(allocator, r._device, engine.materials.MaterialPass.Transparent, &water_resources, &chunk.descriptor_pool);
 
@@ -147,11 +152,23 @@ pub const Chunk = struct {
                 .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer, // use DrawContext SSBO
                 .index_buffer = chunk.solid_mesh.indices_buffer.buffer, // use DrawContext SSBO
                 .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer, // use DrawContext SSBO
+                // .vertex_buffer = ctx.indirect_draw[0].vertices_buffer.buffer,
+                // .vertex_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
+                // .index_buffer = ctx.indirect_draw[0].indices_buffer.buffer,
+                // .index_buffer_offset = @intCast(offset * @sizeOf(u32)),
+                // .indirect_buffer = ctx.indirect_draw[0].draw_commands.buffer,
+                // .indirect_buffer_offset = @intCast(offset * @sizeOf(c.VkDrawIndexedIndirectCommand)),
             },
             .water_mesh = .{
                 .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer, // use DrawContext SSBO
                 .index_buffer = chunk.water_mesh.indices_buffer.buffer, // use DrawContext SSBO
                 .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer, // use DrawContext SSBO
+                // .vertex_buffer = ctx.indirect_draw[1].vertices_buffer.buffer,
+                // .vertex_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
+                // .index_buffer = ctx.indirect_draw[1].indices_buffer.buffer,
+                // .index_buffer_offset = @intCast(offset * @sizeOf(u32)),
+                // .indirect_buffer = ctx.indirect_draw[1].draw_commands.buffer,
+                // .indirect_buffer_offset = @intCast(offset * @sizeOf(c.VkDrawIndexedIndirectCommand)),
             },
             .chunk_buffer = chunk.data_buffer.buffer,
             .chunk_buffer_offset = 0
@@ -397,6 +414,8 @@ pub const Chunk = struct {
 
     pub const Data = struct { // will be fill by GPU
         active: u32 align(4) = 0,
+        solid_voxel_count: u32 align(4) = 0, // TODO : use 16bit extension (count max 1024)
+        water_voxel_count: u32 align(4) = 0,
         position: @Vector(3, i32) = @splat(0),
         voxels: [voxel_count]Voxel = @splat(.{}),
     };
@@ -545,3 +564,4 @@ const descriptors = @import("../../engine/descriptor.zig");
 const p = @import("../../engine/pipeline.zig");
 const assets = @import("../../engine/graphics/assets.zig");
 const scenes = @import("../../engine/scene/scene.zig");
+const draw = @import("../../engine/graphics/materials.zig");
