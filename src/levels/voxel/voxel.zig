@@ -6,13 +6,11 @@ pub const vertex_count: u32 = count * 12 * 3;
 pub const Mesh = struct {
     indices_buffer: buffers.AllocatedBuffer,
     vertices_buffer: buffers.AllocatedBuffer,
-    // indirect_buffer: buffers.AllocatedBuffer,
 
     pub fn init(r: *const renderer.Renderer, ) Mesh {
         const mesh: Mesh = .{
             .indices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(u32) * index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
             .vertices_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(buffers.Vertex) * index_count, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-            // .indirect_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand), c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
         };
 
         return mesh;
@@ -21,7 +19,6 @@ pub const Mesh = struct {
     pub fn deinit(self: *Mesh, r: *const renderer.Renderer) void {
         self.indices_buffer.deinit(r._vma);
         self.vertices_buffer.deinit(r._vma);
-        // self.indirect_buffer.deinit(r._vma);
     }
 
     /// This is a template for the mesh resource.
@@ -33,7 +30,7 @@ pub const Mesh = struct {
         index_buffer_offset: u64 = 0,
 
         indirect_buffer: c.VkBuffer,
-        indirect_buffer_offset: u64 = 0,
+        indirect_buffer_offset: u64 = 0, 
     };
 };
 

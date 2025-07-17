@@ -24,7 +24,6 @@ fn seed_perm_table(seed: u32, perm: *[256]u32) void {
 pub const Shaders = struct {
     classification: *shader.ClassificationShader,
     face_culling: *shader.FaceCullingShader,
-    // meshing: *shader.MeshComputeShader,
     meshing: *shader.GreedyMeshingShader,
     frustrum_culling: *shader.FrustrumCulling
 };
@@ -59,8 +58,6 @@ pub const Chunk = struct {
 
     mesh: voxel.Mesh,
     indirect_draw_buffer: buffers.AllocatedBuffer, // single buffer for indirect draw commands
-    // solid_mesh: voxel.Mesh,
-    // water_mesh: voxel.Mesh,
 
     compute_passes: ComputePass,
     graphics_passes: GraphicsPass,
@@ -252,8 +249,6 @@ pub const Chunk = struct {
         self.data_buffer.deinit(vma);
         self.mesh.deinit(r);
         self.indirect_draw_buffer.deinit(vma);
-        // self.solid_mesh.deinit(r);
-        // self.water_mesh.deinit(r);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
 
@@ -285,9 +280,6 @@ pub const Chunk = struct {
             .material = self.graphics_passes.block_pass,
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
-            // .vertex_buffer = self.solid_mesh.vertices_buffer.buffer,
-            // .index_buffer = self.solid_mesh.indices_buffer.buffer,
-            // .indirect_buffer = self.solid_mesh.indirect_buffer.buffer,
             .vertex_buffer = self.mesh.vertices_buffer.buffer,
             .index_buffer = self.mesh.indices_buffer.buffer,
             .indirect_buffer = self.indirect_draw_buffer.buffer,
@@ -304,9 +296,6 @@ pub const Chunk = struct {
             .material = self.graphics_passes.water_pass,
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
-            // .vertex_buffer = self.water_mesh.vertices_buffer.buffer,
-            // .index_buffer = self.water_mesh.indices_buffer.buffer,
-            // .indirect_buffer = self.water_mesh.indirect_buffer.buffer,
             .vertex_buffer = self.mesh.vertices_buffer.buffer,
             .index_buffer = self.mesh.indices_buffer.buffer,
             .indirect_buffer = self.indirect_draw_buffer.buffer,
@@ -327,8 +316,6 @@ pub const Chunk = struct {
 
         // create new material
         const block_resources = Material.Resources {
-            // .data_buffer = self.solid_mesh.vertices_buffer.buffer,
-            // .data_buffer_offset = 0,
             .data_buffer = self.mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
@@ -340,8 +327,6 @@ pub const Chunk = struct {
         self.graphics_passes.block_pass.* = mat.block.write_material(self.allocator, r._device, engine.materials.MaterialPass.MainColor, &block_resources, &self.descriptor_pool);
 
         const water_resources = Material.Resources {
-            // .data_buffer = self.water_mesh.vertices_buffer.buffer,
-            // .data_buffer_offset = 0,
             .data_buffer = self.mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
@@ -443,7 +428,7 @@ pub const Chunk = struct {
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
             .dstStageMask = c.VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
 
-            .buffer = self.indirect_draw_buffer.buffer, // self.solid_mesh.indirect_buffer.buffer,
+            .buffer = self.indirect_draw_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
@@ -459,7 +444,7 @@ pub const Chunk = struct {
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
             .dstStageMask = c.VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
 
-            .buffer = self.indirect_draw_buffer.buffer, // self.water_mesh.indirect_buffer.buffer,
+            .buffer = self.indirect_draw_buffer.buffer,
             .offset = @sizeOf(c.VkDrawIndexedIndirectCommand) * 1, // offset for water mesh
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
