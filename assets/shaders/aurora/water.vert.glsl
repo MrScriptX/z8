@@ -1,6 +1,7 @@
 #version 450
 
 #extension GL_EXT_buffer_reference : require
+// #extension GL_EXT_debug_printf : enable
 
 #include "types.glsl"
 

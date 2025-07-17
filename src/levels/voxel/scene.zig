@@ -144,7 +144,8 @@ pub const VoxelScene = struct {
             .shaders = .{
                 .classification = try allocator.create(shader.ClassificationShader),
                 .face_culling = try allocator.create(shader.FaceCullingShader),
-                .meshing = try allocator.create(shader.MeshComputeShader),
+                // .meshing = try allocator.create(shader.MeshComputeShader),
+                .meshing = try allocator.create(shader.GreedyMeshingShader),
                 .frustrum_culling = try allocator.create(shader.FrustrumCulling)
             },
             .global_data = .{
@@ -188,10 +189,10 @@ pub const VoxelScene = struct {
         try scene.shaders.face_culling.build(allocator, face_culling_comp, r);
 
         // meshing shader
-        const meshing_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/meshing2.comp.spv" });
+        const meshing_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/meshing3.comp.spv" });
         defer allocator.free(meshing_comp);
 
-        scene.shaders.meshing.* = shader.MeshComputeShader.init(allocator, "voxel");
+        scene.shaders.meshing.* = shader.GreedyMeshingShader.init(allocator, "voxel");
         try scene.shaders.meshing.build(allocator, meshing_comp, r);
 
         // frustrum shader

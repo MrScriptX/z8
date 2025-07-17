@@ -196,6 +196,7 @@ const shaders = [_]Shader {
     .{ .stage = Shader.Stage.FRAGMENT, .file = "aurora/water.frag.glsl" },
     .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/meshing.comp.glsl" },
     .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/meshing2.comp.glsl" },
+    .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/meshing3.comp.glsl" },
     .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/world.comp.glsl" },
     .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/face_culling.comp.glsl" },
     .{ .stage = Shader.Stage.COMPUTE, .file = "aurora/frustrum_culling.comp.glsl" }

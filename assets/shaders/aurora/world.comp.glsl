@@ -8,6 +8,7 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 layout(std430, binding = 0) buffer ChunkData {
     uint active_count;
+    uint water_quad_count;
     uint solid_voxel_count;
     uint water_voxel_count;
     ivec3 position;
@@ -29,6 +30,7 @@ const float BEACH_LEVEL_MAX = WATER_LEVEL + 2.0; // Slightly above water level
 void main() {
     if (gl_GlobalInvocationID == uvec3(0)) {
         Chunk.active_count = 0;
+        Chunk.water_quad_count = 0;
     }
 
     Chunk.position = PushConstant.position;

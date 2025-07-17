@@ -24,7 +24,8 @@ fn seed_perm_table(seed: u32, perm: *[256]u32) void {
 pub const Shaders = struct {
     classification: *shader.ClassificationShader,
     face_culling: *shader.FaceCullingShader,
-    meshing: *shader.MeshComputeShader,
+    // meshing: *shader.MeshComputeShader,
+    meshing: *shader.GreedyMeshingShader,
     frustrum_culling: *shader.FrustrumCulling
 };
 
@@ -56,8 +57,10 @@ pub const Chunk = struct {
     constants: shader.ClassificationShader.PushConstant,
     perm_table: [256]u32 = @splat(0),
 
-    solid_mesh: voxel.Mesh,
-    water_mesh: voxel.Mesh,
+    mesh: voxel.Mesh,
+    indirect_draw_buffer: buffers.AllocatedBuffer, // single buffer for indirect draw commands
+    // solid_mesh: voxel.Mesh,
+    // water_mesh: voxel.Mesh,
 
     compute_passes: ComputePass,
     graphics_passes: GraphicsPass,
@@ -99,8 +102,10 @@ pub const Chunk = struct {
                 .position = pos
             },
 
-            .solid_mesh = voxel.Mesh.init(r),
-            .water_mesh = voxel.Mesh.init(r),
+            .mesh = voxel.Mesh.init(r),
+            .indirect_draw_buffer = buffers.AllocatedBuffer.init(r._vma, @sizeOf(c.VkDrawIndexedIndirectCommand) * 2, c.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | c.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, c.VMA_MEMORY_USAGE_GPU_ONLY),
+            // .solid_mesh = voxel.Mesh.init(r),
+            // .water_mesh = voxel.Mesh.init(r),
         };
 
         // allocate seed permutation table and copy it to the GPU
@@ -116,16 +121,24 @@ pub const Chunk = struct {
         c.vmaUnmapMemory(r._vma, chunk.perm_table_buffer.allocation);
 
         const block_resources = Material.Resources {
-            .data_buffer = chunk.solid_mesh.vertices_buffer.buffer,
+            .data_buffer = chunk.mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
+
+            // .data_buffer = chunk.solid_mesh.vertices_buffer.buffer,
+            // .data_buffer_offset = 0,
+
             // .data_buffer = ctx.indirect_draw[0].vertices_buffer.buffer,
             // .data_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
         };
         chunk.graphics_passes.block_pass.* = mat.block.write_material(allocator, r._device, engine.materials.MaterialPass.MainColor, &block_resources, &chunk.descriptor_pool);
 
         const water_resources = Material.Resources {
-            .data_buffer = chunk.water_mesh.vertices_buffer.buffer,
+            .data_buffer = chunk.mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
+            
+            // .data_buffer = chunk.water_mesh.vertices_buffer.buffer,
+            // .data_buffer_offset = 0,
+            
             // .data_buffer = ctx.indirect_draw[1].vertices_buffer.buffer,
             // .data_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
         };
@@ -147,44 +160,83 @@ pub const Chunk = struct {
         };
         chunk.compute_passes.face_culling.* = shaders.face_culling.write(allocator, &chunk.descriptor_pool, &face_culling_res, r);
 
-         const compute_resources: shader.MeshComputeShader.Resource = .{
-            .solid_mesh = .{
-                .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer, // use DrawContext SSBO
-                .index_buffer = chunk.solid_mesh.indices_buffer.buffer, // use DrawContext SSBO
-                .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer, // use DrawContext SSBO
-                // .vertex_buffer = ctx.indirect_draw[0].vertices_buffer.buffer,
-                // .vertex_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
-                // .index_buffer = ctx.indirect_draw[0].indices_buffer.buffer,
-                // .index_buffer_offset = @intCast(offset * @sizeOf(u32)),
-                // .indirect_buffer = ctx.indirect_draw[0].draw_commands.buffer,
-                // .indirect_buffer_offset = @intCast(offset * @sizeOf(c.VkDrawIndexedIndirectCommand)),
-            },
-            .water_mesh = .{
-                .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer, // use DrawContext SSBO
-                .index_buffer = chunk.water_mesh.indices_buffer.buffer, // use DrawContext SSBO
-                .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer, // use DrawContext SSBO
-                // .vertex_buffer = ctx.indirect_draw[1].vertices_buffer.buffer,
-                // .vertex_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
-                // .index_buffer = ctx.indirect_draw[1].indices_buffer.buffer,
-                // .index_buffer_offset = @intCast(offset * @sizeOf(u32)),
-                // .indirect_buffer = ctx.indirect_draw[1].draw_commands.buffer,
-                // .indirect_buffer_offset = @intCast(offset * @sizeOf(c.VkDrawIndexedIndirectCommand)),
-            },
+        // const compute_resources: shader.MeshComputeShader.Resource = .{
+        //     .solid_mesh = .{
+        //         .vertex_buffer = chunk.mesh.vertices_buffer.buffer,
+        //         .index_buffer = chunk.mesh.indices_buffer.buffer,
+        //         .indirect_buffer = chunk.indirect_draw_buffer.buffer,
+        //         .indirect_buffer_offset = 0,
+
+        //         // .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer, // use DrawContext SSBO
+        //         // .index_buffer = chunk.solid_mesh.indices_buffer.buffer, // use DrawContext SSBO
+        //         // .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer, // use DrawContext SSBO
+
+        //         // .vertex_buffer = ctx.indirect_draw[0].vertices_buffer.buffer,
+        //         // .vertex_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
+        //         // .index_buffer = ctx.indirect_draw[0].indices_buffer.buffer,
+        //         // .index_buffer_offset = @intCast(offset * @sizeOf(u32)),
+        //         // .indirect_buffer = ctx.indirect_draw[0].draw_commands.buffer,
+        //         // .indirect_buffer_offset = @intCast(offset * @sizeOf(c.VkDrawIndexedIndirectCommand)),
+        //     },
+        //     .water_mesh = .{
+        //         .vertex_buffer = chunk.mesh.vertices_buffer.buffer,
+        //         .index_buffer = chunk.mesh.indices_buffer.buffer,
+        //         .indirect_buffer = chunk.indirect_draw_buffer.buffer,
+        //         .indirect_buffer_offset = @sizeOf(c.VkDrawIndexedIndirectCommand) * 1, // offset for water mesh
+                
+        //         // .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer, // use DrawContext SSBO
+        //         // .index_buffer = chunk.water_mesh.indices_buffer.buffer, // use DrawContext SSBO
+        //         // .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer, // use DrawContext SSBO
+                
+        //         // .vertex_buffer = ctx.indirect_draw[1].vertices_buffer.buffer,
+        //         // .vertex_buffer_offset = @intCast(offset * @sizeOf(buffers.Vertex)),
+        //         // .index_buffer = ctx.indirect_draw[1].indices_buffer.buffer,
+        //         // .index_buffer_offset = @intCast(offset * @sizeOf(u32)),
+        //         // .indirect_buffer = ctx.indirect_draw[1].draw_commands.buffer,
+        //         // .indirect_buffer_offset = @intCast(offset * @sizeOf(c.VkDrawIndexedIndirectCommand)),
+        //     },
+        //     .chunk_buffer = chunk.data_buffer.buffer,
+        //     .chunk_buffer_offset = 0
+        // };
+        // chunk.compute_passes.meshing.* = shaders.meshing.write(allocator, &chunk.descriptor_pool, &compute_resources, r);
+        const meshing_resources: shader.GreedyMeshingShader.Resource = .{
+            .vertex_buffer = chunk.mesh.vertices_buffer.buffer,
+            .vertex_buffer_offset = 0,
+
+            .index_buffer = chunk.mesh.indices_buffer.buffer,
+            .index_buffer_offset = 0,
+
+            .solid_indirect_buffer = chunk.indirect_draw_buffer.buffer,
+            .solid_indirect_buffer_offset = 0,
+
+            .water_indirect_buffer = chunk.indirect_draw_buffer.buffer,
+            .water_indirect_buffer_offset = @sizeOf(c.VkDrawIndexedIndirectCommand) * 1, // offset for water mesh
+
             .chunk_buffer = chunk.data_buffer.buffer,
             .chunk_buffer_offset = 0
         };
-        chunk.compute_passes.meshing.* = shaders.meshing.write(allocator, &chunk.descriptor_pool, &compute_resources, r);
+        chunk.compute_passes.meshing.* = shaders.meshing.write(allocator, &chunk.descriptor_pool, &meshing_resources, r);
 
         const frustrum_resources: shader.FrustrumCulling.Resource = .{
             .solid_mesh = .{
-                .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer, // use DrawContext SSBO
-                .index_buffer = chunk.solid_mesh.indices_buffer.buffer, // use DrawContext SSBO
-                .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer, // use DrawContext SSBO
+                .vertex_buffer = chunk.mesh.vertices_buffer.buffer,
+                .index_buffer = chunk.mesh.indices_buffer.buffer,
+                .indirect_buffer = chunk.indirect_draw_buffer.buffer,
+                .indirect_buffer_offset = 0,
+
+                // .vertex_buffer = chunk.solid_mesh.vertices_buffer.buffer, // use DrawContext SSBO
+                // .index_buffer = chunk.solid_mesh.indices_buffer.buffer, // use DrawContext SSBO
+                // .indirect_buffer = chunk.solid_mesh.indirect_buffer.buffer, // use DrawContext SSBO
             },
             .water_mesh = .{
-                .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer, // use DrawContext SSBO
-                .index_buffer = chunk.water_mesh.indices_buffer.buffer, // use DrawContext SSBO
-                .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer, // use DrawContext SSBO
+                .vertex_buffer = chunk.mesh.vertices_buffer.buffer,
+                .index_buffer = chunk.mesh.indices_buffer.buffer,
+                .indirect_buffer = chunk.indirect_draw_buffer.buffer,
+                .indirect_buffer_offset = @sizeOf(c.VkDrawIndexedIndirectCommand) * 1, // offset for water mesh
+
+                // .vertex_buffer = chunk.water_mesh.vertices_buffer.buffer, // use DrawContext SSBO
+                // .index_buffer = chunk.water_mesh.indices_buffer.buffer, // use DrawContext SSBO
+                // .indirect_buffer = chunk.water_mesh.indirect_buffer.buffer, // use DrawContext SSBO
             },
 
             .chunk_buffer = chunk.data_buffer.buffer,
@@ -198,8 +250,10 @@ pub const Chunk = struct {
     pub fn deinit(self: *Chunk, vma: c.VmaAllocator, r: *const Renderer) void {
         self.perm_table_buffer.deinit(vma);
         self.data_buffer.deinit(vma);
-        self.solid_mesh.deinit(r);
-        self.water_mesh.deinit(r);
+        self.mesh.deinit(r);
+        self.indirect_draw_buffer.deinit(vma);
+        // self.solid_mesh.deinit(r);
+        // self.water_mesh.deinit(r);
         self.material_buffer.deinit(vma);
         self.descriptor_pool.deinit(r._device);
 
@@ -228,12 +282,16 @@ pub const Chunk = struct {
         const object = engine.materials.RenderObject {
             .index_count = cube_index_count,
             .first_index = 0,
-            .index_buffer = self.solid_mesh.indices_buffer.buffer,
             .material = self.graphics_passes.block_pass,
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
-            .vertex_buffer = self.solid_mesh.vertices_buffer.buffer,
-            .indirect_buffer = self.solid_mesh.indirect_buffer.buffer,
+            // .vertex_buffer = self.solid_mesh.vertices_buffer.buffer,
+            // .index_buffer = self.solid_mesh.indices_buffer.buffer,
+            // .indirect_buffer = self.solid_mesh.indirect_buffer.buffer,
+            .vertex_buffer = self.mesh.vertices_buffer.buffer,
+            .index_buffer = self.mesh.indices_buffer.buffer,
+            .indirect_buffer = self.indirect_draw_buffer.buffer,
+            .indirect_buffer_offset = 0, // offset for solid mesh
         };
 
         ctx.opaque_surfaces.append(object) catch {
@@ -243,12 +301,16 @@ pub const Chunk = struct {
         const water_object = engine.materials.RenderObject {
             .index_count = cube_index_count,
             .first_index = 0,
-            .index_buffer = self.water_mesh.indices_buffer.buffer,
             .material = self.graphics_passes.water_pass,
             .transform = za.Mat4.identity().data,
             .vertex_buffer_address = 0,// self.buffer.vertex_buffer_address,
-            .vertex_buffer = self.water_mesh.vertices_buffer.buffer,
-            .indirect_buffer = self.water_mesh.indirect_buffer.buffer,
+            // .vertex_buffer = self.water_mesh.vertices_buffer.buffer,
+            // .index_buffer = self.water_mesh.indices_buffer.buffer,
+            // .indirect_buffer = self.water_mesh.indirect_buffer.buffer,
+            .vertex_buffer = self.mesh.vertices_buffer.buffer,
+            .index_buffer = self.mesh.indices_buffer.buffer,
+            .indirect_buffer = self.indirect_draw_buffer.buffer,
+            .indirect_buffer_offset = @sizeOf(c.VkDrawIndexedIndirectCommand) * 1, // offset for water mesh
         };
 
         ctx.transparent_surfaces.append(water_object) catch {
@@ -265,7 +327,9 @@ pub const Chunk = struct {
 
         // create new material
         const block_resources = Material.Resources {
-            .data_buffer = self.solid_mesh.vertices_buffer.buffer,
+            // .data_buffer = self.solid_mesh.vertices_buffer.buffer,
+            // .data_buffer_offset = 0,
+            .data_buffer = self.mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
 
@@ -276,7 +340,9 @@ pub const Chunk = struct {
         self.graphics_passes.block_pass.* = mat.block.write_material(self.allocator, r._device, engine.materials.MaterialPass.MainColor, &block_resources, &self.descriptor_pool);
 
         const water_resources = Material.Resources {
-            .data_buffer = self.water_mesh.vertices_buffer.buffer,
+            // .data_buffer = self.water_mesh.vertices_buffer.buffer,
+            // .data_buffer_offset = 0,
+            .data_buffer = self.mesh.vertices_buffer.buffer,
             .data_buffer_offset = 0,
         };
 
@@ -377,7 +443,7 @@ pub const Chunk = struct {
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
             .dstStageMask = c.VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
 
-            .buffer = self.solid_mesh.indirect_buffer.buffer,
+            .buffer = self.indirect_draw_buffer.buffer, // self.solid_mesh.indirect_buffer.buffer,
             .offset = 0,
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
@@ -393,8 +459,8 @@ pub const Chunk = struct {
             .dstAccessMask = c.VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
             .dstStageMask = c.VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
 
-            .buffer = self.water_mesh.indirect_buffer.buffer,
-            .offset = 0,
+            .buffer = self.indirect_draw_buffer.buffer, // self.water_mesh.indirect_buffer.buffer,
+            .offset = @sizeOf(c.VkDrawIndexedIndirectCommand) * 1, // offset for water mesh
             .size = @sizeOf(c.VkDrawIndexedIndirectCommand),
         };
 
@@ -414,7 +480,8 @@ pub const Chunk = struct {
 
     pub const Data = struct { // will be fill by GPU
         active: u32 align(4) = 0,
-        solid_voxel_count: u32 align(4) = 0, // TODO : use 16bit extension (count max 1024)
+        water_quad_count: u32 align(4) = 0,
+        solid_voxel_count: u32 align(4) = 0, // TODO : use 16bit extension (count max 32 768)
         water_voxel_count: u32 align(4) = 0,
         position: @Vector(3, i32) = @splat(0),
         voxels: [voxel_count]Voxel = @splat(.{}),

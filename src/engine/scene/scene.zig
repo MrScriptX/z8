@@ -207,7 +207,7 @@ pub const DrawContext = struct {
             }
 
             if (obj.indirect_buffer) |buffer| {
-                c.vkCmdDrawIndexedIndirect(cmd, buffer, 0, 1,  @sizeOf(c.VkDrawIndexedIndirectCommand));
+                c.vkCmdDrawIndexedIndirect(cmd, buffer, obj.indirect_buffer_offset, 1,  @sizeOf(c.VkDrawIndexedIndirectCommand));
             }
             else {
                 c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
@@ -252,7 +252,7 @@ pub const DrawContext = struct {
             }
 
             if (obj.indirect_buffer) |buffer| {
-                c.vkCmdDrawIndexedIndirect(cmd, buffer, 0, 1,  @sizeOf(c.VkDrawIndexedIndirectCommand));
+                c.vkCmdDrawIndexedIndirect(cmd, buffer, obj.indirect_buffer_offset, 1,  @sizeOf(c.VkDrawIndexedIndirectCommand));
             }
             else {
                 c.vkCmdDrawIndexed(cmd, obj.index_count, 1, obj.first_index, 0, 0);
