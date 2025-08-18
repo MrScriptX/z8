@@ -18,18 +18,18 @@ pub fn build(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.Opti
 
     module.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
 
-    module.addIncludePath(.{ .cwd_relative = "common/imgui-1.91.9b" });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_widgets.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_tables.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_draw.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_impl_sdl3.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_impl_vulkan.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/imgui_demo.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_internal.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_sdl3.cpp"), .flags = &.{ "" } });
-    module.addCSourceFile(.{ .file = b.path("common/imgui-1.91.9b/dcimgui_impl_vulkan.cpp"), .flags = &.{ "" } });
+    module.addIncludePath(.{ .cwd_relative = "common/imgui-1.92.2b" });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/imgui.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/imgui_widgets.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/imgui_tables.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/imgui_draw.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/imgui_impl_sdl3.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/imgui_impl_vulkan.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/imgui_demo.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/dcimgui.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/dcimgui_internal.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/dcimgui_impl_sdl3.cpp"), .flags = &.{ "" } });
+    module.addCSourceFile(.{ .file = b.path("common/imgui-1.92.2b/dcimgui_impl_vulkan.cpp"), .flags = &.{ "" } });
 
     return module;
 }

@@ -5,6 +5,11 @@ pub usingnamespace @cImport({
 });
 
 pub const ImplVulkan_InitInfo = c.ImGui_ImplVulkan_InitInfo;
+pub const BackendFlags_RendererHasTextures = c.ImGuiBackendFlags_RendererHasTextures;
+
+pub fn GetIO() *c.ImGuiIO {
+    return c.ImGui_GetIO();
+}
 
 pub fn ImplVulkan_Init(info: *ImplVulkan_InitInfo) bool {
     return c.cImGui_ImplVulkan_Init(info);
