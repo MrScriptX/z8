@@ -4,33 +4,39 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "z8",
-        .root_source_file = b.path("src/main.zig"),
+    const root_module = b.addModule("z8", .{
         .target = target,
         .optimize = optimize,
+        .root_source_file = b.path("src/main.zig"),
         .link_libc = true,
-        // .use_llvm = false,
+        .link_libcpp = true
     });
 
-    const env_map = try std.process.getEnvMap(b.allocator);
-    const vk_path = env_map.get("VULKAN_SDK") orelse @panic("VULKAN_SDK missing !");
+    // vulkan dependency
+    const vk_lib_name = if (target.result.os.tag == .windows) "vulkan-1" else "vulkan";
+    root_module.linkSystemLibrary(vk_lib_name, .{});
+
+    const vk_path = b.graph.environ_map.get("VULKAN_SDK")
+        orelse @panic("VULKAN_SDK missing !");
+
+    root_module.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{ vk_path }) });
+    root_module.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{ vk_path }) });
+
+    // add sdl3
+    root_module.linkSystemLibrary("SDL3", .{});
+    const sdl = @import("libs/sdl/build.zig").build(b, target, optimize);
+    root_module.addImport("sdl3", sdl);
+
+    // cglm
+    root_module.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
+
+    const exe = b.addExecutable(.{
+        .name = "z8",
+        .root_module = root_module,
+    });
 
     compile_shaders(b, exe, vk_path) catch @panic("Out of memory !");
 
-    const vk_lib_name = if (target.result.os.tag == .windows) "vulkan-1" else "vulkan";
-    exe.linkSystemLibrary(vk_lib_name);
-
-    exe.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{ vk_path }) });
-    exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{ vk_path }) });
-
-    // add sdl3
-    exe.linkSystemLibrary("SDL3");
-    const sdl = @import("libs/sdl/build.zig").build(b, target, optimize);
-    exe.root_module.addImport("sdl3", sdl);
-
-    exe.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
-    
     // vma
     const vma = @import("libs/vma/build.zig").build(b, target, optimize);
     exe.root_module.addImport("vma", vma);
@@ -56,55 +62,34 @@ pub fn build(b: *std.Build) !void {
     const stb = @import("libs/stb/build.zig").build(b, target, optimize);
     exe.root_module.addImport("stb", stb);
 
-    exe.linkLibC();
-    exe.linkLibCpp();
-
-    // This declares intent for the executable to be installed into the
-    // standard location when the user invokes the "install" step (the default
-    // step when running `zig build`).
     b.installArtifact(exe);
 
     if (target.result.os.tag == .windows) {
         b.installBinFile("common/SDL3/lib/SDL3.dll", "SDL3.dll");
     }
 
-    // This *creates* a Run step in the build graph, to be executed when another
-    // step is evaluated that depends on it. The next line below will establish
-    // such a dependency.
     const run_cmd = b.addRunArtifact(exe);
 
-    // By making the run step depend on the install step, it will be run from the
-    // installation directory rather than directly from within the cache directory.
-    // This is not necessary, however, if the application depends on other installed
-    // files, this ensures they will be present and in the expected location.
     run_cmd.step.dependOn(b.getInstallStep());
 
-    // This allows the user to pass arguments to the application in the build
-    // command itself, like this: `zig build run -- arg1 arg2 etc`
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
 
-    // This creates a build step. It will be visible in the `zig build --help` menu,
-    // and can be selected like this: `zig build run`
-    // This will evaluate the `run` step rather than the default, which is "install".
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    // Creates a step for unit testing. This only builds the test executable
-    // but does not run it.
     const unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .name = "test-z8",
+        .root_module = root_module,
     });
 
-    unit_tests.linkSystemLibrary(vk_lib_name);
+    // unit_tests.linkSystemLibrary(vk_lib_name);
 
-    if (env_map.get("VK_SDK_PATH")) |path| {
-        unit_tests.addLibraryPath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/lib", .{path}) catch @panic("OOM") });
-        unit_tests.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
-    }
+    // if (b.graph.environ_map.get("VK_SDK_PATH")) |path| {
+    //     unit_tests.addLibraryPath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/lib", .{path}) catch @panic("OOM") });
+    //     unit_tests.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
+    // }
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 

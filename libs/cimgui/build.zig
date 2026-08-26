@@ -8,7 +8,7 @@ pub fn build(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.Opti
         .optimize = optimize,
     });
 
-    const env_map = std.process.getEnvMap(b.allocator) catch @panic("Out of memory !");
+    const env_map = b.graph.environ_map;
     if (env_map.get("VK_SDK_PATH")) |path| {
         module.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
     }

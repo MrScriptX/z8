@@ -3,19 +3,20 @@ const Build = std.Build;
 
 pub fn build(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *Build.Module {
     // build vma static lib
-    const lib = b.addStaticLibrary(.{
-        .name = "vma",
+    const module = b.addModule("vma", .{
+        .root_source_file = b.path("libs/vma/src/root.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libcpp = true
     });
 
-    const env_map = std.process.getEnvMap(b.allocator) catch @panic("Out of Memory !");
+    const env_map = b.graph.environ_map;
     const vk_path = env_map.get("VK_SDK_PATH") orelse @panic("VK_SDK_PATH missing !");
 
-    lib.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{ vk_path })});
-    lib.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{ vk_path }) });
+    module.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{ vk_path })});
+    module.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{ vk_path }) });
 
-    lib.addCSourceFile(.{ 
+    module.addCSourceFile(.{ 
         .file = b.path("libs/vma/src/vk_mem_alloc.cpp"),
         .flags = &.{ 
             "-Wno-nullability-completeness",
@@ -23,16 +24,14 @@ pub fn build(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.Opti
         }
     });
 
-    lib.linkLibCpp();
+    // const lib = b.addLibrary(.{
+    //     .name = "vma",
+    //     .linkage = .static,
+    //     .root_module = module,
+    // });
 
     // build vma module
-    const module = b.addModule("vma", .{
-        .root_source_file = b.path("libs/vma/src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    module.linkLibrary(lib);
+    // module.linkLibrary(lib);
 
     return module;
 }
