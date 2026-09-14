@@ -23,7 +23,7 @@ pub const ComputeEffect = struct {
         c.vkDestroyPipelineLayout(r._device, self.layout, null);
     }
 
-    pub fn build(self: *ComputeEffect, allocator: std.mem.Allocator, shader: []const u8, r: *renderer.Renderer) !void {
+    pub fn build(self: *ComputeEffect, allocator: std.mem.Allocator, io: std.Io, shader: []const u8, r: *renderer.Renderer) !void {
         const push_constant = c.VkPushConstantRange {
             .offset = 0,
             .size = @sizeOf(ComputePushConstants),
@@ -47,7 +47,7 @@ pub const ComputeEffect = struct {
         }
 
         // shader module
-        const compute_shader = try pipeline.load_shader_module(allocator, r._device, shader);
+        const compute_shader = try pipeline.load_shader_module(allocator, io, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute

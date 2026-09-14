@@ -42,7 +42,7 @@ pub const GLTFMetallic_Roughness = struct {
         return instance;
     }
 
-    pub fn deinit(self: *GLTFMetallic_Roughness, device: c.VkDevice) void {
+    pub fn deinit(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, device: c.VkDevice) void {
         c.vkDestroyPipeline(device, self.opaque_pipeline.pipeline, null);
         c.vkDestroyPipeline(device, self.transparent_pipeline.pipeline, null);
 
@@ -51,14 +51,14 @@ pub const GLTFMetallic_Roughness = struct {
         c.vkDestroyDescriptorSetLayout(device, self.material_layout, null);
 
         self.gpa.deinit();
-        self.writer.deinit();
+        self.writer.deinit(allocator);
     }
 
-    pub fn build_pipeline(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, r: *renderer.Renderer) !void {
-        const frag_shader = try pipeline.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/vkguide/mesh.frag.spv");
+    pub fn build_pipeline(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, io: std.Io, r: *renderer.Renderer) !void {
+        const frag_shader = try pipeline.load_shader_module(allocator, io, r._device, "./zig-out/bin/shaders/vkguide/mesh.frag.spv");
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
-        const vertex_shader = try pipeline.load_shader_module(allocator, r._device, "./zig-out/bin/shaders/vkguide/mesh.vert.spv");
+        const vertex_shader = try pipeline.load_shader_module(allocator, io, r._device, "./zig-out/bin/shaders/vkguide/mesh.vert.spv");
         defer c.vkDestroyShaderModule(r._device, vertex_shader, null);
 
         const matrix_range: c.VkPushConstantRange = .{

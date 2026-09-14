@@ -15,9 +15,9 @@ pub const Node = struct {
 
     mesh: *MeshAsset,
 
-    pub fn init(allocator: std.mem.Allocator) Node {
+    pub fn init() Node {
         const node = Node {
-            .children = std.ArrayList(*Node).init(allocator),
+            .children = std.ArrayList(*Node).empty,
             .mesh = undefined,
             ._type = NodeType.BASE_NODE
         };
@@ -25,8 +25,8 @@ pub const Node = struct {
         return node;
     }
 
-    pub fn deinit(self: *Node) void {
-        self.children.deinit();
+    pub fn deinit(self: *Node, allocator: std.mem.Allocator) void {
+        self.children.deinit(allocator);
     }
 
     pub fn refresh_transform(self: *Node, parent_matrix: *const math.mat4) void {

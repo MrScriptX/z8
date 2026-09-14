@@ -1,4 +1,4 @@
-pub fn main(_: std.process.Init) !u8 {
+pub fn main(process: std.process.Init) !u8 {
     var gpa = std.heap.DebugAllocator(.{}).init;
     defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
@@ -37,10 +37,11 @@ pub fn main(_: std.process.Init) !u8 {
     defer renderer.deinit();
 
     // create effects
-    var background_effects = std.ArrayList(*compute.ComputeEffect).init(gpa.allocator());
-    defer background_effects.deinit();
+    var background_effects = std.ArrayList(*compute.ComputeEffect).empty;
+    defer background_effects.deinit(allocator);
 
-    const dir = try std.fs.selfExeDirPathAlloc(allocator);
+    // const dir = try std.fs.selfExeDirPathAlloc(allocator);
+    const dir = try std.process.executableDirPathAlloc(process.io, allocator);
     defer allocator.free(dir);
 
     // gradient shader
@@ -57,13 +58,13 @@ pub fn main(_: std.process.Init) !u8 {
     const gradiant_file = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/vkguide/gradiant.spv" });
     defer allocator.free(gradiant_file);
 
-    gradient_effect.build(allocator, gradiant_file, &renderer) catch {
+    gradient_effect.build(allocator, process.io, gradiant_file, &renderer) catch {
         std.log.err("Failed to create gradiant shader", .{});
         return 2;
     };
     defer gradient_effect.deinit(&renderer);
 
-    try background_effects.append(&gradient_effect);
+    try background_effects.append(allocator, &gradient_effect);
 
     // sky shader
     var sky_shader = compute.ComputeEffect {
@@ -78,13 +79,13 @@ pub fn main(_: std.process.Init) !u8 {
     const sky_shader_file = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/vkguide/sky.spv" });
     defer allocator.free(sky_shader_file);
 
-    sky_shader.build(allocator, sky_shader_file, &renderer) catch {
+    sky_shader.build(allocator, process.io, sky_shader_file, &renderer) catch {
         std.log.err("Failed to create sky shader", .{});
         return 2;
     };
     defer sky_shader.deinit(&renderer);
 
-    try background_effects.append(&sky_shader);
+    try background_effects.append(allocator, &sky_shader);
 
     var current_shader: u32 = 0;
     renderer.bg_shader = background_effects.items[current_shader];
@@ -97,7 +98,8 @@ pub fn main(_: std.process.Init) !u8 {
     // main loop
     var quit = false;
     while (!quit) {
-        const start_time: u128 = @intCast(std.time.nanoTimestamp());
+        const now = std.Io.Clock.now(.awake, process.io);
+        const start_time: u128 = @intCast(now.toNanoseconds());
 
         var event: sdl.SDL_Event = undefined;
         while (sdl.SDL_PollEvent(&event)) {

@@ -158,20 +158,20 @@ pub const DescriptorAllocator2 = struct {
         return builder;
     }
 
-    pub fn deinit(self: *DescriptorAllocator2, device: c.VkDevice) void {
+    pub fn deinit(self: *DescriptorAllocator2, allocator: std.mem.Allocator, device: c.VkDevice) void {
         defer self._arena.deinit();
 
-        defer self._ready_pools.deinit();
+        defer self._ready_pools.deinit(allocator);
         for (self._ready_pools.items) |pool| {
             c.vkDestroyDescriptorPool(device, pool, null);
         }
 
-        defer self._full_pools.deinit();
+        defer self._full_pools.deinit(allocator);
         for (self._full_pools.items) |pool| {
             c.vkDestroyDescriptorPool(device, pool, null);
         }
 
-        self._ratios.deinit();
+        self._ratios.deinit(allocator);
     }
 
     pub fn clear(self: *DescriptorAllocator2, device: c.VkDevice) void {

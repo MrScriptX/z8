@@ -9,7 +9,7 @@ pub const MonkeyScene = struct {
 
     metallic_roughness: gltf.GLTFMetallic_Roughness,
 
-    pub fn init(allocator: std.mem.Allocator, r: *renderer.Renderer) !MonkeyScene {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, r: *renderer.Renderer) !MonkeyScene {
         var scene = MonkeyScene {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .model = undefined,
@@ -18,7 +18,7 @@ pub const MonkeyScene = struct {
             .metallic_roughness = gltf.GLTFMetallic_Roughness.init(allocator)
         };
 
-        try scene.metallic_roughness.build_pipeline(allocator, r);
+        try scene.metallic_roughness.build_pipeline(allocator, io, r);
 
         scene.model = try scene.arena.allocator().create(gltf.LoadedGLTF);
         scene.model.* = try gltf.load_gltf(allocator, "assets/models/basicmesh.glb", &scene.metallic_roughness, r);
@@ -32,13 +32,13 @@ pub const MonkeyScene = struct {
         return scene;
     }
 
-    pub fn deinit(self: *MonkeyScene, r: *renderer.Renderer) void {
+    pub fn deinit(self: *MonkeyScene, allocator: std.mem.Allocator, r: *renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
 
-        self.metallic_roughness.deinit(r._device);
+        self.metallic_roughness.deinit(allocator, r._device);
 
         self.draw_ctx.deinit(r);
         

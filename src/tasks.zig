@@ -35,8 +35,8 @@ pub const TaskManager = struct {
     pub fn deinit(self: *TaskManager) void {
         self.stop();
 
-        self.record_queue.deinit();
-        self.submit_queue.deinit();
+        self.record_queue.deinit(self.allocator);
+        self.submit_queue.deinit(self.allocator);
 
         self.submit.deinit(self.submit.device);
     }

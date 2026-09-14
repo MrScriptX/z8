@@ -204,7 +204,7 @@ pub const Renderer = struct {
         }
 
         for (&self._frames) |*frame| {
-            frame.deinit(self._device, self._vma);
+            frame.deinit(self.allocator, self._device, self._vma);
         }
 
         // destroy imgui context
@@ -723,7 +723,7 @@ pub const Renderer = struct {
         c.vkDestroyDescriptorSetLayout(self._device, self.scene_descriptor, null);
 
         for (&self._frames) |*frame| {
-            frame._frame_descriptors.deinit(self._device);
+            frame._frame_descriptors.deinit(self.allocator, self._device);
             c.vkDestroySemaphore(self._device, frame._sw_semaphore, null);
         }
     }

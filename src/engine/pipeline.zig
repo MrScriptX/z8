@@ -247,8 +247,8 @@ pub fn create_shader_stage_info(shader: c.VkShaderModule, stage: c.VkShaderStage
     return shader_stage_info;
 }
 
-pub fn load_shader_module(allocator: std.mem.Allocator, device: c.VkDevice, path: []const u8) !c.VkShaderModule {
-    var file = std.fs.cwd().openFile(path, .{}) catch |e| {
+pub fn load_shader_module(allocator: std.mem.Allocator, io: std.Io, device: c.VkDevice, path: []const u8) !c.VkShaderModule {
+    const file = std.Io.Dir.readFileAlloc(std.Io.Dir.cwd(), io, path, allocator, .unlimited) catch |e| {
         switch (e) {
             error.FileNotFound => {
                 std.log.err("Failed to open file {s}.\nReason : File was not found.", .{ path });
@@ -262,24 +262,23 @@ pub fn load_shader_module(allocator: std.mem.Allocator, device: c.VkDevice, path
         }
         std.process.exit(1);
     };
-    defer file.close();
+    defer allocator.free(file);
 
-    const stat = try file.stat();
-    const file_size = stat.size;
-    const buffer = try allocator.alloc(u8, file_size);
-    defer allocator.free(buffer);
+    // const file_size = file.len;
+    // const buffer = try allocator.alloc(u8, file.len);
+    // defer allocator.free(buffer);
 
-    const bytes_read = try file.readAll(buffer);
-    if (bytes_read != file_size) {
-        std.log.err("Failed to read shader file !", .{});
-        @panic("Failed to read shader file");
-    }
+    // const bytes_read = try file.readAll(buffer);
+    // if (bytes_read != file_size) {
+    //     std.log.err("Failed to read shader file !", .{});
+    //     @panic("Failed to read shader file");
+    // }
     
     const create_info = c.VkShaderModuleCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .pNext = null,
-        .codeSize = buffer.len,
-        .pCode = @alignCast(@ptrCast(buffer.ptr)),
+        .codeSize = file.len,
+        .pCode = @alignCast(@ptrCast(file.ptr)),
     };
     
     var shader_module: c.VkShaderModule = undefined;

@@ -59,9 +59,9 @@ pub const Manager = struct {
         }
     }
 
-    pub fn build_scene(self: *Manager, r: *renderer.Renderer) void {
+    pub fn build_scene(self: *Manager, io: std.Io, r: *renderer.Renderer) void {
         if (self.current_scene == 0) {
-            self.monkey_scene = levels.MonkeyScene.init(self.alloc, r) catch {
+            self.monkey_scene = levels.MonkeyScene.init(self.alloc, io, r) catch {
                 std.log.err("Failed to load monkey scene", .{});
                 @panic("Fatal error");
             };
@@ -93,7 +93,7 @@ pub const Manager = struct {
         }
 
         if (self.monkey_scene) |*scene| {
-            scene.deinit(r);
+            scene.deinit(self.alloc, r);
             self.monkey_scene = null;
         }
 
@@ -131,8 +131,8 @@ pub const DrawContext = struct {
                 std.log.err("Failed to allocate indirect draw objects. Reason {any}", .{err});
                 @panic("Fatal error");
             },
-            .opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
-            .transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator),
+            .opaque_surfaces = std.ArrayList(materials.RenderObject).empty,
+            .transparent_surfaces = std.ArrayList(materials.RenderObject).empty,
         };
 
         for (ctx.indirect_draw) |*obj| {
@@ -148,8 +148,8 @@ pub const DrawContext = struct {
         }
         self.allocator.free(self.indirect_draw);
 
-        self.opaque_surfaces.deinit();
-        self.transparent_surfaces.deinit();
+        self.opaque_surfaces.deinit(self.allocator);
+        self.transparent_surfaces.deinit(self.allocator);
     }
 
     pub fn draw(self: *DrawContext, cmd: c.VkCommandBuffer, global_descriptor: c.VkDescriptorSet, extent: c.VkExtent2D, stats: *renderer.stats_t) void {       
