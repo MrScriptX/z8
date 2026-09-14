@@ -50,11 +50,13 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addImport("cgltf", gltf);
 
     // add zalgebra
-    const zalgebra = b.addModule("zalgebra", .{
-        .root_source_file = b.path("common/zalgebra/src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    // const zalgebra = b.addModule("zalgebra", .{
+    //     .root_source_file = b.path("common/zalgebra/src/main.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    const zalgebra_deps = b.dependency("zalgebra", .{});
+    const zalgebra = zalgebra_deps.module("zalgebra");
 
     exe.root_module.addImport("zalgebra", zalgebra);
 

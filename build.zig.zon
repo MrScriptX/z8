@@ -2,8 +2,12 @@
     .name = .z8,
     .version = "0.0.2",
     .fingerprint = 0xbc0b3b1d76cf0786, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
+        .zalgebra = .{
+            .url = "git+https://github.com/kooparse/zalgebra.git#0482fbaf8f17b90b51c333ea60e77dfa12aaf5e2",
+            .hash = "zalgebra-0.0.0-aaiVSoN_AQCWiF1SsKeHX0FxJ2-38OIPsqU9F-cVMQMN",
+        },
     },
     .paths = .{
         "build.zig",
