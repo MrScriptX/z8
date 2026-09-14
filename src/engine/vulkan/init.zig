@@ -27,21 +27,21 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
     var extension_count: u32 = 0;
     const required_extensions = sdl.SDL_Vulkan_GetInstanceExtensions(&extension_count);// VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 
-    var extensions = std.ArrayList([*c]const u8).init(allocator);
-    defer extensions.deinit();
+    var extensions = std.ArrayList([*c]const u8).empty;
+    defer extensions.deinit(allocator);
     for (0..extension_count) |i| {
-        try extensions.append(required_extensions[i]);
+        try extensions.append(allocator, required_extensions[i]);
     }
 
-    try extensions.append("VK_EXT_debug_utils");
-    try extensions.append("VK_EXT_debug_report");
+    try extensions.append(allocator, "VK_EXT_debug_utils");
+    try extensions.append(allocator, "VK_EXT_debug_report");
 
     // validation layer
-    var layers = std.ArrayList([*c]const u8).init(allocator);
-    defer layers.deinit();
+    var layers = std.ArrayList([*c]const u8).empty;
+    defer layers.deinit(allocator);
 
-    try layers.append("VK_LAYER_KHRONOS_validation");
-    try layers.append("VK_LAYER_KHRONOS_synchronization2");
+    try layers.append(allocator, "VK_LAYER_KHRONOS_validation");
+    try layers.append(allocator, "VK_LAYER_KHRONOS_synchronization2");
 
     const instance_info = vk.InstanceCreateInfo {
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -65,7 +65,7 @@ pub fn init_instance(allocator: std.mem.Allocator) !c.VkInstance {
 
 pub fn create_surface(window: ?*sdl.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
     var surface: c.VkSurfaceKHR = undefined;
-    const result = sdl.Vulkan_CreateSurface(window, @ptrCast(instance), null, &surface);
+    const result = sdl.Vulkan_CreateSurface(window, @ptrCast(instance), null, @ptrCast(&surface));
     if (result == false) {
         std.log.err("Unable to create Vulkan surface: {s}", .{ sdl.SDL_GetError() });
         return Error.VkSurface;
@@ -117,8 +117,8 @@ pub fn select_physical_device(allocator: std.mem.Allocator, instance: c.VkInstan
 pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPhysicalDevice, indices: queue.indices_t) !c.VkDevice {
     var queue_priority: f32 = 1.0;
     
-    var queue_create_infos = std.ArrayList(c.VkDeviceQueueCreateInfo).init(alloc);
-    defer queue_create_infos.deinit();
+    var queue_create_infos = std.ArrayList(c.VkDeviceQueueCreateInfo).empty;
+    defer queue_create_infos.deinit(alloc);
 
     const graphic_queue_create_info = c.VkDeviceQueueCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -127,7 +127,7 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
         .pQueuePriorities = &queue_priority,
     };
 
-    try queue_create_infos.append(graphic_queue_create_info);
+    try queue_create_infos.append(alloc, graphic_queue_create_info);
 
     if (indices.graphics != indices.present) {
         const present_queue_create_info = c.VkDeviceQueueCreateInfo{
@@ -137,7 +137,7 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
             .pQueuePriorities = &queue_priority,
         };
 
-        try queue_create_infos.append(present_queue_create_info);
+        try queue_create_infos.append(alloc, present_queue_create_info);
     }
 
     if (indices.graphics != indices.compute and indices.present != indices.compute) {
@@ -148,7 +148,7 @@ pub fn create_device_interface(alloc: std.mem.Allocator, physical_device: c.VkPh
             .pQueuePriorities = &queue_priority,
         };
 
-        try queue_create_infos.append(compute_queue_create_info);
+        try queue_create_infos.append(alloc, compute_queue_create_info);
     }
 
     // create device info

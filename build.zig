@@ -43,7 +43,7 @@ pub fn build(b: *std.Build) !void {
 
     // add sdl3
     root_module.linkSystemLibrary("SDL3", .{});
-    const sdl = @import("libs/sdl/build.zig").build(b, target, optimize);
+    const sdl = @import("modules/SDL3/build.zig").build(b, target, optimize);
     root_module.addImport("sdl3", sdl);
 
     const exe = b.addExecutable(.{

@@ -4,7 +4,8 @@ pub fn main(_: std.process.Init) !u8 {
 
     const allocator = gpa.allocator();
 
-    const init_sdl = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
+    // const init_sdl = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
+    const init_sdl = sdl.Init(sdl.SDL_INIT_VIDEO);
     if (!init_sdl) {
         sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s", sdl.SDL_GetError());
         return 1;
@@ -190,9 +191,9 @@ pub fn main(_: std.process.Init) !u8 {
     return 0;
 }
 
-pub const std_options: std.Options = .{
-    .logFn = log,
-};
+// pub const std_options: std.Options = .{
+//     .logFn = log,
+// };
 
 pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
     const allocator = std.heap.page_allocator;
@@ -242,13 +243,13 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     }
 
     // TODO : print to log file
-    var threaded: std.Io.Threaded = .init_single_threaded;
-    const io = threaded.io();
+    // var threaded: std.Io.Threaded = .init_single_threaded;
+    // const io = threaded.io();
 
-    const stdout = io.getStdOut();
-    stdout.writer().print("{s}", .{ log_msg }) catch {
-        std.debug.print("Fail to write to out stream !\n", .{});
-    };
+    // const stdout = io.getStdOut();
+    // stdout.writer().print("{s}", .{ log_msg }) catch {
+    //     std.debug.print("Fail to write to out stream !\n", .{});
+    // };
 
     // if (builtin.mode == .Debug) {
     //     std.debug.print("{s}\n", .{ log_msg });
