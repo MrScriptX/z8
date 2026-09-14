@@ -3,6 +3,7 @@ const c = @import("cimgui");
 
 pub const ImplVulkan_InitInfo = c.ImGui_ImplVulkan_InitInfo;
 pub const BackendFlags_RendererHasTextures = c.ImGuiBackendFlags_RendererHasTextures;
+pub const Context = c.ImGuiContext;
 
 pub fn GetIO() *c.ImGuiIO {
     return c.ImGui_GetIO();

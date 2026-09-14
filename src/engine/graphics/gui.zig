@@ -6,7 +6,7 @@ pub const Error = error{
 pub const GuiContext = struct {
     _pool: c.VkDescriptorPool = undefined,
 
-    context: *imgui.ImGuiContext,
+    context: *imgui.Context,
 
     pub fn init(window: ?*sdl.SDL_Window, device: c.VkDevice, instance: c.VkInstance,
         gpu: c.VkPhysicalDevice, queue: c.VkQueue, format: *c.VkFormat) Error!GuiContext {
