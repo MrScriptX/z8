@@ -215,7 +215,7 @@ pub fn create_images(allocator: std.mem.Allocator, device: c.VkDevice, swapchain
 }
 
 pub fn create_image_views(device: c.VkDevice, images: []c.VkImage, format: c.VkFormat) ![]c.VkImageView {
-    var image_views = std.ArrayList(c.VkImageView).init(std.heap.page_allocator);
+    var image_views = std.ArrayList(c.VkImageView).empty;
     for (images) |image| {
         const image_view_info = c.VkImageViewCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -237,7 +237,7 @@ pub fn create_image_views(device: c.VkDevice, images: []c.VkImage, format: c.VkF
             return std.debug.panic("Failed to create swapchain image view: {}", .{success});
         }
 
-        try image_views.append(image_view);
+        try image_views.append(std.heap.page_allocator, image_view);
     }
 
     return image_views.items;

@@ -152,7 +152,7 @@ pub const Renderer = struct {
         std.log.info("Initiliazing the swapchain, res {d}x{d}...", .{ width, height });
         try renderer.init_swapchain(width, height);
 
-        try renderer.init_commands(allocator);
+        try renderer.init_commands();
         try renderer.init_descriptors(allocator);
 
         if (renderer._queue_indices.compute != renderer._queue_indices.graphics) {
@@ -300,14 +300,14 @@ pub const Renderer = struct {
         _ = c.vkCreateImageView(self._device, &depth_view_info, null, &self._depth_image.view);
     }
 
-    fn init_commands(self: *Renderer, allocator: std.mem.Allocator,) !void {
+    fn init_commands(self: *Renderer) !void {
         self._frames = [_]frames.data_t{
             frames.data_t{},
             frames.data_t{},
         };
 
         for (&self._frames) |*frame| {
-            try frame.init(allocator, self._device, self._queue_indices.graphics);
+            try frame.init(self._device, self._queue_indices.graphics);
         }
 
         self.submit.pool = try vk.commands.create_command_pool(self._device, self._queue_indices.graphics);
@@ -323,7 +323,7 @@ pub const Renderer = struct {
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
         };
 
-	    self._descriptor_pool = try descriptor.DescriptorAllocator.init(allocator, self._device, 10, &sizes);
+	    self._descriptor_pool = try descriptor.DescriptorAllocator.init(self._device, 10, &sizes);
 
 	    //make the descriptor set layout for our compute draw
 	    {

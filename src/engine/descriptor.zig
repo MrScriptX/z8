@@ -62,8 +62,8 @@ pub const DescriptorLayout = struct {
 pub const DescriptorAllocator = struct {
     _pool: c.VkDescriptorPool = undefined,
 
-    pub fn init(allocator: std.mem.Allocator, device: c.VkDevice, max_sets: u32, pool_ratios: [] const PoolSizeRatio) !DescriptorAllocator {
-        var pool_sizes = std.ArrayList(c.VkDescriptorPoolSize).init(allocator);
+    pub fn init(device: c.VkDevice, max_sets: u32, pool_ratios: [] const PoolSizeRatio) !DescriptorAllocator {
+        var pool_sizes = std.ArrayList(c.VkDescriptorPoolSize).empty;
         defer pool_sizes.deinit();
         
         for (pool_ratios) |pool_ratio| {

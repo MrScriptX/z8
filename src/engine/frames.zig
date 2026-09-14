@@ -11,23 +11,23 @@ pub const data_t = struct {
 
     _buffers: std.ArrayList(buffers.AllocatedBuffer) = undefined,
 
-    pub fn init(self: *data_t, allocator: std.mem.Allocator, device: c.VkDevice, queue_family_index: u32) !void {
+    pub fn init(self: *data_t, device: c.VkDevice, queue_family_index: u32) !void {
         self._cmd_pool = try commands.create_command_pool(device, queue_family_index);
         self._main_buffer = try commands.create_command_buffer(1, device, self._cmd_pool);
         self._sw_semaphore = try commands.create_semaphore(device);
         self._render_semaphore = try commands.create_semaphore(device);
         self._render_fence = try commands.create_fence(device);
-        self._buffers = std.ArrayList(buffers.AllocatedBuffer).init(allocator);
+        self._buffers = std.ArrayList(buffers.AllocatedBuffer).empty;
     }
 
-    pub fn deinit(self: *data_t, device: c.VkDevice, vma: c.VmaAllocator) void {
+    pub fn deinit(self: *data_t, allocator: std.mem.Allocator, device: c.VkDevice, vma: c.VmaAllocator) void {
         c.vkDestroyCommandPool(device, self._cmd_pool, null);
 
         c.vkDestroySemaphore(device, self._render_semaphore, null);
         c.vkDestroyFence(device, self._render_fence, null);
 
         self.flush(vma);
-        self._buffers.deinit();
+        self._buffers.deinit(allocator);
     }
 
     pub fn flush(self: *data_t, vma: c.VmaAllocator) void {
