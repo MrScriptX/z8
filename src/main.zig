@@ -1,11 +1,11 @@
-pub fn main() !u8 {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+pub fn main(_: std.process.Init) !u8 {
+    var gpa = std.heap.DebugAllocator(.{}).init;
     defer std.log.debug("Memory check : {any}\n", .{ gpa.deinit() });
 
     const allocator = gpa.allocator();
 
-    const init = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
-    if (!init) {
+    const init_sdl = sdl.SDL_Init(sdl.SDL_INIT_VIDEO);
+    if (!init_sdl) {
         sdl.SDL_LogError(sdl.SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s", sdl.SDL_GetError());
         return 1;
     }
@@ -242,7 +242,10 @@ pub fn log(comptime level: std.log.Level, comptime _: @TypeOf(.EnumLiteral), com
     }
 
     // TODO : print to log file
-    const stdout = std.io.getStdOut();
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+
+    const stdout = io.getStdOut();
     stdout.writer().print("{s}", .{ log_msg }) catch {
         std.debug.print("Fail to write to out stream !\n", .{});
     };
