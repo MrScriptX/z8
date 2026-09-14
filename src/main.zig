@@ -93,7 +93,7 @@ pub fn main(process: std.process.Init) !u8 {
     var scene_manager = engine.scene.Manager.init(allocator, 2);
     defer scene_manager.deinit(&renderer);
 
-    scene_manager.build_scene(&renderer);
+    scene_manager.build_scene(process.io, &renderer);
 
     // main loop
     var quit = false;
@@ -127,7 +127,7 @@ pub fn main(process: std.process.Init) !u8 {
             renderer.rebuild_swapchain(gpa.allocator(), window);
 
             scene_manager.clear(&renderer);
-            scene_manager.build_scene(&renderer);
+            scene_manager.build_scene(process.io, &renderer);
         }
 
         // check if bg shader needs to be rebuilt
@@ -153,7 +153,14 @@ pub fn main(process: std.process.Init) !u8 {
                 _ = imgui.SliderFloat("sensitivity", &main_camera.sensitivity, 0, 1);
 
                 imgui.ImGui_Text("Camera");
-                _ = imgui.InputFloat3("position", &main_camera.position);
+
+                var position: [3]f32 = .{
+                    main_camera.position[0],
+                    main_camera.position[1],
+                    main_camera.position[2]
+                };
+
+                _ = imgui.InputFloat3("position", &position);
                 _ = imgui.InputFloat("yaw", &main_camera.yaw);
                 _ = imgui.InputFloat("pitch", &main_camera.pitch);
 		    }
@@ -178,15 +185,16 @@ pub fn main(process: std.process.Init) !u8 {
 		    }
         }
 
-        scene_manager.update_ui(&renderer);
+        scene_manager.update_ui(process.io, &renderer);
 
         // render
         imgui.Render();
 
-        scene_manager.update(&main_camera, &renderer);
-        renderer.draw(gpa.allocator());
+        scene_manager.update(process.io, &main_camera, &renderer);
+        renderer.draw(gpa.allocator(), process.io);
 
-        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        const end_now = std.Io.Clock.now(.awake, process.io);
+        const end_time: u128 = @intCast(end_now.toNanoseconds());
         renderer.stats.frame_time = @floatFromInt(end_time - start_time);
     }
 

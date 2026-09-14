@@ -174,7 +174,7 @@ pub const DescriptorAllocator2 = struct {
         self._ratios.deinit(allocator);
     }
 
-    pub fn clear(self: *DescriptorAllocator2, device: c.VkDevice) void {
+    pub fn clear(self: *DescriptorAllocator2, allocator: std.mem.Allocator, device: c.VkDevice) void {
         for (self._ready_pools.items) |p| {
             const result = c.vkResetDescriptorPool(device, p, 0);
             if (result != c.VK_SUCCESS) {
@@ -188,13 +188,13 @@ pub const DescriptorAllocator2 = struct {
                 std.log.warn("ERROR : Failed to reset descriptor pool ! Reason {d}", .{ result });
             }
 
-            self._ready_pools.append(p) catch {
+            self._ready_pools.append(allocator, p) catch {
                 std.log.err("Failed to store Descriptor Pool ! Out of memory", .{});
                 @panic("Out of memory");
             };
         }
 
-        self._full_pools.clearAndFree();
+        self._full_pools.clearAndFree(allocator);
     }
 
     fn get_pool(self: *DescriptorAllocator2, allocator: std.mem.Allocator, device: c.VkDevice) c.VkDescriptorPool {
@@ -225,7 +225,7 @@ pub const DescriptorAllocator2 = struct {
 	    var descriptor_set: c.VkDescriptorSet = undefined;
 	    var result = c.vkAllocateDescriptorSets(device, &alloc_info, &descriptor_set);
         if (result == c.VK_ERROR_OUT_OF_POOL_MEMORY or result == c.VK_ERROR_FRAGMENTED_POOL) {
-            self._full_pools.append(pool) catch {
+            self._full_pools.append(allocator, pool) catch {
                 std.log.err("Failed to add new pool\n", .{});
                 @panic("OOM");
             };
@@ -241,7 +241,7 @@ pub const DescriptorAllocator2 = struct {
             @panic("Failed to allocate descriptor set");
         }
 
-        self._ready_pools.append(pool) catch {
+        self._ready_pools.append(allocator, pool) catch {
             std.log.err("Failed to add new pool\n", .{});
             @panic("OOM");
         };
@@ -268,12 +268,12 @@ pub const Writer = struct {
         return writer;
     }
 
-    pub fn deinit(self: *Writer, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Writer, _: std.mem.Allocator) void {
         self._arena.deinit();
 
-        self._image_infos.deinit(allocator);
-        self._buffer_infos.deinit(allocator);
-        self._writes.deinit(allocator);
+        // self._image_infos.deinit(allocator);
+        // self._buffer_infos.deinit(allocator);
+        // self._writes.deinit(allocator);
     }
 
     pub fn write_buffer(self: *Writer, binding: u32, buffer: c.VkBuffer, size: usize, offset: usize, dtype: c.VkDescriptorType) void {
@@ -287,7 +287,7 @@ pub const Writer = struct {
         buffer_info.*.offset = offset;
         buffer_info.*.range = size;
 
-        self._buffer_infos.append(buffer_info) catch {
+        self._buffer_infos.append(allocator, buffer_info) catch {
             std.log.err("Failed to insert new buffer info !", .{});
             @panic("OOM");
         };
@@ -303,7 +303,7 @@ pub const Writer = struct {
             .pBufferInfo = self._buffer_infos.getLast(),
         };
 
-        self._writes.append(write) catch {
+        self._writes.append(allocator, write) catch {
             std.log.err("Failed to insert new VkWriteDescriptorSet !", .{});
             @panic("OOM");
         };

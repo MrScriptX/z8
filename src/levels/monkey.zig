@@ -26,8 +26,8 @@ pub const MonkeyScene = struct {
         scene.model.deactivate_node("Sphere");
 
         scene.draw_ctx.global_data = &scene.global_data;
-        scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
-        scene.draw_ctx.transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
+        scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).empty;
+        scene.draw_ctx.transparent_surfaces = std.ArrayList(materials.RenderObject).empty;
 
         return scene;
     }
@@ -42,12 +42,13 @@ pub const MonkeyScene = struct {
 
         self.draw_ctx.deinit(r);
         
-        self.model.deinit(r._device, r._vma);
+        self.model.deinit(allocator, r._device, r._vma);
         self.arena.deinit();
     }
 
-    pub fn update(self: *MonkeyScene, cam: *cameras.camera_t, r: *renderer.Renderer) void {
-        const start_time: u128 = @intCast(std.time.nanoTimestamp());
+    pub fn update(self: *MonkeyScene, io: std.Io, cam: *cameras.camera_t, r: *renderer.Renderer) void {
+        const start = std.Io.Clock.now(.awake, io);
+        const start_time: u128 = @intCast(start.toNanoseconds());
 
         if (self.model.find_node("Suzanne")) |node| {
             const current_transform = za.Mat4.fromSlice(&maths.linearize(node.local_transform));
@@ -63,7 +64,8 @@ pub const MonkeyScene = struct {
         cam.update(r.stats.frame_time);
         self.draw(cam, r._draw_extent);
 
-        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        const end = std.Io.Clock.now(.awake, io);
+        const end_time: u128 = @intCast(end.toNanoseconds());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
     }
 

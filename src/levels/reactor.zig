@@ -8,7 +8,7 @@ pub const ReactorScene = struct {
 
     metallic_roughness: gltf.GLTFMetallic_Roughness,
 
-    pub fn init(allocator: std.mem.Allocator, r: *renderer.Renderer) !ReactorScene {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, r: *renderer.Renderer) !ReactorScene {
         var scene = ReactorScene {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .model = undefined,
@@ -17,40 +17,42 @@ pub const ReactorScene = struct {
             .metallic_roughness = gltf.GLTFMetallic_Roughness.init(allocator)
         };
 
-        try scene.metallic_roughness.build_pipeline(allocator, r);
+        try scene.metallic_roughness.build_pipeline(allocator, io, r);
 
         scene.model = try scene.arena.allocator().create(gltf.LoadedGLTF);
         scene.model.* = try gltf.load_gltf(allocator, "assets/models/structure.glb", &scene.metallic_roughness, r);
 
         scene.draw_ctx.global_data = &scene.global_data;
-        scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
-        scene.draw_ctx.transparent_surfaces = std.ArrayList(materials.RenderObject).init(allocator);
+        scene.draw_ctx.opaque_surfaces = std.ArrayList(materials.RenderObject).empty;
+        scene.draw_ctx.transparent_surfaces = std.ArrayList(materials.RenderObject).empty;
 
         return scene;
     }
 
-    pub fn deinit(self: *ReactorScene, r: *renderer.Renderer) void {
+    pub fn deinit(self: *ReactorScene, allocator: std.mem.Allocator, r: *renderer.Renderer) void {
         const result = c.vkDeviceWaitIdle(r._device);
         if (result != c.VK_SUCCESS) {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
 
-        self.metallic_roughness.deinit(r._device);
+        self.metallic_roughness.deinit(allocator, r._device);
 
         self.draw_ctx.deinit(r);
         
-        self.model.deinit(r._device, r._vma);
+        self.model.deinit(allocator, r._device, r._vma);
         self.arena.deinit();
     }
 
-    pub fn update(self: *ReactorScene, cam: *cameras.camera_t, r: *renderer.Renderer) void {
-        const start_time: u128 = @intCast(std.time.nanoTimestamp());
+    pub fn update(self: *ReactorScene, io: std.Io, cam: *cameras.camera_t, r: *renderer.Renderer) void {
+        const start = std.Io.Clock.now(.awake, io);
+        const start_time: u128 = @intCast(start.toNanoseconds());
 
         cam.update(r.stats.frame_time);
 
         self.draw(cam, r._draw_extent);
 
-        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        const end = std.Io.Clock.now(.awake, io);
+        const end_time: u128 = @intCast(end.toNanoseconds());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
     }
 

@@ -1,4 +1,5 @@
 pub const ClassificationShader = struct {
+    allocator: std.mem.Allocator,
     pipeline: compute.Pipeline = undefined,
 
     layout: c.VkDescriptorSetLayout = undefined,
@@ -8,6 +9,7 @@ pub const ClassificationShader = struct {
         std.log.info("Creating voxel classification shader", .{});
 
         return .{
+            .allocator = allocator,
             .writer = descriptors.Writer.init(allocator)
         };
     }
@@ -18,17 +20,17 @@ pub const ClassificationShader = struct {
 
         c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
 
-        self.writer.deinit();
+        self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *ClassificationShader, allocator: std.mem.Allocator, shader: []const u8, r: *const Renderer) !void {
+    pub fn build(self: *ClassificationShader, shader: []const u8, r: *const Renderer) !void {
         std.log.info("Building voxel classification shader", .{});
 
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
         defer layout_builder.deinit();
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
 
@@ -59,7 +61,7 @@ pub const ClassificationShader = struct {
         }
 
         // shader module
-        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
+        const compute_shader = try p.load_shader_module(self.allocator, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute
@@ -100,6 +102,7 @@ pub const ClassificationShader = struct {
 };
 
 pub const FaceCullingShader = struct {
+    allocator: std.mem.Allocator,
     pipeline: compute.Pipeline = undefined,
 
     layout: c.VkDescriptorSetLayout = undefined,
@@ -119,13 +122,13 @@ pub const FaceCullingShader = struct {
 
         c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
 
-        self.writer.deinit();
+        self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *FaceCullingShader, allocator: std.mem.Allocator, shader: []const u8, r: *const Renderer) !void {
+    pub fn build(self: *FaceCullingShader, shader: []const u8, r: *const Renderer) !void {
         std.log.info("Building voxel face culling shader", .{});
 
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
         defer layout_builder.deinit();
 
         try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -150,7 +153,7 @@ pub const FaceCullingShader = struct {
         }
 
         // shader module
-        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
+        const compute_shader = try p.load_shader_module(self.allocator, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute
@@ -183,6 +186,7 @@ pub const FaceCullingShader = struct {
 };
 
 pub const GreedyMeshingShader = struct {
+    allocator: std.mem.Allocator,
     name: []const u8 = undefined,
     
     pipeline: compute.Pipeline = undefined,
@@ -194,6 +198,7 @@ pub const GreedyMeshingShader = struct {
         std.log.info("Creating compute shader {s}", .{ name });
 
         return .{
+            .allocator = allocator,
             .name = name,
             .writer = descriptors.Writer.init(allocator),
         };
@@ -210,13 +215,13 @@ pub const GreedyMeshingShader = struct {
 
         c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
 
-        self.writer.deinit();
+        self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *GreedyMeshingShader, allocator: std.mem.Allocator, shader: []const u8, r: *Renderer) !void { 
+    pub fn build(self: *GreedyMeshingShader, shader: []const u8, r: *Renderer) !void { 
         std.log.info("Building compute shader {s}", .{ self.name });
 
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
         defer layout_builder.deinit();
 
         try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -245,7 +250,7 @@ pub const GreedyMeshingShader = struct {
         }
 
         // shader module
-        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
+        const compute_shader = try p.load_shader_module(self.allocator, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute
@@ -294,6 +299,7 @@ pub const GreedyMeshingShader = struct {
 };
 
 pub const FrustrumCulling = struct {
+    allocator: std.mem.Allocator,
     pipeline: compute.Pipeline = undefined,
 
     layout: c.VkDescriptorSetLayout = undefined,
@@ -303,6 +309,7 @@ pub const FrustrumCulling = struct {
         std.log.info("Creating frustrum culling shader", .{ });
 
         return .{
+            .allocator = allocator,
             .writer = descriptors.Writer.init(allocator),
         };
     }
@@ -318,22 +325,22 @@ pub const FrustrumCulling = struct {
 
         c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
 
-        self.writer.deinit();
+        self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *FrustrumCulling, allocator: std.mem.Allocator, shader: []const u8, r: *Renderer) !void { 
+    pub fn build(self: *FrustrumCulling, shader: []const u8, r: *Renderer) !void { 
         std.log.info("Building frustrum culling shader", .{ });
 
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
         defer layout_builder.deinit();
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(5, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(6, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 5, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 6, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
 
@@ -355,7 +362,7 @@ pub const FrustrumCulling = struct {
         }
 
         // shader module
-        const compute_shader = try p.load_shader_module(allocator, r._device, shader);
+        const compute_shader = try p.load_shader_module(self.allocator, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute
@@ -367,10 +374,10 @@ pub const FrustrumCulling = struct {
         self.pipeline.pipeline = builder.build_pipeline(r._device);
     }
 
-    pub fn write(self: *FrustrumCulling, allocator: std.mem.Allocator, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const Renderer) compute.Instance {
+    pub fn write(self: *FrustrumCulling, pool: *descriptors.DescriptorAllocator2, resources: *const Resource, r: *const Renderer) compute.Instance {
         const data =  compute.Instance {
             .pipeline = &self.pipeline,
-            .descriptor = pool.allocate(allocator, r._device, self.layout, null),
+            .descriptor = pool.allocate(self.allocator, r._device, self.layout, null),
         };
 
         self.writer.clear();

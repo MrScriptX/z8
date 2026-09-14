@@ -380,7 +380,7 @@ pub const Renderer = struct {
         }
 
         self.current_frame().flush(self._vma);
-        self.current_frame()._frame_descriptors.clear(self._device);
+        self.current_frame()._frame_descriptors.clear(self.allocator, self._device);
 
         // compute draw extent
         const min_width: f32 = @floatFromInt(@min(self._sw._extent.width, self._draw_image.extent.width));
@@ -498,7 +498,7 @@ pub const Renderer = struct {
         }
     }
 
-    pub fn draw(self: *Renderer, allocator: std.mem.Allocator) void {
+    pub fn draw(self: *Renderer, allocator: std.mem.Allocator, io: std.Io) void {
         // start thread
         const image_index = self.next_image() catch |err| {
             if (err == Error.OutOfDate) {
@@ -515,7 +515,8 @@ pub const Renderer = struct {
             return; // we skip for now
         };
 
-        const start_time: u128 = @intCast(std.time.nanoTimestamp());
+        const start = std.Io.Clock.now(.awake, io);
+        const start_time: u128 = @intCast(start.toNanoseconds());
 
         // call tasks
 
@@ -546,7 +547,8 @@ pub const Renderer = struct {
         // submit the command buffer
         self.submit_cmd(cmd, image_index);
 
-        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        const end = std.Io.Clock.now(.awake, io);
+        const end_time: u128 = @intCast(end.toNanoseconds());
         self.stats.mesh_draw_time = @floatFromInt(end_time - start_time);
 
         self._frameNumber += 1;
@@ -628,7 +630,7 @@ pub const Renderer = struct {
         // allocate new uniform buffer for the scene
         const gpu_scene_data_buffer = buffers.AllocatedBuffer.init(self._vma, @sizeOf(scenes.ShaderData), c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, c.VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        self.current_frame()._buffers.append(gpu_scene_data_buffer) catch {
+        self.current_frame()._buffers.append(allocator, gpu_scene_data_buffer) catch {
             std.log.err("Failed to add buffer to the buffer list of the frame ! OOM !", .{});
             @panic("OOM");
         };
@@ -639,7 +641,7 @@ pub const Renderer = struct {
         const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self.scene_descriptor, null);
         {
             var writer = descriptor.Writer.init(allocator);
-            defer writer.deinit();
+            defer writer.deinit(allocator);
 
             writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
             writer.update_set(self._device, global_descriptor);

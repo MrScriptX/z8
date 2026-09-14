@@ -67,12 +67,12 @@ pub const GLTFMetallic_Roughness = struct {
             .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
         };
 
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
-        defer layout_builder.deinit();
+        var layout_builder = descriptors.DescriptorLayout.init();
+        defer layout_builder.deinit(allocator);
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        try layout_builder.add_binding(allocator, 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        try layout_builder.add_binding(allocator, 1, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        try layout_builder.add_binding(allocator, 2, c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
         self.material_layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
 
@@ -102,9 +102,9 @@ pub const GLTFMetallic_Roughness = struct {
         self.transparent_pipeline.layout = new_layout;
 
         var builder = pipeline.builder_t.init(allocator);
-        defer builder.deinit();
+        defer builder.deinit(allocator);
 
-        try builder.set_shaders(vertex_shader, frag_shader);
+        try builder.set_shaders(allocator, vertex_shader, frag_shader);
         builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         builder.set_polygon_mode(c.VK_POLYGON_MODE_FILL);
         builder.set_cull_mode(c.VK_CULL_MODE_NONE, c.VK_FRONT_FACE_CLOCKWISE);
@@ -207,8 +207,8 @@ pub const LoadedGLTF = struct {
         gltf.nodes = std.hash_map.StringHashMap(*m.Node).init(allocator);
         gltf.images = std.hash_map.StringHashMap(*vk_images.image_t).init(allocator);
         gltf.materials = std.hash_map.StringHashMap(*mat.MaterialInstance).init(allocator);
-        gltf.top_nodes = std.ArrayList(*m.Node).init(allocator);
-        gltf.samplers = std.ArrayList(c.VkSampler).init(allocator);
+        gltf.top_nodes = std.ArrayList(*m.Node).empty;
+        gltf.samplers = std.ArrayList(c.VkSampler).empty;
 
         const white: u32 align(4) = maths.pack_unorm4x8(.{ 1, 1, 1, 1 });
         gltf.white_image = vk.image.create_image_data(r._vma, r._device, @ptrCast(&white), .{ .width = 1, .height = 1, .depth = 1 }, c.VK_FORMAT_R8G8B8A8_UNORM, c.VK_IMAGE_USAGE_SAMPLED_BIT, false, &r.submit.fence, r.submit.cmd, r._queues.graphics);
@@ -249,20 +249,20 @@ pub const LoadedGLTF = struct {
         return gltf;
     }
 
-    pub fn deinit(self: *LoadedGLTF, device: c.VkDevice, vma: c.VmaAllocator) void {
+    pub fn deinit(self: *LoadedGLTF, allocator: std.mem.Allocator, device: c.VkDevice, vma: c.VmaAllocator) void {
         defer self.arena.deinit(); // free data in hash maps
-        defer self.samplers.deinit();
+        defer self.samplers.deinit(allocator);
         defer self.nodes.deinit();
         defer self.meshes.deinit();
         defer self.images.deinit();
         defer self.materials.deinit();
-        defer self.top_nodes.deinit();
-        defer self.descriptor_pool.deinit(device);
+        defer self.top_nodes.deinit(allocator);
+        defer self.descriptor_pool.deinit(allocator, device);
         defer self.material_data_buffer.deinit(vma);
 
         var node_it = self.nodes.iterator();
         while (node_it.next()) |*node| {
-            node.value_ptr.*.deinit();
+            node.value_ptr.*.deinit(allocator);
         }
 
         var mesh_it = self.meshes.iterator();
@@ -366,7 +366,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
                 @panic("Failed to create sampler !");
             }
 
-            try scene.samplers.append(new_sampler);
+            try scene.samplers.append(allocator, new_sampler);
         }
     }
     else {
@@ -383,7 +383,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
             @panic("Failed to create sampler !");
         }
 
-        try scene.samplers.append(sampler_nearest);
+        try scene.samplers.append(allocator, sampler_nearest);
 
         const linear_sampler_image = c.VkSamplerCreateInfo {
             .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -398,7 +398,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
             @panic("Failed to create sampler !");
         }
 
-        try scene.samplers.append(sampler_linear);
+        try scene.samplers.append(allocator, sampler_linear);
     }
     
     // local allocator
@@ -483,22 +483,22 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
     }
 
     // load meshes
-    var vertices = std.ArrayList(buffers.Vertex).init(allocator);
-    defer vertices.deinit();
+    var vertices = std.ArrayList(buffers.Vertex).empty;
+    defer vertices.deinit(allocator);
 
-    var indices = std.ArrayList(u32).init(allocator);
-    defer indices.deinit();
+    var indices = std.ArrayList(u32).empty;
+    defer indices.deinit(allocator);
 
-    var meshes = std.ArrayList(*assets.MeshAsset).init(allocator);
-    defer meshes.deinit();
+    var meshes = std.ArrayList(*assets.MeshAsset).empty;
+    defer meshes.deinit(allocator);
 
     for (data.meshes[0..data.meshes_count]) |mesh| {
         var asset = try scene.arena.allocator().create(assets.MeshAsset);
         asset.* = assets.MeshAsset.init(allocator, std.mem.span(mesh.name));
 
         // clear the arrays
-        vertices.clearAndFree();
-        indices.clearAndFree();
+        vertices.clearAndFree(allocator);
+        indices.clearAndFree(allocator);
 
         for (mesh.primitives[0..mesh.primitives_count]) |prim| {
             const indices_count: usize = prim.indices.*.count;
@@ -508,13 +508,13 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
                 .count = @intCast(indices_count),
             };
 
-            indices.ensureTotalCapacity(indices.items.len + indices_count) catch @panic("OOM");
+            indices.ensureTotalCapacity(allocator, indices.items.len + indices_count) catch @panic("OOM");
 
             // load indexes
             const offset: u32 = @intCast(vertices.items.len);
             for (0..indices_count) |i| {
                 const idx: u32 = @intCast(cgltf.cgltf_accessor_read_index(prim.indices, @intCast(i)));
-                try indices.append(idx + offset);
+                try indices.append(allocator, idx + offset);
             }
 
             // load vertex positions
@@ -545,7 +545,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
             }
 
             const count = pos_accessor.count;
-            try vertices.ensureTotalCapacity(vertices.items.len + count);
+            try vertices.ensureTotalCapacity(allocator, vertices.items.len + count);
 
             for (0..count) |i| {
                 var v: buffers.Vertex = buffers.Vertex {
@@ -599,14 +599,14 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
                     surface.material = materials.get(it.next().?.key_ptr.*) orelse @panic("material not found");
                 }
 
-                try vertices.append(v);
+                try vertices.append(allocator, v);
             }
 
-            try asset.surfaces.append(surface);
+            try asset.surfaces.append(allocator, surface);
         }
 
         asset.mesh_buffers = buffers.GPUMeshBuffers.init(r._vma, indices.items, vertices.items, r);
-        try meshes.append(asset);
+        try meshes.append(allocator, asset);
 
         // find name
         const name: []u8 = scene.arena.allocator().dupe(u8, std.mem.span(mesh.name)) catch @panic("OOM");
@@ -616,7 +616,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
     // load nodes
     for (data.nodes[0..data.nodes_count]) |*node| {
         var new_node = try scene.arena.allocator().create(m.Node);
-        new_node.* = m.Node.init(allocator);
+        new_node.* = m.Node.init();
 
         if (node.mesh != null) {
             new_node.mesh = scene.meshes.get(std.mem.span(node.mesh.*.name)) orelse @panic("mesh not found");
@@ -656,7 +656,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
         if (node.children_count != 0) {
             for (node.children[0..node.children_count]) |child| {
                 const child_node = scene.nodes.get(std.mem.span(child.*.name)) orelse @panic("child not found");
-                try scene_node.children.append(child_node);
+                try scene_node.children.append(allocator, child_node);
                 child_node.parent = scene_node;
             }
         }
@@ -666,7 +666,7 @@ pub fn load_gltf(allocator: std.mem.Allocator, path: []const u8, metallic_roughn
     var it = scene.nodes.valueIterator();
     while (it.next()) |node| {
         if (node.*.parent == null) {
-            try scene.top_nodes.append(node.*);
+            try scene.top_nodes.append(allocator, node.*);
             node.*.refresh_transform(&z.Mat4.identity().data);
         }
     }

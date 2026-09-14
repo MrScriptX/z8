@@ -5,6 +5,8 @@ pub const ImplVulkan_InitInfo = c.ImGui_ImplVulkan_InitInfo;
 pub const BackendFlags_RendererHasTextures = c.ImGuiBackendFlags_RendererHasTextures;
 pub const Context = c.ImGuiContext;
 pub const ImGui_Text = c.ImGui_Text;
+pub const ImGui_ComboChar = c.ImGui_ComboChar;
+pub const ImGui_Button = c.ImGui_Button;
 
 pub fn GetIO() *c.ImGuiIO {
     return c.ImGui_GetIO();

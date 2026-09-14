@@ -129,10 +129,10 @@ pub const VoxelScene = struct {
         pos: @Vector(3, i32)
     };
 
-    pub fn init(allocator: std.mem.Allocator, r: *renderer.Renderer) !VoxelScene {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, r: *renderer.Renderer) !VoxelScene {
         var prng = std.Random.DefaultPrng.init(blk: {
             var seed: u64 = undefined;
-            try std.posix.getrandom(std.mem.asBytes(&seed));
+            io.random(std.mem.asBytes(&seed));
             break :blk seed;
         });
         const rand = prng.random();
@@ -159,8 +159,8 @@ pub const VoxelScene = struct {
                 .position = .{ 0, 0, 0 }
             },
             .world = undefined,
-            .wait_queue = std.ArrayList(Chunk).init(allocator),
-            .deletion_queue = std.ArrayList(Chunk).init(allocator),
+            .wait_queue = std.ArrayList(Chunk).empty,
+            .deletion_queue = std.ArrayList(Chunk).empty,
         };
 
         // allocate chunk map memory
@@ -232,21 +232,21 @@ pub const VoxelScene = struct {
                 it.ptr.deinit(r._vma, r);
             }
         }
-        self.wait_queue.deinit();
+        self.wait_queue.deinit(self.allocator);
 
         for (self.deletion_queue.items) |*it| {
             if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
             }
         }
-        self.deletion_queue.deinit();
+        self.deletion_queue.deinit(self.allocator);
 
         for (self.world.items) |*it| {
             if (it.ptr.ready.load(std.builtin.AtomicOrder.acquire)) {
                 it.ptr.deinit(r._vma, r);
             }
         }
-        self.world.deinit();
+        self.world.deinit(self.allocator);
 
         self.pipelines.deinit(r._device);
 
@@ -281,7 +281,7 @@ pub const VoxelScene = struct {
                     .pos = start + offset
                 };
 
-                self.world.append(it) catch @panic("Out of memory !");
+                self.world.append(self.allocator, it) catch @panic("Out of memory !");
             }
         }
     }
@@ -295,13 +295,14 @@ pub const VoxelScene = struct {
         }
 
         for (self.world.items) |it| {
-            self.deletion_queue.append(it) catch @panic("OOM");
+            self.deletion_queue.append(self.allocator, it) catch @panic("OOM");
         }
         self.world.clearRetainingCapacity();
     }
 
-    pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, cam: *cameras.camera_t, r: *renderer.Renderer) void {
-        const start_time: u128 = @intCast(std.time.nanoTimestamp());
+    pub fn update(self: *VoxelScene, allocator: std.mem.Allocator, io: std.Io, cam: *cameras.camera_t, r: *renderer.Renderer) void {
+        const start = std.Io.Clock.now(.awake, io);
+        const start_time: u128 = @intCast(start.toNanoseconds());
 
         // process wait queue
         // const frame = r._frameNumber % 2;
@@ -380,7 +381,8 @@ pub const VoxelScene = struct {
         cam.update(r.stats.frame_time);
         self.draw(cam, r._draw_extent, r.stats.frame_time / 1_000_000_000.0, r._frameNumber);
 
-        const end_time: u128 = @intCast(std.time.nanoTimestamp());
+        const end = std.Io.Clock.now(.awake, io);
+        const end_time: u128 = @intCast(end.toNanoseconds());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
     }
 
@@ -427,7 +429,7 @@ pub const VoxelScene = struct {
         allocator.destroy(unwrap);
     }
 
-    pub fn update_ui(self: *VoxelScene, r: *const renderer.Renderer) void {
+    pub fn update_ui(self: *VoxelScene, io: std.Io, r: *const renderer.Renderer) void {
         const result = imgui.Begin("Scene", null, 0);
         if (result) {
             defer imgui.End();
@@ -441,10 +443,8 @@ pub const VoxelScene = struct {
             if (imgui.ImGui_Button("random seed")) {
                 var prng = std.Random.DefaultPrng.init(blk: {
                     var seed: u64 = undefined;
-                    std.posix.getrandom(std.mem.asBytes(&seed)) catch {
-                        std.log.warn("Failed to get a random number seed", .{});
-                        seed = 751468464;
-                    };
+                    io.random(std.mem.asBytes(&seed));
+
                     break :blk seed;
                 });
                 const rand = prng.random();

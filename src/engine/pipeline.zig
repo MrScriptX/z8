@@ -49,18 +49,18 @@ pub const builder_t = struct {
 
     pub fn init(allocator: std.mem.Allocator) builder_t {
         var builder = builder_t {
-            ._shader_stages = std.ArrayList(c.VkPipelineShaderStageCreateInfo).init(allocator),
+            ._shader_stages = std.ArrayList(c.VkPipelineShaderStageCreateInfo).empty,
         };
-        builder.clear();
+        builder.clear(allocator);
 
         return builder;
     }
 
-    pub fn deinit(self: *builder_t) void {
-        defer self._shader_stages.deinit();
+    pub fn deinit(self: *builder_t, allocator: std.mem.Allocator) void {
+        defer self._shader_stages.deinit(allocator);
     }
 
-    pub fn clear(self: *builder_t) void {
+    pub fn clear(self: *builder_t, allocator: std.mem.Allocator) void {
         self._input_assembly = .{ .sType = c.VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
         self._rasterizer = .{ .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
         self._color_blend_attachment = .{};
@@ -69,7 +69,7 @@ pub const builder_t = struct {
         self._depth_stencil = .{ .sType = c.VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
         self._render_info = .{ .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 
-        self._shader_stages.clearAndFree();
+        self._shader_stages.clearAndFree(allocator);
     }
 
     pub fn build_pipeline(self: *builder_t, device: c.VkDevice) c.VkPipeline {
@@ -136,11 +136,11 @@ pub const builder_t = struct {
         return pipeline;
     }
 
-    pub fn set_shaders(self: *builder_t, vertex_shader: c.VkShaderModule, fragment_shader: c.VkShaderModule) !void {
-        self._shader_stages.clearAndFree();
+    pub fn set_shaders(self: *builder_t, allocator: std.mem.Allocator, vertex_shader: c.VkShaderModule, fragment_shader: c.VkShaderModule) !void {
+        self._shader_stages.clearAndFree(allocator);
 
-        try self._shader_stages.append(create_shader_stage_info(vertex_shader, c.VK_SHADER_STAGE_VERTEX_BIT));
-        try self._shader_stages.append(create_shader_stage_info(fragment_shader, c.VK_SHADER_STAGE_FRAGMENT_BIT));
+        try self._shader_stages.append(allocator, create_shader_stage_info(vertex_shader, c.VK_SHADER_STAGE_VERTEX_BIT));
+        try self._shader_stages.append(allocator, create_shader_stage_info(fragment_shader, c.VK_SHADER_STAGE_FRAGMENT_BIT));
     }
 
     pub fn set_input_topology(self: *builder_t, topology: c.VkPrimitiveTopology) void {

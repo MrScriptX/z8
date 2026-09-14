@@ -239,7 +239,7 @@ pub const Chunk = struct {
             .chunk_buffer = chunk.data_buffer.buffer,
             .chunk_buffer_offset = 0
         };
-        chunk.compute_passes.frustrum_culling.* = shaders.frustrum_culling.write(allocator, &chunk.descriptor_pool, &frustrum_resources, r);
+        chunk.compute_passes.frustrum_culling.* = shaders.frustrum_culling.write(&chunk.descriptor_pool, &frustrum_resources, r);
 
         return chunk;
     }
@@ -250,7 +250,7 @@ pub const Chunk = struct {
         self.mesh.deinit(r);
         self.indirect_draw_buffer.deinit(vma);
         self.material_buffer.deinit(vma);
-        self.descriptor_pool.deinit(r._device);
+        self.descriptor_pool.deinit(self.allocator, r._device);
 
         self.allocator.destroy(self.compute_passes.classification);
         self.allocator.destroy(self.compute_passes.face_culling);
@@ -286,7 +286,7 @@ pub const Chunk = struct {
             .indirect_buffer_offset = 0, // offset for solid mesh
         };
 
-        ctx.opaque_surfaces.append(object) catch {
+        ctx.opaque_surfaces.append(self.allocator, object) catch {
             std.log.warn("Failed to register object for draw", .{});
         };
 
@@ -302,7 +302,7 @@ pub const Chunk = struct {
             .indirect_buffer_offset = @sizeOf(c.VkDrawIndexedIndirectCommand) * 1, // offset for water mesh
         };
 
-        ctx.transparent_surfaces.append(water_object) catch {
+        ctx.transparent_surfaces.append(self.allocator, water_object) catch {
             std.log.warn("Failed to register object for draw", .{});
         };
 
@@ -487,12 +487,15 @@ pub const Chunk = struct {
 };
 
 pub const Material = struct {
+    allocator: std.mem.Allocator,
+
     pipeline: engine.materials.MaterialPipeline,
     layout: c.VkDescriptorSetLayout,
     writer: descriptors.Writer,
 
     pub fn init(allocator: std.mem.Allocator) Material {
         return .{
+            .allocator = allocator,
             .writer = descriptors.Writer.init(allocator),
             .layout = undefined,
             .pipeline = undefined,
@@ -505,14 +508,14 @@ pub const Material = struct {
 
         c.vkDestroyDescriptorSetLayout(device, self.layout, null);
 
-        self.writer.deinit();
+        self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *Material, allocator: std.mem.Allocator, vert_path: []const u8, frag_path: []const u8, polygone_mode: c.VkPolygonMode, blend: bool, r: *const Renderer) !void {        
-        const frag_shader = try p.load_shader_module(allocator, r._device, frag_path);
+    pub fn build(self: *Material, vert_path: []const u8, frag_path: []const u8, polygone_mode: c.VkPolygonMode, blend: bool, r: *const Renderer) !void {        
+        const frag_shader = try p.load_shader_module(self.allocator, r._device, frag_path);
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
-        const vert_shader = try p.load_shader_module(allocator, r._device, vert_path);
+        const vert_shader = try p.load_shader_module(self.allocator, r._device, vert_path);
         defer c.vkDestroyShaderModule(r._device, vert_shader, null);
 
         const matrix_range: c.VkPushConstantRange = .{
@@ -521,7 +524,7 @@ pub const Material = struct {
             .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
         };
 
-        var layout_builder = descriptors.DescriptorLayout.init(allocator);
+        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
         defer layout_builder.deinit();
 
         try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER | c.VK_SHADER_STAGE_VERTEX_BIT);
@@ -552,7 +555,7 @@ pub const Material = struct {
 
         self.pipeline.layout = new_layout;
 
-        var builder = p.builder_t.init(allocator);
+        var builder = p.builder_t.init(self.allocator);
         defer builder.deinit();
 
         try builder.set_shaders(vert_shader, frag_shader);

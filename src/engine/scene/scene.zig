@@ -29,19 +29,19 @@ pub const Manager = struct {
         self.clear(r);
     }
 
-    pub fn update(self: *Manager, cam: *camera.camera_t, r: *renderer.Renderer) void {
+    pub fn update(self: *Manager, io: std.Io, cam: *camera.camera_t, r: *renderer.Renderer) void {
         if (self.reactor_scene) |*scene| {
-            scene.update(cam, r);
+            scene.update(io, cam, r);
         }
         else if (self.monkey_scene) |*scene| {
-            scene.update(cam, r);
+            scene.update(io, cam, r);
         }
         else if (self.voxels_scene) |*scene| {
-            scene.update(self.alloc, cam, r);
+            scene.update(self.alloc, io, cam, r);
         }
     }
 
-    pub fn update_ui(self: *Manager, r: *renderer.Renderer) void {
+    pub fn update_ui(self: *Manager, io: std.Io, r: *renderer.Renderer) void {
         const result = imgui.Begin("Scenes Manager", null, 0);
         if (result) {
             defer imgui.End();
@@ -50,12 +50,12 @@ pub const Manager = struct {
                 std.log.info("Loading new scene", .{});
             
                 self.clear(r);
-                self.build_scene(r);                
+                self.build_scene(io, r);                
             }
 		}
 
         if (self.voxels_scene) |*scene| {
-            scene.update_ui(r);
+            scene.update_ui(io, r);
         }
     }
 
@@ -69,7 +69,7 @@ pub const Manager = struct {
             r._scene = &self.monkey_scene.?.draw_ctx;
         }
         else if (self.current_scene == 1) {
-            self.reactor_scene = levels.ReactorScene.init(self.alloc, r) catch {
+            self.reactor_scene = levels.ReactorScene.init(self.alloc, io, r) catch {
                 std.log.err("Failed to load rector scene", .{});
                 @panic("Fatal error");
             };
@@ -77,7 +77,7 @@ pub const Manager = struct {
             r._scene = &self.reactor_scene.?.draw_ctx;
         }
         else if (self.current_scene == 2) {
-            self.voxels_scene = levels.VoxelsScene.init(self.alloc, r) catch {
+            self.voxels_scene = levels.VoxelsScene.init(self.alloc, io, r) catch {
                 std.log.err("Failed to load rector scene", .{});
                 @panic("Fatal error");
             };
@@ -98,7 +98,7 @@ pub const Manager = struct {
         }
 
         if (self.reactor_scene) |*scene| {
-            scene.deinit(r);
+            scene.deinit(self.alloc, r);
             self.reactor_scene = null;
         }
     }
