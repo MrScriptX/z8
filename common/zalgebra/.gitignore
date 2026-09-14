@@ -1,5 +1,0 @@
-zig-out/
-.zig-cache/
-build_runner.zig
-deps.zig
-gyro.lock

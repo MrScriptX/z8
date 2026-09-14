@@ -1,5 +1,6 @@
 .idea/
 .zig-cache
 zig-out
+zig-pkg
 imgui.ini
 *.log
