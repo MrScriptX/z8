@@ -389,7 +389,7 @@ pub fn find_queue_family(alloc: std.mem.Allocator, surface: c.VkSurfaceKHR, phys
 
 const std = @import("std");
 const vk = @import("vk_wrapper.zig");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const queue = @import("queue_family.zig");
 const sw = @import("swapchain.zig");
 const opt = @import("../../options.zig");

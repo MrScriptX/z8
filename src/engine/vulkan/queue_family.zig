@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 
 pub const queues_t = struct {
     graphics: c.VkQueue = undefined,

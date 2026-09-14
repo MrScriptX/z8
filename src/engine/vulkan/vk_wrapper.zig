@@ -1,6 +1,6 @@
 // Auto-generated Vulkan wrappers
 const std = @import("std");
-const vk = @import("../../clibs.zig");
+const vk = @import("c");
 
 pub const Error = error {
     SUCCESS,

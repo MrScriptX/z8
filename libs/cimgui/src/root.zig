@@ -1,8 +1,5 @@
-pub usingnamespace @cImport({
-    @cInclude("dcimgui.h");
-    @cInclude("dcimgui_impl_sdl3.h");
-    @cInclude("dcimgui_impl_vulkan.h");
-});
+const std = @import("std");
+const c = @import("cimgui");
 
 pub const ImplVulkan_InitInfo = c.ImGui_ImplVulkan_InitInfo;
 pub const BackendFlags_RendererHasTextures = c.ImGuiBackendFlags_RendererHasTextures;
@@ -94,10 +91,3 @@ pub fn InputFloat3(label: []const u8, v: *[3]f32) bool {
 pub fn InputFloat4(label: []const u8, v: *[4]f32) bool {
     return c.ImGui_InputFloat4(@ptrCast(label), v);
 }
-
-const std = @import("std");
-const c = @cImport({
-    @cInclude("dcimgui.h");
-    @cInclude("dcimgui_impl_sdl3.h");
-    @cInclude("dcimgui_impl_vulkan.h");
-});

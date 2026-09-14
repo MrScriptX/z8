@@ -254,6 +254,6 @@ pub fn destroy_image(device: c.VkDevice, vma: c.VmaAllocator, image: *const imag
 
 const std = @import("std");
 const vk = @import("wrapper.zig");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const buffers = @import("../graphics/buffers.zig");
 const utils = @import("../utils.zig");

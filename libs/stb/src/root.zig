@@ -1,3 +1,1 @@
-pub usingnamespace @cImport({
-    @cInclude("stb_image.h");
-});
+const stb = @import("stb");

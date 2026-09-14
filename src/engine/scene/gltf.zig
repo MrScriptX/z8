@@ -759,7 +759,7 @@ pub fn extract_mipmap_mode(filter: u32) c.VkSamplerMipmapMode {
 }
 
 const std = @import("std");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const buffers = @import("../graphics/buffers.zig");
 const z = @import("zalgebra");
 const mat = @import("../graphics/materials.zig");

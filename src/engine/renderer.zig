@@ -849,7 +849,7 @@ pub const RenderQueue = struct {
 };
 
 const std = @import("std");
-const c = @import("../clibs.zig");
+const c = @import("c");
 const sdl = @import("sdl3");
 const gui = @import("graphics/gui.zig");
 const z = @import("zalgebra");

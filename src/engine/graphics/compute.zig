@@ -9,7 +9,7 @@ pub const Instance = struct {
 };
 
 const std = @import("std");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const renderer = @import("../renderer.zig");
 const pipelines = @import("../pipeline.zig");
 const descriptors = @import("../descriptor.zig");

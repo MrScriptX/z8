@@ -121,6 +121,6 @@ const math = @import("../../utils/maths.zig");
 const materials = @import("materials.zig");
 const z = @import("zalgebra");
 const buffers = @import("buffers.zig");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const renderer = @import("../renderer.zig");
 const DrawContext = @import("../scene/scene.zig").DrawContext;

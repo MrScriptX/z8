@@ -111,4 +111,4 @@ pub const TaskManager = struct {
 
 const std = @import("std");
 const queues = @import("engine/vulkan/queues.zig");
-const c = @import("clibs.zig");
+const c = @import("c");

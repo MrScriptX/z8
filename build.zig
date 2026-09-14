@@ -4,31 +4,47 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // find VK path
+    const vk_path = b.graph.environ_map.get("VULKAN_SDK")
+        orelse @panic("VULKAN_SDK missing !");
+
+    const c_translate = b.addTranslateC(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("src/c.h"),
+    });
+
+    // vulkan
+    c_translate.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{ vk_path }) });
+
+    // cglm
+    c_translate.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
+    
+    const c_mod = c_translate.createModule();
+
     const root_module = b.addModule("z8", .{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("src/main.zig"),
         .link_libc = true,
-        .link_libcpp = true
+        .link_libcpp = true,
+        .imports = &.{
+            .{
+                .name = "c",
+                .module = c_mod
+            }
+        }
     });
 
     // vulkan dependency
     const vk_lib_name = if (target.result.os.tag == .windows) "vulkan-1" else "vulkan";
     root_module.linkSystemLibrary(vk_lib_name, .{});
-
-    const vk_path = b.graph.environ_map.get("VULKAN_SDK")
-        orelse @panic("VULKAN_SDK missing !");
-
     root_module.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{ vk_path }) });
-    root_module.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{ vk_path }) });
 
     // add sdl3
     root_module.linkSystemLibrary("SDL3", .{});
     const sdl = @import("libs/sdl/build.zig").build(b, target, optimize);
     root_module.addImport("sdl3", sdl);
-
-    // cglm
-    root_module.addIncludePath(.{ .cwd_relative = "common/cglm-0.9.4/include" });
 
     const exe = b.addExecutable(.{
         .name = "z8",
@@ -50,11 +66,6 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addImport("cgltf", gltf);
 
     // add zalgebra
-    // const zalgebra = b.addModule("zalgebra", .{
-    //     .root_source_file = b.path("common/zalgebra/src/main.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
     const zalgebra_deps = b.dependency("zalgebra", .{});
     const zalgebra = zalgebra_deps.module("zalgebra");
 

@@ -172,5 +172,5 @@ pub const SubmitQueue = struct {
 
 const std = @import("std");
 const vk = @import("vk_wrapper.zig");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const commands = @import("command_buffers.zig");

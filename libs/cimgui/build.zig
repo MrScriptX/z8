@@ -2,14 +2,31 @@ const std = @import("std");
 const Build = std.Build;
 
 pub fn build(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *Build.Module {
-    const module = b.addModule("stb", .{
-        .root_source_file = b.path("libs/cimgui/src/root.zig"),
+    const c_translate = b.addTranslateC(.{
         .target = target,
         .optimize = optimize,
+        .root_source_file = b.path("libs/cimgui/src/c.h")
+    });
+    c_translate.addIncludePath(.{ .cwd_relative = "common/SDL3/include" });
+    c_translate.addIncludePath(.{ .cwd_relative = "common/imgui-1.92.2b" });
+    if (b.graph.environ_map.get("VK_SDK_PATH")) |path| {
+        c_translate.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
+    }
+    else {
+        @panic("VK_SDK_PATH not found ! Please install Vulkan SDK.");
+    }
+    const cimgui = c_translate.createModule();
+    
+    const module = b.addModule("cimgui", .{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("libs/cimgui/src/root.zig"),
+        .imports = &.{
+            .{ .name = "cimgui", .module = cimgui }
+        }
     });
 
-    const env_map = b.graph.environ_map;
-    if (env_map.get("VK_SDK_PATH")) |path| {
+    if (b.graph.environ_map.get("VK_SDK_PATH")) |path| {
         module.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
     }
     else {

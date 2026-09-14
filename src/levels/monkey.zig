@@ -95,7 +95,7 @@ pub const MonkeyScene = struct {
 
 const std = @import("std");
 const za = @import("zalgebra");
-const c = @import("../clibs.zig");
+const c = @import("c");
 const gltf = @import("../engine/scene/gltf.zig");
 const renderer = @import("../engine/renderer.zig");
 const scenes = @import("../engine/scene/scene.zig");

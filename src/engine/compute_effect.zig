@@ -59,6 +59,6 @@ pub const ComputeEffect = struct {
 };
 
 const std = @import("std");
-const c = @import("../clibs.zig");
+const c = @import("c");
 const renderer = @import("renderer.zig");
 const pipeline = @import("pipeline.zig");

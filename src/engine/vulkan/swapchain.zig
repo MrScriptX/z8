@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const queue = @import("queue_family.zig");
 
 const SWError = error{

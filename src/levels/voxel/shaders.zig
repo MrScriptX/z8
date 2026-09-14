@@ -399,7 +399,7 @@ pub const FrustrumCulling = struct {
 };
 
 const std = @import("std");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const voxel = @import("voxel.zig");
 const chunk = @import("chunk.zig");
 const engine = @import("../../engine/engine.zig");

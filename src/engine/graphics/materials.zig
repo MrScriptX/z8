@@ -59,7 +59,7 @@ pub const MaterialPass = enum(u8) {
 };
 
 const renderer = @import("../renderer.zig");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const maths = @import("../../utils/maths.zig");
 const images = @import("../vulkan/image.zig");
 const buffers = @import("../graphics/buffers.zig");

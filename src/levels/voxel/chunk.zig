@@ -604,7 +604,7 @@ pub const Material = struct {
 const std = @import("std");
 const za = @import("zalgebra");
 const vk = @import("../../engine/vulkan/vk_wrapper.zig");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 
 const shader = @import("shaders.zig");
 const voxel = @import("voxel.zig");

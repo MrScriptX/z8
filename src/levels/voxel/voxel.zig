@@ -35,6 +35,6 @@ pub const Mesh = struct {
 };
 
 const std = @import("std");
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const buffers = @import("../../engine/graphics/buffers.zig");
 const renderer = @import("../../engine/renderer.zig");

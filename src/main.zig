@@ -259,7 +259,7 @@ test "engine test" {
 
 const std = @import("std");
 const builtin = @import("builtin");
-const c = @import("clibs.zig");
+const c = @import("c");
 const sdl = @import("sdl3");
 const engine = @import("engine/engine.zig");
 const imgui = @import("imgui");

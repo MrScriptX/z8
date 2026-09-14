@@ -40,7 +40,7 @@ pub const data_t = struct {
 };
 
 const std = @import("std");
-const c = @import("../clibs.zig");
+const c = @import("c");
 const commands = @import("vulkan/command_buffers.zig");
 const descriptors = @import("descriptor.zig"); 
 const buffers = @import("graphics/buffers.zig");

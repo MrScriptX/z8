@@ -95,7 +95,7 @@ pub const camera_t = struct {
 
 const vec4 = @Vector(4, f32);
 
-const c = @import("../../clibs.zig");
+const c = @import("c");
 const maths = @import("../../utils/maths.zig");
 const za = @import("zalgebra");
 const sdl = @import("sdl3");

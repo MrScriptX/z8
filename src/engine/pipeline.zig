@@ -293,4 +293,4 @@ pub fn load_shader_module(allocator: std.mem.Allocator, device: c.VkDevice, path
 }
 
 const std = @import("std");
-const c = @import("../clibs.zig");
+const c = @import("c");

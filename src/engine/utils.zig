@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../clibs.zig");
+const c = @import("c");
 
 pub fn print_device_info(device: c.VkPhysicalDevice) void {
     var device_properties: c.VkPhysicalDeviceProperties = undefined;

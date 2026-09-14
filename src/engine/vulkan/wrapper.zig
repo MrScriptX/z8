@@ -98,4 +98,4 @@ fn vk_check_result(result: c.VkResult) Error!void {
     }
 }
 
-const c = @import("../../clibs.zig");
+const c = @import("c");
