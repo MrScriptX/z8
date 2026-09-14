@@ -55,21 +55,26 @@ pub const Indices = struct {
 };
 
 pub const SubmitQueue = struct {
+    allocator: std.mem.Allocator,
+
     queue: c.VkQueue,
     queue_index: u32,
 
     command_buffer_pool: vk.CommandPool,
-    available_command_buffers: std.fifo.LinearFifo(c.VkCommandBuffer, .Dynamic),
+    // available_command_buffers: std.fifo.LinearFifo(c.VkCommandBuffer, .Dynamic),
+    available_command_buffers: std.Deque(c.VkCommandBuffer),
 
     fence: c.VkFence,
     device: c.VkDevice,
 
     pub fn init(allocator: std.mem.Allocator, device: c.VkDevice, queue: c.VkQueue, queue_index: u32) SubmitQueue {
         var instance: SubmitQueue = .{
+            .allocator = allocator,
+
             .queue = queue,
             .queue_index = queue_index,
             .command_buffer_pool = undefined,
-            .available_command_buffers = std.fifo.LinearFifo(c.VkCommandBuffer, .Dynamic).init(allocator),
+            .available_command_buffers = std.Deque(c.VkCommandBuffer).empty,
             .fence = undefined,
             .device = device
         };
@@ -84,20 +89,20 @@ pub const SubmitQueue = struct {
         vk.DestroyCommandPool(device, self.command_buffer_pool, null);
         vk.DestroyFence(device, self.fence, null);
 
-        self.available_command_buffers.deinit();
+        self.available_command_buffers.deinit(self.allocator);
     }
 
     pub fn expand(self: *SubmitQueue, size: usize) !void {
         for (0..size) |_| {
             const cmd = try commands.create_command_buffer(1, self.device, self.command_buffer_pool);
-            try self.available_command_buffers.writeItem(cmd);
+            try self.available_command_buffers.pushBack(self.allocator, cmd);
         }
     }
 
     /// Get the next available VkCommandBuffer for recording
     /// Caller is responsible for destroying the Vk objects until submit
     pub fn next_command_buffer(self: *SubmitQueue) !vk.CommandBuffer {
-        if (self.available_command_buffers.readItem()) |cmd| {
+        if (self.available_command_buffers.popFront()) |cmd| {
             return cmd;
         }
         else {
@@ -163,7 +168,7 @@ pub const SubmitQueue = struct {
             std.log.warn("vkWaitForFences failed with error {any}", .{ err });
         };
 
-        self.available_command_buffers.writeItem(cmd) catch {
+        self.available_command_buffers.pushBack(self.allocator, cmd) catch {
             std.log.warn("Failed to set command buffer back to available queue.", .{});
             vk.FreeCommandBuffers(self.device, self.command_buffer_pool, 1, &cmd);
         };

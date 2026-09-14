@@ -323,21 +323,21 @@ pub const Renderer = struct {
             descriptor.PoolSizeRatio{ ._type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
         };
 
-	    self._descriptor_pool = try descriptor.DescriptorAllocator.init(self._device, 10, &sizes);
+	    self._descriptor_pool = try descriptor.DescriptorAllocator.init(allocator, self._device, 10, &sizes);
 
 	    //make the descriptor set layout for our compute draw
 	    {
-		    var builder = descriptor.DescriptorLayout.init(allocator);
-            defer builder.deinit();
+		    var builder = descriptor.DescriptorLayout.init();
+            defer builder.deinit(allocator);
 
-		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		    try builder.add_binding(allocator, 0, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		    self._draw_image_descriptor = builder.build(self._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
 	    }
 
         self._draw_image_descriptor_set = self._descriptor_pool.allocate(self._device, self._draw_image_descriptor);
 
         var writer = descriptor.Writer.init(allocator);
-        defer writer.deinit();
+        defer writer.deinit(allocator);
     
         writer.write_image(0, self._draw_image.view, null, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
         writer.update_set(self._device, self._draw_image_descriptor_set);
@@ -355,10 +355,10 @@ pub const Renderer = struct {
 
         // make descriptor for gpu scene data
         {
-            var builder = descriptor.DescriptorLayout.init(allocator);
-            defer builder.deinit();
+            var builder = descriptor.DescriptorLayout.init();
+            defer builder.deinit(allocator);
 
-		    try builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		    try builder.add_binding(allocator, 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		    self.scene_descriptor = builder.build(self._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
         }
     }

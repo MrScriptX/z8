@@ -8,7 +8,8 @@ pub const Task = struct {
     cmd: c.VkCommandBuffer
 };
 
-pub const TaskQueue = std.fifo.LinearFifo(Task, .Dynamic);
+// pub const TaskQueue = std.fifo.LinearFifo(Task, .Dynamic);
+pub const TaskQueue = std.Deque(Task);
 
 pub const TaskManager = struct {
     allocator: std.mem.Allocator,
@@ -24,8 +25,8 @@ pub const TaskManager = struct {
     pub fn init(allocator: std.mem.Allocator, device: c.VkDevice, queue: c.VkQueue, queue_index: u32) TaskManager {
         return .{
             .allocator = allocator,
-            .record_queue = TaskQueue.init(allocator),
-            .submit_queue = TaskQueue.init(allocator),
+            .record_queue = TaskQueue.empty,
+            .submit_queue = TaskQueue.empty,
             .running = false,
             .submit = queues.SubmitQueue.init(allocator, device, queue, queue_index)
         };
@@ -52,32 +53,39 @@ pub const TaskManager = struct {
             .ctx = ctx,
             .cmd = cmd,
         };
-        try self.record_queue.writeItem(task);
+        // try self.record_queue.writeItem(task);
+        try self.record_queue.pushBack(self.allocator, task);
     }
 
     /// Record a command buffer, then set it to the submit queue
     fn recording_worker(self: *TaskManager) void {
         while (self.running) {
-            if (self.record_queue.readItem()) |task| {
+            if (self.record_queue.popFront()) |task| { // self.record_queue.readItem()
                 self.submit.start_command(task.cmd);
                 task.record(task.ctx, task.cmd);
                 self.submit.end_command(task.cmd);
 
                 // set it to the submit queue
-                self.submit_queue.writeItem(task) catch { // TODO : handle failed submission better ?
+                // self.submit_queue.writeItem(task) catch { // TODO : handle failed submission better ?
+                self.submit_queue.pushBack(self.allocator, task) catch {
                     std.log.err("Failed to submit command buffer", .{});
                     @panic("Out of memory !");
                 };
             }
             else {
-                std.time.sleep(1_000_000); // 1ms
+                var threaded: std.Io.Threaded = .init_single_threaded;
+                const io = threaded.io();
+                io.sleep(.fromMilliseconds(1), .awake) catch {
+                    std.log.err("failed to wait before next task", .{});
+                };
+                // std.time.sleep(1_000_000); // 1ms
             }
         }
     }
 
     fn submitting_worker(self: *TaskManager) void {
         while (self.running) {
-            if (self.submit_queue.readItem()) |task| {
+            if (self.submit_queue.popFront()) |task| { // self.submit_queue.readItem()
                 self.submit.submit_command(task.cmd);
 
                 if (task.on_finish) |on_finish| {
@@ -85,7 +93,12 @@ pub const TaskManager = struct {
                 }
             }
             else {
-                std.time.sleep(1_000_000); // 1ms
+                var threaded: std.Io.Threaded = .init_single_threaded;
+                const io = threaded.io();
+                io.sleep(.fromMilliseconds(1), .awake) catch {
+                    std.log.err("failed to wait before next task", .{});
+                };
+                // std.time.sleep(1_000_000); // 1ms
             }
         }
     }
