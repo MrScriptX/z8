@@ -7,6 +7,10 @@ pub const Context = c.ImGuiContext;
 pub const ImGui_Text = c.ImGui_Text;
 pub const ImGui_ComboChar = c.ImGui_ComboChar;
 pub const ImGui_Button = c.ImGui_Button;
+pub const cImGui_ImplVulkan_RenderDrawData = c.cImGui_ImplVulkan_RenderDrawData;
+pub const ImGui_GetDrawData = c.ImGui_GetDrawData;
+pub const ImGui_ColorEdit4 = c.ImGui_ColorEdit4;
+pub const ImGui_SliderFloat3 = c.ImGui_SliderFloat3;
 
 pub fn GetIO() *c.ImGuiIO {
     return c.ImGui_GetIO();

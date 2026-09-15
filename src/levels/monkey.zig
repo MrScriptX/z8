@@ -46,7 +46,7 @@ pub const MonkeyScene = struct {
         self.arena.deinit();
     }
 
-    pub fn update(self: *MonkeyScene, io: std.Io, cam: *cameras.camera_t, r: *renderer.Renderer) void {
+    pub fn update(self: *MonkeyScene, allocator: std.mem.Allocator, io: std.Io, cam: *cameras.camera_t, r: *renderer.Renderer) void {
         const start = std.Io.Clock.now(.awake, io);
         const start_time: u128 = @intCast(start.toNanoseconds());
 
@@ -62,14 +62,14 @@ pub const MonkeyScene = struct {
         }
 
         cam.update(r.stats.frame_time);
-        self.draw(cam, r._draw_extent);
+        self.draw(allocator, cam, r._draw_extent);
 
         const end = std.Io.Clock.now(.awake, io);
         const end_time: u128 = @intCast(end.toNanoseconds());
         r.stats.scene_update_time = @floatFromInt(end_time - start_time);
     }
 
-    pub fn draw(self: *MonkeyScene, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D) void {
+    pub fn draw(self: *MonkeyScene, allocator: std.mem.Allocator, cam: *const cameras.camera_t, draw_extent: c.VkExtent2D) void {
         // reset draw ctx
         // TODO : this should be done by the renderer
         self.draw_ctx.opaque_surfaces.clearRetainingCapacity();
@@ -91,7 +91,7 @@ pub const MonkeyScene = struct {
 
         // fill draw ctx with gltf model
         const top: [4][4]f32 align(16) = za.Mat4.identity().data;
-        self.model.draw(top, &self.draw_ctx);
+        self.model.draw(allocator, top, &self.draw_ctx);
     }
 };
 

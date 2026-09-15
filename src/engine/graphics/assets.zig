@@ -36,7 +36,7 @@ pub const Node = struct {
         }
     }
 
-    pub fn draw(self: *Node, top_matrix: math.mat4, ctx: *DrawContext) void {
+    pub fn draw(self: *Node, allocator: std.mem.Allocator, top_matrix: math.mat4, ctx: *DrawContext) void {
         if (!self.active) {
             return;
         }
@@ -54,16 +54,16 @@ pub const Node = struct {
                 };
 
                 if (surface.material.pass_type == materials.MaterialPass.Transparent) {
-                    ctx.transparent_surfaces.append(render_object) catch @panic("Failed to append render object ! OOM !");
+                    ctx.transparent_surfaces.append(allocator, render_object) catch @panic("Failed to append render object ! OOM !");
                 }
                 else {
-                    ctx.opaque_surfaces.append(render_object) catch @panic("Failed to append render object ! OOM");
+                    ctx.opaque_surfaces.append(allocator, render_object) catch @panic("Failed to append render object ! OOM");
                 }
             }
         }
 
         for (self.children.items) |child| {
-            child.draw(top_matrix, ctx);
+            child.draw(allocator, top_matrix, ctx);
         }
     }
 
@@ -101,7 +101,7 @@ pub const MeshAsset = struct {
         var asset = MeshAsset {
             .arena = std.heap.ArenaAllocator.init(allocator),
             .name = undefined,
-            .surfaces = std.ArrayList(GeoSurface).init(allocator),
+            .surfaces = std.ArrayList(GeoSurface).empty,
             .mesh_buffers = undefined,
         };
 
@@ -110,8 +110,8 @@ pub const MeshAsset = struct {
         return asset;
     }
 
-    pub fn deinit(self: *MeshAsset) void {
-        self.surfaces.deinit();
+    pub fn deinit(self: *MeshAsset, allocator: std.mem.Allocator) void {
+        self.surfaces.deinit(allocator);
         self.arena.deinit();
     }
 };

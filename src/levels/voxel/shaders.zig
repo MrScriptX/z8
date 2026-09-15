@@ -23,11 +23,11 @@ pub const ClassificationShader = struct {
         self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *ClassificationShader, shader: []const u8, r: *const Renderer) !void {
+    pub fn build(self: *ClassificationShader, io: std.Io, shader: []const u8, r: *const Renderer) !void {
         std.log.info("Building voxel classification shader", .{});
 
-        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
-        defer layout_builder.deinit();
+        var layout_builder = descriptors.DescriptorLayout.init();
+        defer layout_builder.deinit(self.allocator);
 
         try layout_builder.add_binding(self.allocator, 0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         try layout_builder.add_binding(self.allocator, 1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -61,7 +61,7 @@ pub const ClassificationShader = struct {
         }
 
         // shader module
-        const compute_shader = try p.load_shader_module(self.allocator, r._device, shader);
+        const compute_shader = try p.load_shader_module(self.allocator, io, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute
@@ -112,6 +112,7 @@ pub const FaceCullingShader = struct {
         std.log.info("Creating face culling shader", .{});
 
         return .{
+            .allocator = allocator,
             .writer = descriptors.Writer.init(allocator)
         };
     }
@@ -125,13 +126,13 @@ pub const FaceCullingShader = struct {
         self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *FaceCullingShader, shader: []const u8, r: *const Renderer) !void {
+    pub fn build(self: *FaceCullingShader, io: std.Io, shader: []const u8, r: *const Renderer) !void {
         std.log.info("Building voxel face culling shader", .{});
 
-        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
-        defer layout_builder.deinit();
+        var layout_builder = descriptors.DescriptorLayout.init();
+        defer layout_builder.deinit(self.allocator);
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
 
@@ -153,7 +154,7 @@ pub const FaceCullingShader = struct {
         }
 
         // shader module
-        const compute_shader = try p.load_shader_module(self.allocator, r._device, shader);
+        const compute_shader = try p.load_shader_module(self.allocator, io, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute
@@ -218,17 +219,17 @@ pub const GreedyMeshingShader = struct {
         self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *GreedyMeshingShader, shader: []const u8, r: *Renderer) !void { 
+    pub fn build(self: *GreedyMeshingShader, io: std.Io, shader: []const u8, r: *Renderer) !void { 
         std.log.info("Building compute shader {s}", .{ self.name });
 
-        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
-        defer layout_builder.deinit();
+        var layout_builder = descriptors.DescriptorLayout.init();
+        defer layout_builder.deinit(self.allocator);
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        try layout_builder.add_binding(4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 2, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 3, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        try layout_builder.add_binding(self.allocator, 4, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_COMPUTE_BIT, null, 0);
 
@@ -250,7 +251,7 @@ pub const GreedyMeshingShader = struct {
         }
 
         // shader module
-        const compute_shader = try p.load_shader_module(self.allocator, r._device, shader);
+        const compute_shader = try p.load_shader_module(self.allocator, io, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute
@@ -328,11 +329,11 @@ pub const FrustrumCulling = struct {
         self.writer.deinit(self.allocator);
     }
 
-    pub fn build(self: *FrustrumCulling, shader: []const u8, r: *Renderer) !void { 
+    pub fn build(self: *FrustrumCulling, io: std.Io, shader: []const u8, r: *Renderer) !void { 
         std.log.info("Building frustrum culling shader", .{ });
 
-        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
-        defer layout_builder.deinit();
+        var layout_builder = descriptors.DescriptorLayout.init();
+        defer layout_builder.deinit(self.allocator);
 
         try layout_builder.add_binding(self.allocator, 0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         try layout_builder.add_binding(self.allocator, 1, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -362,7 +363,7 @@ pub const FrustrumCulling = struct {
         }
 
         // shader module
-        const compute_shader = try p.load_shader_module(self.allocator, r._device, shader);
+        const compute_shader = try p.load_shader_module(self.allocator, io, r._device, shader);
         defer c.vkDestroyShaderModule(r._device, compute_shader, null);
 
         // compute

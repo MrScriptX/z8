@@ -31,10 +31,10 @@ pub const Manager = struct {
 
     pub fn update(self: *Manager, io: std.Io, cam: *camera.camera_t, r: *renderer.Renderer) void {
         if (self.reactor_scene) |*scene| {
-            scene.update(io, cam, r);
+            scene.update(self.alloc, io, cam, r);
         }
         else if (self.monkey_scene) |*scene| {
-            scene.update(io, cam, r);
+            scene.update(self.alloc, io, cam, r);
         }
         else if (self.voxels_scene) |*scene| {
             scene.update(self.alloc, io, cam, r);

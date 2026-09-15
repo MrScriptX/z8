@@ -488,14 +488,16 @@ pub const Chunk = struct {
 
 pub const Material = struct {
     allocator: std.mem.Allocator,
+    io: std.Io,
 
     pipeline: engine.materials.MaterialPipeline,
     layout: c.VkDescriptorSetLayout,
     writer: descriptors.Writer,
 
-    pub fn init(allocator: std.mem.Allocator) Material {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io) Material {
         return .{
             .allocator = allocator,
+            .io = io,
             .writer = descriptors.Writer.init(allocator),
             .layout = undefined,
             .pipeline = undefined,
@@ -512,10 +514,10 @@ pub const Material = struct {
     }
 
     pub fn build(self: *Material, vert_path: []const u8, frag_path: []const u8, polygone_mode: c.VkPolygonMode, blend: bool, r: *const Renderer) !void {        
-        const frag_shader = try p.load_shader_module(self.allocator, r._device, frag_path);
+        const frag_shader = try p.load_shader_module(self.allocator, self.io, r._device, frag_path);
         defer c.vkDestroyShaderModule(r._device, frag_shader, null);
 
-        const vert_shader = try p.load_shader_module(self.allocator, r._device, vert_path);
+        const vert_shader = try p.load_shader_module(self.allocator, self.io, r._device, vert_path);
         defer c.vkDestroyShaderModule(r._device, vert_shader, null);
 
         const matrix_range: c.VkPushConstantRange = .{
@@ -524,10 +526,10 @@ pub const Material = struct {
             .stageFlags = c.VK_SHADER_STAGE_VERTEX_BIT,
         };
 
-        var layout_builder = descriptors.DescriptorLayout.init(self.allocator);
-        defer layout_builder.deinit();
+        var layout_builder = descriptors.DescriptorLayout.init();
+        defer layout_builder.deinit(self.allocator);
 
-        try layout_builder.add_binding(0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER | c.VK_SHADER_STAGE_VERTEX_BIT);
+        try layout_builder.add_binding(self.allocator, 0, c.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER | c.VK_SHADER_STAGE_VERTEX_BIT);
 
         self.layout = layout_builder.build(r._device, c.VK_SHADER_STAGE_VERTEX_BIT | c.VK_SHADER_STAGE_FRAGMENT_BIT, null, 0);
 
@@ -556,9 +558,9 @@ pub const Material = struct {
         self.pipeline.layout = new_layout;
 
         var builder = p.builder_t.init(self.allocator);
-        defer builder.deinit();
+        defer builder.deinit(self.allocator);
 
-        try builder.set_shaders(vert_shader, frag_shader);
+        try builder.set_shaders(self.allocator, vert_shader, frag_shader);
         builder.set_input_topology(c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         builder.set_polygon_mode(polygone_mode);
         builder.set_cull_mode(c.VK_CULL_MODE_BACK_BIT, c.VK_FRONT_FACE_CLOCKWISE);

@@ -268,7 +268,7 @@ pub const LoadedGLTF = struct {
         var mesh_it = self.meshes.iterator();
         while (mesh_it.next()) |*mesh| {
             mesh.value_ptr.*.mesh_buffers.deinit(vma);
-            mesh.value_ptr.*.deinit();
+            mesh.value_ptr.*.deinit(allocator);
         }
 
         var image_it = self.images.iterator();
@@ -287,9 +287,9 @@ pub const LoadedGLTF = struct {
         c.vkDestroySampler(device, self.sampler_linear, null);
     }
 
-    pub fn draw(self: *LoadedGLTF, top_matrix: [4][4]f32, ctx: *scenes.DrawContext) void {
+    pub fn draw(self: *LoadedGLTF, allocator: std.mem.Allocator, top_matrix: [4][4]f32, ctx: *scenes.DrawContext) void {
         for (self.top_nodes.items) |node| {
-            node.*.draw(top_matrix, ctx);
+            node.*.draw(allocator, top_matrix, ctx);
         }
     }
 

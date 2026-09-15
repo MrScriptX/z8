@@ -39,7 +39,7 @@ const MaterialPipelines = struct {
         self.allocator.destroy(self.polygone.water);
     }
 
-    pub fn build(self: *MaterialPipelines, dir: []const u8, r: *const renderer.Renderer) !void {
+    pub fn build(self: *MaterialPipelines, io: std.Io, dir: []const u8, r: *const renderer.Renderer) !void {
         const default_vert = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/block.vert.spv" });
         defer self.allocator.free(default_vert);
 
@@ -58,38 +58,38 @@ const MaterialPipelines = struct {
         const water_frag = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ dir, "shaders/aurora/water.frag.spv" });
         defer self.allocator.free(water_frag);
 
-        self.default.block.* = chunk.Material.init(self.allocator);
-        self.default.block.build(self.allocator, default_vert, default_frag, c.VK_POLYGON_MODE_FILL, false, r) catch |err| {
+        self.default.block.* = chunk.Material.init(self.allocator, io);
+        self.default.block.build(default_vert, default_frag, c.VK_POLYGON_MODE_FILL, false, r) catch |err| {
             std.log.err("Failed to build default block pipeline", .{});
             return err;
         };
 
-        self.default.water.* = chunk.Material.init(self.allocator);
-        self.default.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch |err| {
+        self.default.water.* = chunk.Material.init(self.allocator, io);
+        self.default.water.build(water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch |err| {
             std.log.err("Failed to build default water pipeline", .{});
             return err;
         };
 
-        self.normals.block.* = chunk.Material.init(self.allocator);
-        self.normals.block.build(self.allocator, normals_vert, normals_frag, c.VK_POLYGON_MODE_FILL, false, r) catch |err| {
+        self.normals.block.* = chunk.Material.init(self.allocator, io);
+        self.normals.block.build(normals_vert, normals_frag, c.VK_POLYGON_MODE_FILL, false, r) catch |err| {
             std.log.err("Failed to build normals block pipeline", .{});
             return err;
         };
 
-        self.normals.water.* = chunk.Material.init(self.allocator);
-        self.normals.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch |err| {
+        self.normals.water.* = chunk.Material.init(self.allocator, io);
+        self.normals.water.build(water_vert, water_frag, c.VK_POLYGON_MODE_FILL, true, r) catch |err| {
             std.log.err("Failed to build normals water pipeline", .{});
             return err;
         };
 
-        self.polygone.block.* = chunk.Material.init(self.allocator);
-        self.polygone.block.build(self.allocator, default_vert, default_frag, c.VK_POLYGON_MODE_LINE, false, r) catch |err| {
+        self.polygone.block.* = chunk.Material.init(self.allocator, io);
+        self.polygone.block.build(default_vert, default_frag, c.VK_POLYGON_MODE_LINE, false, r) catch |err| {
             std.log.err("Failed to build polygone block pipeline", .{});
             return err;
         };
 
-        self.polygone.water.* = chunk.Material.init(self.allocator);
-        self.polygone.water.build(self.allocator, water_vert, water_frag, c.VK_POLYGON_MODE_LINE, true, r) catch |err| {
+        self.polygone.water.* = chunk.Material.init(self.allocator, io);
+        self.polygone.water.build(water_vert, water_frag, c.VK_POLYGON_MODE_LINE, true, r) catch |err| {
             std.log.err("Failed to build polygone water pipeline", .{});
             return err;
         };
@@ -171,7 +171,7 @@ pub const VoxelScene = struct {
         };
 
         // get local directory (exe)
-        const dir = try std.fs.selfExeDirPathAlloc(allocator);
+        const dir = try std.process.executableDirPathAlloc(io, allocator);
         defer allocator.free(dir);
 
         // build classification shader
@@ -179,31 +179,31 @@ pub const VoxelScene = struct {
         defer allocator.free(world_comp);
 
         scene.shaders.classification.* = shader.ClassificationShader.init(allocator);
-        try scene.shaders.classification.build(allocator, world_comp, r);
+        try scene.shaders.classification.build(io, world_comp, r);
 
         // build face culling shader 
         const face_culling_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/face_culling.comp.spv" });
         defer allocator.free(face_culling_comp);
 
         scene.shaders.face_culling.* = shader.FaceCullingShader.init(allocator);
-        try scene.shaders.face_culling.build(allocator, face_culling_comp, r);
+        try scene.shaders.face_culling.build(io, face_culling_comp, r);
 
         // meshing shader
         const meshing_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/meshing3.comp.spv" });
         defer allocator.free(meshing_comp);
 
         scene.shaders.meshing.* = shader.GreedyMeshingShader.init(allocator, "voxel");
-        try scene.shaders.meshing.build(allocator, meshing_comp, r);
+        try scene.shaders.meshing.build(io, meshing_comp, r);
 
         // frustrum shader
         const frustrum_comp = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, "shaders/aurora/frustrum_culling.comp.spv" });
         defer allocator.free(frustrum_comp);
 
         scene.shaders.frustrum_culling.* = shader.FrustrumCulling.init(allocator);
-        try scene.shaders.frustrum_culling.build(allocator, frustrum_comp, r);
+        try scene.shaders.frustrum_culling.build(io, frustrum_comp, r);
 
         // build material pipelines
-        scene.pipelines.build(dir, r) catch |err| {
+        scene.pipelines.build(io, dir, r) catch |err| {
             std.log.err("Failed to build material pipelines: {any}", .{err});
             return err;
         };
