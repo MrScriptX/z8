@@ -35,7 +35,7 @@ pub const ReactorScene = struct {
             std.log.warn("Wait for device idle failed with error. {d}", .{ result });
         }
 
-        self.metallic_roughness.deinit(allocator, r._device);
+        self.metallic_roughness.deinit(r._device);
 
         self.draw_ctx.deinit(r);
         

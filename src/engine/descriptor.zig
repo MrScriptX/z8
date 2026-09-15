@@ -252,6 +252,7 @@ pub const DescriptorAllocator2 = struct {
 
 pub const Writer = struct {
     _arena: std.heap.ArenaAllocator,
+    gpa: std.mem.Allocator,
 
     _image_infos: std.ArrayList(*c.VkDescriptorImageInfo),
     _buffer_infos: std.ArrayList(*c.VkDescriptorBufferInfo),
@@ -260,6 +261,7 @@ pub const Writer = struct {
     pub fn init(allocator: std.mem.Allocator) Writer {
         const writer = Writer {
             ._arena = std.heap.ArenaAllocator.init(allocator),
+            .gpa = allocator,
             ._image_infos = std.ArrayList(*c.VkDescriptorImageInfo).empty,
             ._buffer_infos = std.ArrayList(*c.VkDescriptorBufferInfo).empty,
             ._writes = std.ArrayList(c.VkWriteDescriptorSet).empty,
@@ -268,12 +270,12 @@ pub const Writer = struct {
         return writer;
     }
 
-    pub fn deinit(self: *Writer, _: std.mem.Allocator) void {
+    pub fn deinit(self: *Writer) void {
         self._arena.deinit();
 
-        // self._image_infos.deinit(allocator);
-        // self._buffer_infos.deinit(allocator);
-        // self._writes.deinit(allocator);
+        self._image_infos.deinit(self.gpa);
+        self._buffer_infos.deinit(self.gpa);
+        self._writes.deinit(self.gpa);
     }
 
     pub fn write_buffer(self: *Writer, binding: u32, buffer: c.VkBuffer, size: usize, offset: usize, dtype: c.VkDescriptorType) void {
@@ -287,7 +289,7 @@ pub const Writer = struct {
         buffer_info.*.offset = offset;
         buffer_info.*.range = size;
 
-        self._buffer_infos.append(allocator, buffer_info) catch {
+        self._buffer_infos.append(self.gpa, buffer_info) catch {
             std.log.err("Failed to insert new buffer info !", .{});
             @panic("OOM");
         };
@@ -303,7 +305,7 @@ pub const Writer = struct {
             .pBufferInfo = self._buffer_infos.getLast(),
         };
 
-        self._writes.append(allocator, write) catch {
+        self._writes.append(self.gpa, write) catch {
             std.log.err("Failed to insert new VkWriteDescriptorSet !", .{});
             @panic("OOM");
         };
@@ -320,7 +322,7 @@ pub const Writer = struct {
         image_info.*.imageView = image_view;
         image_info.*.imageLayout = layout;
 
-        self._image_infos.append(allocator, image_info) catch {
+        self._image_infos.append(self.gpa, image_info) catch {
             std.log.err("Failed to insert new image info !", .{});
             @panic("OOM");
         };
@@ -336,7 +338,7 @@ pub const Writer = struct {
             .pImageInfo = self._image_infos.getLast(),
         };
 
-        self._writes.append(allocator, write) catch {
+        self._writes.append(self.gpa, write) catch {
             std.log.err("Failed to insert new VkWriteDescriptorSet !", .{});
             @panic("OOM");
         };

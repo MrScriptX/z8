@@ -510,7 +510,7 @@ pub const Material = struct {
 
         c.vkDestroyDescriptorSetLayout(device, self.layout, null);
 
-        self.writer.deinit(self.allocator);
+        self.writer.deinit();
     }
 
     pub fn build(self: *Material, vert_path: []const u8, frag_path: []const u8, polygone_mode: c.VkPolygonMode, blend: bool, r: *const Renderer) !void {        

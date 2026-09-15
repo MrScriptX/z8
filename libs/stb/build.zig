@@ -23,5 +23,8 @@ pub fn build(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.Opti
         }
     });
 
+    module.addIncludePath(.{ .cwd_relative = "common/stb" });
+    module.addCSourceFile(.{ .file = b.path("libs/stb/src/stb_image.c"), .flags = &.{ "" } });
+
     return module;
 }

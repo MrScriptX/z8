@@ -20,7 +20,7 @@ pub const ClassificationShader = struct {
 
         c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
 
-        self.writer.deinit(self.allocator);
+        self.writer.deinit();
     }
 
     pub fn build(self: *ClassificationShader, io: std.Io, shader: []const u8, r: *const Renderer) !void {
@@ -123,7 +123,7 @@ pub const FaceCullingShader = struct {
 
         c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
 
-        self.writer.deinit(self.allocator);
+        self.writer.deinit();
     }
 
     pub fn build(self: *FaceCullingShader, io: std.Io, shader: []const u8, r: *const Renderer) !void {
@@ -216,7 +216,7 @@ pub const GreedyMeshingShader = struct {
 
         c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
 
-        self.writer.deinit(self.allocator);
+        self.writer.deinit();
     }
 
     pub fn build(self: *GreedyMeshingShader, io: std.Io, shader: []const u8, r: *Renderer) !void { 
@@ -326,7 +326,7 @@ pub const FrustrumCulling = struct {
 
         c.vkDestroyDescriptorSetLayout(r._device, self.layout, null);
 
-        self.writer.deinit(self.allocator);
+        self.writer.deinit();
     }
 
     pub fn build(self: *FrustrumCulling, io: std.Io, shader: []const u8, r: *Renderer) !void { 

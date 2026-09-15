@@ -42,7 +42,7 @@ pub const GLTFMetallic_Roughness = struct {
         return instance;
     }
 
-    pub fn deinit(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, device: c.VkDevice) void {
+    pub fn deinit(self: *GLTFMetallic_Roughness, device: c.VkDevice) void {
         c.vkDestroyPipeline(device, self.opaque_pipeline.pipeline, null);
         c.vkDestroyPipeline(device, self.transparent_pipeline.pipeline, null);
 
@@ -51,7 +51,7 @@ pub const GLTFMetallic_Roughness = struct {
         c.vkDestroyDescriptorSetLayout(device, self.material_layout, null);
 
         self.gpa.deinit();
-        self.writer.deinit(allocator);
+        self.writer.deinit();
     }
 
     pub fn build_pipeline(self: *GLTFMetallic_Roughness, allocator: std.mem.Allocator, io: std.Io, r: *renderer.Renderer) !void {

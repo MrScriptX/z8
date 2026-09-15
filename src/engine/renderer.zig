@@ -337,7 +337,7 @@ pub const Renderer = struct {
         self._draw_image_descriptor_set = self._descriptor_pool.allocate(self._device, self._draw_image_descriptor);
 
         var writer = descriptor.Writer.init(allocator);
-        defer writer.deinit(allocator);
+        defer writer.deinit();
     
         writer.write_image(0, self._draw_image.view, null, c.VK_IMAGE_LAYOUT_GENERAL, c.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
         writer.update_set(self._device, self._draw_image_descriptor_set);
@@ -641,7 +641,7 @@ pub const Renderer = struct {
         const global_descriptor = self.current_frame()._frame_descriptors.allocate(allocator, self._device, self.scene_descriptor, null);
         {
             var writer = descriptor.Writer.init(allocator);
-            defer writer.deinit(allocator);
+            defer writer.deinit();
 
             writer.write_buffer(0, gpu_scene_data_buffer.buffer, @sizeOf(scenes.ShaderData), 0, c.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
             writer.update_set(self._device, global_descriptor);
